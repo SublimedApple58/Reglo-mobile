@@ -333,11 +333,22 @@ const HotspotsMap = React.memo(function HotspotsMap({
             zIndex={1}
           />
         ))}
-        {(hotspots ?? []).map((h) => (
-          <HeatHalo key={`c-${h.key}`} lat={h.lat} lng={h.lng} k={max ? h.errors / max : 1} />
-        ))}
-        {(hotspots ?? []).map((h) => (
-          <PinTap key={`p-${h.key}`} hotspot={h} onOpen={onOpen} />
+        {/* Posti FISSI sempre montati (REG-659): al cambio periodo i figli della
+            mappa non cambiano, così iOS non perde i segnaposto ricreati. */}
+        {Array.from({ length: MAP_SLOTS }, (_, i) => {
+          const h = hotspots?.[i];
+          return (
+            <HeatHalo
+              key={`c${i}`}
+              lat={h?.lat ?? initialRegion.latitude}
+              lng={h?.lng ?? initialRegion.longitude}
+              k={h && max ? h.errors / max : 0}
+              hidden={!h}
+            />
+          );
+        })}
+        {Array.from({ length: MAP_SLOTS }, (_, i) => (
+          <PinSlot key={`p${i}`} hotspot={hotspots?.[i] ?? null} fallback={initialRegion} onOpen={onOpen} />
         ))}
       </MapView>
     </View>
@@ -359,19 +370,35 @@ function regionFor(pts: Array<{ latitude: number; longitude: number }>) {
   };
 }
 
-/** Un solo segnaposto: il fumetto col simbolo dell'errore, punta sul punto, alone sotto. */
-const PinTap = React.memo(function PinTap({ hotspot, onOpen }: { hotspot: RoadHotspot; onOpen: (h: RoadHotspot) => void }) {
-  const coordinate = useMemo(() => ({ latitude: hotspot.lat, longitude: hotspot.lng }), [hotspot.lat, hotspot.lng]);
-  const press = useCallback(() => onOpen(hotspot), [onOpen, hotspot]);
+/** Punti sulla mappa: oltre questi la lista resta, la mappa no. */
+const MAP_SLOTS = 12;
+
+/** Un posto fisso per un segnaposto: vuoto = nascosto sul centro. */
+const PinSlot = React.memo(function PinSlot({
+  hotspot,
+  fallback,
+  onOpen,
+}: {
+  hotspot: RoadHotspot | null;
+  fallback: { latitude: number; longitude: number };
+  onOpen: (h: RoadHotspot) => void;
+}) {
+  const lat = hotspot?.lat ?? fallback.latitude;
+  const lng = hotspot?.lng ?? fallback.longitude;
+  const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
+  const press = useCallback(() => {
+    if (hotspot) onOpen(hotspot);
+  }, [onOpen, hotspot]);
   return (
     <RoadMarkerPin
       coordinate={coordinate}
-      kind={hotspot.kind}
-      label={hotspot.label}
+      kind={hotspot?.kind ?? 'altro'}
+      label={hotspot?.label ?? ''}
       small
       sentiment="bad"
       dot={false}
-      onPress={press}
+      hidden={!hotspot}
+      onPress={hotspot ? press : undefined}
     />
   );
 });
@@ -420,7 +447,8 @@ const HotspotRow = React.memo(function HotspotRow({
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   // Foglio bianco che sale sulla copertina (REG-659: copertina elastica).
-  sheet: { ...stretchyPanel },
+  // Solo l'ombra verso l'alto: l'anello da 1 px disegnava una linea sotto l'intestazione.
+  sheet: { ...stretchyPanel, boxShadow: [{ offsetX: 0, offsetY: -10, blurRadius: 28, spreadDistance: -14, color: 'rgba(17,17,17,0.22)' }] },
   panel: { paddingTop: 24, paddingHorizontal: H_PAD + 4 },
   foot: { paddingBottom: 28 },
   emptyCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 24 },
