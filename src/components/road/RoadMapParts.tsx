@@ -261,14 +261,14 @@ const car = StyleSheet.create({
  * react-native-maps sulla New Architecture il cerchio non si disegnava.
  */
 /** Anelli sovrapposti dell'alone: sommati fanno una sfumatura radiale morbida. */
-const HALO_RINGS = 12;
+const HALO_RINGS = 24;
 
 export const HeatHalo = React.memo(function HeatHalo({ lat, lng, k, hidden = false }: { lat: number; lng: number; k: number; hidden?: boolean }) {
   const [laid, setLaid] = useState(false);
   const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
   const size = Math.round(84 + 64 * k);
   // Ogni anello è tenue (bordo quasi invisibile); al centro si sommano tutti.
-  const alpha = (0.03 + 0.03 * k).toFixed(3);
+  const alpha = (0.016 + 0.016 * k).toFixed(3);
   return (
     <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!laid} zIndex={1} opacity={hidden ? 0 : 1}>
       <View pointerEvents="none" onLayout={() => setLaid(true)} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
