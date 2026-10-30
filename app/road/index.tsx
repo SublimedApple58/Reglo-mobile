@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView from 'react-native-maps';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,6 +104,14 @@ export default function RoadScreen() {
   const [panelH, setPanelH] = useState(170);
   const [ending, setEnding] = useState(false);
   const now = useNow(15_000);
+  // REG-673: chiudendo e riaprendo il telefono durante la guida l'auto spariva
+  // (traccia e dati continuavano). Lo stato JS resta giusto: è la vista nativa
+  // del marker (Apple Maps, layer rasterizzato) che in background si perde e non
+  // torna. Al ritorno in primo piano il marker si rimonta da zero (nuova key,
+  // resta l'ultimo figlio della mappa) e la camera si rimette sull'auto.
+  const [carEpoch, setCarEpoch] = useState(0);
+  const followingRef = useRef(following);
+  followingRef.current = following;
 
   const session = st.session;
   const lesson = session?.lesson ?? null;
@@ -146,6 +154,26 @@ export default function RoadScreen() {
       { duration: 900 },
     );
   }, [fix, following]);
+
+  useEffect(() => {
+    let prev = AppState.currentState;
+    const sub = AppState.addEventListener('change', (next) => {
+      const back = next === 'active' && prev !== 'active';
+      prev = next;
+      if (!back) return;
+      setCarEpoch((n) => n + 1);
+      const f = roadStore.get().fix;
+      if (!followingRef.current || !f) return;
+      mapRef.current?.setCamera({
+        center: { latitude: f.lat, longitude: f.lng },
+        heading: f.heading ?? camHeading.current,
+        pitch: PITCH,
+        altitude: ALTITUDE,
+        zoom: ZOOM,
+      });
+    });
+    return () => sub.remove();
+  }, []);
 
   // Prima del primo punto del tracking: centra sull'ultima posizione nota.
   useEffect(() => {
@@ -354,7 +382,7 @@ export default function RoadScreen() {
         <RoadTrack coordinates={coords} />
         {pins}
         {fix ? (
-          <RoadCarMarker coordinate={{ latitude: fix.lat, longitude: fix.lng }} rotation={carRotation} color={lesson.carColor} />
+          <RoadCarMarker key={`car-${carEpoch}`} coordinate={{ latitude: fix.lat, longitude: fix.lng }} rotation={carRotation} color={lesson.carColor} />
         ) : null}
       </MapView>
 

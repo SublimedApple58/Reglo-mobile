@@ -117,7 +117,16 @@ export default function RoadGiroSheet() {
 
   const [draft, setDraft] = useState<RoadPlanStop[] | null>(null);
   const stops = draft ?? baseOrdered;
-  const dirty = draft !== null;
+  // Dopo un salvataggio riuscito la bozza resta a schermo (niente salto alla
+  // lista di prima) ma non conta più come modifica: il foglio si chiude da sé.
+  const [closing, setClosing] = useState(false);
+  const dirty = draft !== null && !closing;
+  // La chiusura parte DOPO il render con `dirty` falso: chiamando router.back()
+  // nello stesso giro di setState, il blocco «modifiche non salvate» era ancora
+  // attivo e chiedeva «Vuoi uscire senza salvare?» su un giro già salvato.
+  useEffect(() => {
+    if (closing) router.back();
+  }, [closing, router]);
   const [step, setStep] = useState<'edit' | 'add'>('edit');
   const [busy, setBusy] = useState<'save' | 'reset' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -196,9 +205,7 @@ export default function RoadGiroSheet() {
     try {
       await savePlanOverride(sel.appointmentId, { stops: draft, minutes: minutes ?? plan?.minutes ?? 0 });
       setOn(true);
-      setDraft(null);
-      setBusy(null);
-      router.back();
+      setClosing(true);
     } catch {
       setBusy(null);
       setError('Non sono riuscito a salvare il giro. Controlla la connessione e riprova.');

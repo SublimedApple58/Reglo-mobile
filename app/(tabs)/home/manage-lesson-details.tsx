@@ -185,7 +185,11 @@ export default function ManageLessonDetailsScreen() {
   }
 
   const { isDetailsEditable, onSaveDetails } = data;
-  const editable = isDetailsEditable && !saving;
+  const editable = isDetailsEditable;
+  // Durante il salvataggio (e mentre il foglio si chiude dopo un salvataggio
+  // riuscito) si blocca SOLO l'input: l'aspetto resta quello modificabile, se no
+  // stelline e testi passavano alla variante in sola lettura e il foglio «saltava».
+  const locked = saving;
   // REG-638: aperto da Reglo Road = solo pagellino, CTA nera.
   const road = data.road ?? null;
   const showEsito = data.showEsito === true && !road;
@@ -212,7 +216,7 @@ export default function ManageLessonDetailsScreen() {
 
 
   const handleSave = async () => {
-    if (!editable) return;
+    if (!editable || locked) return;
     const nextRows = evalRows
       .filter((item) => legacyNa[item.id] || scores[item.id] != null)
       .map((item) =>
@@ -227,8 +231,9 @@ export default function ManageLessonDetailsScreen() {
             notApplicable ? { itemId, score: null, notApplicable: true } : { itemId, score },
           );
     setSaving(true);
+    let ok = false;
     try {
-      const ok = await onSaveDetails({
+      ok = await onSaveDetails({
         lessonTypes: types,
         notes,
         esito,
@@ -237,10 +242,14 @@ export default function ManageLessonDetailsScreen() {
         // l'array VUOTO resta un segnale valido, ed è come si svuota davvero.
         evaluations: evalChangedPayload,
       });
-      if (ok) router.back();
     } finally {
-      setSaving(false);
+      // Riuscito: `saving` resta vero fino allo smontaggio. Se tornasse falso
+      // qui, `dirty` (confronta con i valori caricati) ridiventerebbe vero mentre
+      // il form sheet si chiude: il blocco nativo annullava la chiusura e
+      // compariva «Vuoi uscire senza salvare?» su un pagellino già salvato.
+      if (!ok) setSaving(false);
     }
+    if (ok) router.back();
   };
 
   // Modifiche non salvate (tipo, note, esito, pagellino): chiudendo il foglio
@@ -254,13 +263,14 @@ export default function ManageLessonDetailsScreen() {
   );
   const dirty =
     editable &&
+    !locked &&
     (typesKey(types) !== typesKey(resolveInitialLessonTypes(lesson)) ||
       notes !== (lesson.notes ?? '') ||
       esito !== outcomeFromStatus(lesson.status) ||
       currentEvalKey !== savedEvalKey);
 
   const toggleType = (value: string) => {
-    if (!editable) return;
+    if (!editable || locked) return;
     setTypes((prev) => {
       if (prev.includes(value)) {
         const next = prev.filter((t) => t !== value);
@@ -279,6 +289,7 @@ export default function ManageLessonDetailsScreen() {
       subtitle={road ? road.subtitle : 'Tipo, pagellino e note di questa guida.'}
       testID={road ? 'road-pagellino-sheet' : 'lesson-details-sheet'}
       dirty={dirty}
+      busy={saving}
       cta={
         <ClayButton
           title="Salva"
@@ -327,14 +338,14 @@ export default function ManageLessonDetailsScreen() {
                 <ClayList>
                   <ClayListRow
                     title="Presente"
-                    onPress={editable ? () => setEsito((e) => (e === 'checked_in' ? null : 'checked_in')) : undefined}
+                    onPress={editable && !locked ? () => setEsito((e) => (e === 'checked_in' ? null : 'checked_in')) : undefined}
                     chevron={false}
                     trailing={esito === 'checked_in' ? check : null}
                     testID="lesson-esito-presente"
                   />
                   <ClayListRow
                     title="Assente"
-                    onPress={editable ? () => setEsito((e) => (e === 'no_show' ? null : 'no_show')) : undefined}
+                    onPress={editable && !locked ? () => setEsito((e) => (e === 'no_show' ? null : 'no_show')) : undefined}
                     chevron={false}
                     trailing={esito === 'no_show' ? check : null}
                     testID="lesson-esito-assente"
@@ -431,6 +442,7 @@ export default function ManageLessonDetailsScreen() {
                               onChange={
                                 editable
                                   ? (next) => {
+                                      if (locked) return;
                                       setScores((prev) => {
                                         const copy = { ...prev };
                                         // Ritoccare la stellina già scelta svuota il
