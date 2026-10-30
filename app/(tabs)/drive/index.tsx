@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { InteractionManager, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { InteractionManager, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,7 @@ import Animated from 'react-native-reanimated';
 import { regloApi } from '../../../src/services/regloApi';
 import type { RoadFreeOptions, RoadHotspot, RoadLesson, RoadRecentSession } from '../../../src/types/regloApi';
 import { prefetchLessonPlan, prefetchPlan, setPlanOrigin } from '../../../src/road/planStore';
-import { HeatHalo, RoadCarMarker, RoadMarkerPin } from '../../../src/components/road/RoadMapParts';
+import { HeatHalo, HotspotPin, RoadCarMarker } from '../../../src/components/road/RoadMapParts';
 import { RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
 import { headquartersPrompt } from '../../../src/road/headquartersPrompt';
@@ -32,7 +32,8 @@ import {
 import { markerArt, ROAD_ASSETS } from '../../../src/road/markerArt';
 import { InboxBellButton } from '../../../src/components/InboxBellButton';
 import { CLAY, CLAY_SHADOW } from '../../../src/theme';
-import { ClayButton, ClayList, ClayListRow, Icon3D, PlayGlyph } from '../../../src/components/clay';
+import { ClayButton, ClayIconButton, ClayList, ClayListRow, Icon3D, PlayGlyph } from '../../../src/components/clay';
+import { Ionicons } from '@expo/vector-icons';
 import { StretchyCover, StretchySpacer, stretchyPanel, useStretchyCover, COVER_OVERLAP } from '../../../src/components/clay/StretchyCover';
 import { ClayNavBar, NAV_BAR_H } from '../../../src/components/ClayLargeTitle';
 import { RoadPressable } from '../../../src/components/road/RoadPressable';
@@ -222,6 +223,12 @@ export default function RoadTab() {
   const hotspotData = hotspotsStore.list(DEFAULT_HOTSPOT_PERIOD);
   const hotspots = hotspotData?.hotspots ?? null;
 
+  // REG-666: la copertina si tocca (o «espandi») e apre la mappa dei punti critici.
+  const openHotspotsMap = useCallback(() => {
+    Haptics.selectionAsync().catch(() => undefined);
+    router.push(HOTSPOTS_ROUTE as never);
+  }, [router]);
+
   const coverBase = Math.round(height * 0.4);
   const stretch = useStretchyCover({ base: coverBase, viewportHeight: height, bottomInset: barOverlap });
   const bell = useMemo(() => <InboxBellButton />, []);
@@ -244,7 +251,18 @@ export default function RoadTab() {
         showsVerticalScrollIndicator={false}
         testID="road-tab"
       >
-        <StretchySpacer style={stretch.spacerStyle} />
+        <Pressable onPress={hotspots?.length ? openHotspotsMap : undefined} testID="road-cover-tap">
+          <StretchySpacer style={stretch.spacerStyle} />
+          {hotspots?.length ? (
+            <ClayIconButton
+              icon={<Ionicons name="expand-outline" size={18} color={CLAY.ink} />}
+              onPress={openHotspotsMap}
+              accessibilityLabel="Apri la mappa dei punti critici"
+              style={s.expand}
+              testID="road-cover-expand"
+            />
+          ) : null}
+        </Pressable>
         <View style={[stretchyPanel, s.panel]} onLayout={stretch.onPanelLayout} testID="road-tab-panel">
           <Text style={s.title}>Road</Text>
           <Text style={s.sub} numberOfLines={1}>
@@ -425,7 +443,8 @@ const RecentSection = React.memo(function RecentSection({
 });
 
 /** Distanza in km (equirettangolare: basta per dire «stessa zona»). */
-const NEAR_KM = 15;
+/** Copertina: i punti entro questa distanza dal più segnalato (REG-666). */
+const COVER_ZONE_KM = 4;
 function kmBetween(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
   const x = (b.longitude - a.longitude) * Math.cos(((a.latitude + b.latitude) / 2) * (Math.PI / 180));
   const y = b.latitude - a.latitude;
@@ -441,8 +460,8 @@ function regionFor(pts: Array<{ latitude: number; longitude: number }>) {
   return {
     latitude: (minLat + maxLat) / 2 - Math.max(maxLat - minLat, 0.006) * 0.12,
     longitude: (minLng + maxLng) / 2,
-    latitudeDelta: Math.max((maxLat - minLat) * 2.2, 0.014),
-    longitudeDelta: Math.max((maxLng - minLng) * 2.2, 0.014),
+    latitudeDelta: Math.max((maxLat - minLat) * 1.8, 0.012),
+    longitudeDelta: Math.max((maxLng - minLng) * 1.8, 0.012),
   };
 }
 
@@ -470,12 +489,16 @@ const RoadHomeMap = React.memo(function RoadHomeMap({
   const shown = useMemo(() => (hotspots ?? []).slice(0, COVER_HOTSPOTS), [hotspots]);
   const max = shown.reduce((m, h) => Math.max(m, h.errors), 0);
   const target = useMemo(() => {
-    // I punti critici comandano; la sede entra solo se è nella stessa zona
-    // (entro 15 km): una sede lontana allargherebbe la mappa a una regione.
-    const pts = shown.map((h) => ({ latitude: h.lat, longitude: h.lng }));
-    if (hq && (!pts.length || pts.some((p) => kmBetween(p, { latitude: hq.lat, longitude: hq.lng }) <= NEAR_KM))) {
-      pts.push({ latitude: hq.lat, longitude: hq.lng });
-    }
+    // REG-666 (QA 30/10: «copertina troppo lontana, pallini minuscoli»): si
+    // inquadra la zona del punto più segnalato, cioè i punti entro 4 km da
+    // lui; gli altri restano nella mappa grande. Senza punti: sede e posizione.
+    const head = shown[0];
+    const pts = head
+      ? shown
+          .map((h) => ({ latitude: h.lat, longitude: h.lng }))
+          .filter((p) => kmBetween(p, { latitude: head.lat, longitude: head.lng }) <= COVER_ZONE_KM)
+      : [];
+    if (!pts.length && hq) pts.push({ latitude: hq.lat, longitude: hq.lng });
     if (!pts.length && pos) pts.push(pos);
     return regionFor(pts);
   }, [shown, hq, pos]);
@@ -525,14 +548,13 @@ const RoadHomeMap = React.memo(function RoadHomeMap({
       {Array.from({ length: COVER_HOTSPOTS }, (_, i) => {
         const h = shown[i];
         return (
-          <RoadMarkerPin
+          <HotspotPin
             key={`p${i}`}
             coordinate={{ latitude: h?.lat ?? center.latitude, longitude: h?.lng ?? center.longitude }}
             kind={h?.kind ?? 'altro'}
-            label={h?.label ?? ''}
-            small
-            sentiment="bad"
-            dot={false}
+            name={h?.label ?? ''}
+            errors={h?.errors ?? 0}
+            size={46}
             hidden={!h}
           />
         );
@@ -575,6 +597,8 @@ const s = StyleSheet.create({
   sectionTitleAlone: { marginBottom: 12, paddingHorizontal: 2 },
   link: { fontSize: 15, fontWeight: '500', color: CLAY.ink, textDecorationLine: 'underline' },
   count: { fontSize: 16, fontWeight: '600', color: CLAY.ink, fontVariant: ['tabular-nums'] },
+  // «Espandi» sulla copertina, in basso a destra sopra il bordo del foglio.
+  expand: { position: 'absolute', right: 16, bottom: 14 },
   hq: { alignItems: 'center', gap: 4 },
   hqIc: { width: 26, height: 26, borderRadius: 13, backgroundColor: CLAY.surface, alignItems: 'center', justifyContent: 'center' },
   hqDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CLAY.ink },

@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, InteractionManager, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, InteractionManager, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import MapView from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
 import type { RoadHotspot, RoadHotspotDetail } from '../types/regloApi';
 import { FormSheet } from '../components/SheetScaffold';
-import { Avatar, ClayList, ClayListRow, ClayStat, Icon3D } from '../components/clay';
+import { Avatar, ClayIconButton, ClayList, ClayListRow, ClayStat, Icon3D } from '../components/clay';
+import { HeatHalo, HotspotPin } from '../components/road/RoadMapParts';
 import { SkeletonBlock } from '../components/Skeleton';
 import { markerArt } from '../road/markerArt';
 import { ROAD_FADE_IN } from '../road/motion';
@@ -14,6 +17,7 @@ import { dayLabel, formatHm } from '../road/format';
 import { roadRouteMapStore } from '../road/routeMapStore';
 import {
   HOTSPOT_PERIODS,
+  hotspotMapStore,
   hotspotSheetStore,
   hotspotsStore,
   loadHotspotDetail,
@@ -26,6 +30,7 @@ import { CLAY } from '../theme';
 /** Il foglio abbraccia il contenuto: oltre, «e altri N». */
 const MAX_STUDENTS = 5;
 const MAX_SESSIONS = 5;
+const MAP_ROUTE = '/(tabs)/drive/punti-critici';
 
 const errorsLabel = (n: number) => (n === 1 ? '1 errore' : `${n} errori`);
 
@@ -76,6 +81,20 @@ export default function RoadHotspotSheet() {
     [opening, router],
   );
 
+  // REG-666: la miniatura apre la mappa grande centrata qui. Se la mappa è
+  // già aperta sotto questo foglio ci si torna; se no la si apre al suo posto.
+  const openMap = useCallback(() => {
+    if (!sel) return;
+    Haptics.selectionAsync().catch(() => undefined);
+    if (hotspotMapStore.mounted()) {
+      hotspotMapStore.focus(sel.key);
+      router.back();
+    } else {
+      hotspotMapStore.focus(sel.key);
+      router.replace(MAP_ROUTE as never);
+    }
+  }, [router, sel]);
+
   if (!sel || !hotspot) {
     return (
       <FormSheet title="Punto critico" testID="hotspot-sheet">
@@ -95,6 +114,7 @@ export default function RoadHotspotSheet() {
     >
       {/* Senza CTA il foglio flottante di iOS aggiunge già il suo spazio sotto: si stringe sul contenuto. */}
       <View style={s.trim}>
+      <HotspotMiniMap hotspot={hotspot} onPress={openMap} />
       <View style={s.stats}>
         <ClayStat value={hotspot.errors} label="Errori" />
         <ClayStat value={hotspot.students} label="Allievi" />
@@ -126,6 +146,49 @@ export default function RoadHotspotSheet() {
     </FormSheet>
   );
 }
+
+/**
+ * Dov'è il punto (QA 30/10: «non si vede dov'è»): una mappa sola, ferma, sul
+ * punto e le strade intorno. Tocco o «espandi» = mappa grande navigabile.
+ */
+const HotspotMiniMap = React.memo(function HotspotMiniMap({ hotspot, onPress }: { hotspot: RoadHotspot; onPress: () => void }) {
+  const region = useMemo(
+    () => ({ latitude: hotspot.lat, longitude: hotspot.lng, latitudeDelta: 0.0055, longitudeDelta: 0.0055 }),
+    [hotspot.lat, hotspot.lng],
+  );
+  const coordinate = useMemo(() => ({ latitude: hotspot.lat, longitude: hotspot.lng }), [hotspot.lat, hotspot.lng]);
+  return (
+    <Pressable onPress={onPress} style={s.mini} accessibilityRole="button" accessibilityLabel="Apri sulla mappa" testID="hotspot-sheet-map">
+      <View style={s.miniClip} pointerEvents="none">
+        <MapView
+          style={StyleSheet.absoluteFill}
+          initialRegion={region}
+          mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+          showsPointsOfInterest={false}
+          showsBuildings={false}
+          showsCompass={false}
+          showsScale={false}
+          toolbarEnabled={false}
+          scrollEnabled={false}
+          zoomEnabled={false}
+          rotateEnabled={false}
+          pitchEnabled={false}
+          liteMode={Platform.OS === 'android'}
+          userInterfaceStyle="light"
+        >
+          <HeatHalo lat={hotspot.lat} lng={hotspot.lng} k={1} />
+          <HotspotPin coordinate={coordinate} kind={hotspot.kind} name={hotspot.label} errors={hotspot.errors} size={44} />
+        </MapView>
+      </View>
+      <ClayIconButton
+        icon={<Ionicons name="expand-outline" size={16} color={CLAY.ink} />}
+        onPress={onPress}
+        accessibilityLabel="Apri sulla mappa"
+        style={s.miniExpand}
+      />
+    </Pressable>
+  );
+});
 
 const DetailBody = React.memo(function DetailBody({
   detail,
@@ -195,7 +258,10 @@ const DetailBody = React.memo(function DetailBody({
 
 const s = StyleSheet.create({
   trim: { marginBottom: -22 },
-  stats: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  stats: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  mini: { height: 150, marginTop: 4 },
+  miniClip: { ...StyleSheet.absoluteFillObject, borderRadius: 20, overflow: 'hidden', backgroundColor: '#F2F1EE' },
+  miniExpand: { position: 'absolute', top: 10, right: 10 },
   caption: { fontSize: 13, color: CLAY.ink3, marginTop: 10 },
   exam: { fontSize: 15, fontWeight: '500', color: CLAY.ink, marginTop: 14 },
   section: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, marginTop: 24 },

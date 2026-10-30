@@ -1,2 +1,2 @@
-// REG-646: punti critici dell'autoscuola nella tab Road.
-export { default } from '../../../src/screens/RoadHotspotsScreen';
+// REG-646 → REG-666: punti critici dell'autoscuola a tutto schermo (mappa + lista collegata).
+export { default } from '../../../src/screens/RoadHotspotsMapScreen';

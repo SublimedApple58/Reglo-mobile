@@ -157,3 +157,33 @@ export const hotspotSheetStore = {
   },
   get: () => selected,
 };
+
+/**
+ * REG-666 — mappa a tutto schermo dei punti critici: quale punto inquadrare.
+ * Chi apre la mappa (miniatura del dettaglio, copertina) chiede un punto con
+ * `focus`; se la mappa è già aperta sotto il foglio lo riceve subito, se no lo
+ * prende all'apertura con `take`.
+ */
+let mapFocus: string | null = null;
+let mapMounted = false;
+const mapListeners = new Set<(key: string) => void>();
+export const hotspotMapStore = {
+  focus(key: string) {
+    mapFocus = key;
+    mapListeners.forEach((fn) => fn(key));
+  },
+  take() {
+    const k = mapFocus;
+    mapFocus = null;
+    return k;
+  },
+  mounted: () => mapMounted,
+  subscribe(fn: (key: string) => void) {
+    mapListeners.add(fn);
+    mapMounted = true;
+    return () => {
+      mapListeners.delete(fn);
+      mapMounted = mapListeners.size > 0;
+    };
+  },
+};

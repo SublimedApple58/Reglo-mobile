@@ -326,7 +326,8 @@ export const HeatHalo = React.memo(function HeatHalo({ lat, lng, k, hidden = fal
   const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
   const size = Math.round(84 + 64 * k);
   // Ogni anello è tenue (bordo quasi invisibile); al centro si sommano tutti.
-  const alpha = (0.016 + 0.016 * k).toFixed(3);
+  // REG-666: più leggeri (QA 30/10: «aloni troppo pesanti»), il simbolo conta di più.
+  const alpha = (0.009 + 0.011 * k).toFixed(3);
   return (
     <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!laid} zIndex={1} opacity={hidden ? 0 : 1}>
       <View pointerEvents="none" onLayout={() => setLaid(true)} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -344,3 +345,85 @@ export const HeatHalo = React.memo(function HeatHalo({ lat, lng, k, hidden = fal
   );
 });
 
+
+/**
+ * REG-666 — segnaposto di un punto critico: disco bianco in rilievo con il
+ * simbolo 3D dell'errore (niente fumetto rosso). Scelto: disco più grande con
+ * l'anello nero e sopra l'etichetta «Pedoni 43». Posto fisso vuoto = `hidden`.
+ */
+export const HotspotPin = React.memo(function HotspotPin({
+  coordinate,
+  kind,
+  name,
+  errors,
+  selected = false,
+  size = 44,
+  hidden = false,
+  onPress,
+}: {
+  coordinate: LatLng;
+  kind: string;
+  /** Nome breve dell'errore («Pedoni»), solo nell'etichetta del punto scelto. */
+  name: string;
+  errors: number;
+  selected?: boolean;
+  size?: number;
+  hidden?: boolean;
+  onPress?: () => void;
+}) {
+  const tracksViewChanges = useTracksViewChanges([kind, name, errors, selected ? 1 : 0, size]);
+  const d = selected ? Math.round(size * 1.22) : size;
+  const tagH = selected ? HP_TAG_H + HP_TAG_GAP : 0;
+  // Il centro del disco sta sul punto.
+  const height = tagH + d + 6;
+  return (
+    <Marker
+      coordinate={coordinate}
+      anchor={{ x: 0.5, y: (tagH + d / 2 + 3) / height }}
+      centerOffset={{ x: 0, y: -(tagH + d / 2 + 3 - height / 2) }}
+      tracksViewChanges={tracksViewChanges}
+      zIndex={selected ? 9 : 4}
+      opacity={hidden ? 0 : 1}
+      onPress={hidden ? undefined : onPress}
+    >
+      <View style={[hp.wrap, { height }]} pointerEvents="none">
+        {selected ? (
+          <View style={hp.tag}>
+            <Text style={hp.tagTx} numberOfLines={1}>
+              {name}
+              <Text style={hp.tagNum}>  {errors}</Text>
+            </Text>
+          </View>
+        ) : null}
+        <View style={[hp.disc, { width: d, height: d, borderRadius: d / 2 }, selected && hp.discSel]}>
+          <Image source={markerArt(kind)} style={{ width: d * 0.68, height: d * 0.68 }} resizeMode="contain" />
+        </View>
+      </View>
+    </Marker>
+  );
+});
+
+const HP_TAG_H = 30;
+const HP_TAG_GAP = 6;
+
+const hp = StyleSheet.create({
+  wrap: { alignItems: 'center', justifyContent: 'flex-start', paddingTop: 3, paddingHorizontal: 8 },
+  disc: {
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 1px 2px rgba(0,0,0,0.10), 0px 5px 12px rgba(0,0,0,0.18)',
+  },
+  discSel: { borderWidth: 3, borderColor: '#111111' },
+  tag: {
+    height: HP_TAG_H,
+    marginBottom: HP_TAG_GAP,
+    paddingHorizontal: 12,
+    borderRadius: HP_TAG_H / 2,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    boxShadow: '0px 1px 2px rgba(0,0,0,0.08), 0px 6px 14px rgba(0,0,0,0.16)',
+  },
+  tagTx: { fontSize: 14, fontWeight: '600', color: '#111111', letterSpacing: -0.1 },
+  tagNum: { fontWeight: '500', color: '#6A6A6A' },
+});
