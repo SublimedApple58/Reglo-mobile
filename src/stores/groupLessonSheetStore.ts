@@ -9,6 +9,10 @@
 export type GroupLessonSheetData = {
   /** ISO string of the day the sheet opens on (default lesson date). */
   initialDate: string;
+  /** REG-671: durata del blocco fantasma (l'orario sta già in `initialDate`). */
+  presetDurationMinutes?: number;
+  /** REG-671: titolare senza profilo istruttore → sceglie l'istruttore. */
+  instructorOptions?: { id: string; name: string }[];
   /** After the create succeeds: refresh the parent's agenda from the BE. */
   onApplied: () => Promise<void>;
   /** Success toast after the group lesson is created. */

@@ -33,7 +33,8 @@ import { lessonInvolvesInstructor, unionCoInstructors } from '../utils/coInstruc
 import { groupOutOfAvailability } from '../utils/outOfAvailability';
 import { ScrubBubble } from '../components/BookableBand';
 import { requestRoadCheck } from '../road/entryFlow';
-import WeeklyAgendaView from '../components/WeeklyAgendaView';
+import WeeklyAgendaView, { type AgendaCreateKind, type AgendaCreateSlot } from '../components/WeeklyAgendaView';
+import type { BookingSuggestion } from '../stores/bookingSheetStore';
 import { ClaySurface } from '../components/clay';
 import { AgendaTodayCard } from '../components/agenda/AgendaTodayCard';
 import { VITA_ART, greetingFor } from '../theme/vitaArt';
@@ -723,6 +724,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       // Luogo di default (REG-392): precompila il Luogo alla selezione dell'allievo.
       defaultLocationId: student.defaultLocationId ?? null,
       defaultLocationName: student.defaultLocationName ?? null,
+      assignedInstructorId: student.assignedInstructorId ?? null,
     });
     if (!clustersActive) {
       // No cluster lock \u2014 all students are equivalent
@@ -1852,22 +1854,128 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     router.push('/(tabs)/home/new-booking');
   }, [canInstructorBook, seedBookingStore, selectedDate, router]);
 
-  // Opens the native quick-book sheet (Airbnb segmented: Prenota guida / Blocca
-  // slot) preset to a start within a free window. Seeds the SAME stores the
-  // dedicated routes use, so the embedded forms are identical.
-  const openQuickBookSheet = useCallback((date: Date, startMinutes: number, windowStart: number, windowEnd: number, durationMinutes?: number) => {
-    if (!canInstructorBook) {
-      setToast({ text: 'La prenotazione da app è abilitata solo per allievi.', tone: 'info' });
+  /* ── REG-671: creazione dal blocco fantasma dell'agenda ──
+   * La card sotto il fantasma offre i tipi; il tocco apre il foglio del tipo
+   * con giorno, inizio e durata del fantasma. Tutto è già in memoria (allievi,
+   * veicoli, suggeriti calcolati dall'agenda): nessuna chiamata al tocco. A
+   * creazione riuscita il fantasma sparisce (`ghostResetKey`). */
+  const [ghostResetKey, setGhostResetKey] = useState(0);
+
+  // Titolare senza profilo istruttore: la lista per scegliere l'istruttore,
+  // caricata all'apertura dell'agenda (mai al tocco).
+  useEffect(() => {
+    if (!ownerMode || instructorList.length > 0 || instructorListLoading) return;
+    setInstructorListLoading(true);
+    regloApi.getInstructors()
+      .then((l) => setInstructorList(l ?? []))
+      .catch(() => { /* senza lista il foglio chiede comunque l'istruttore */ })
+      .finally(() => setInstructorListLoading(false));
+  }, [ownerMode, instructorList.length, instructorListLoading]);
+  const ownerInstructorOptions = useMemo(
+    () => (ownerMode
+      ? instructorList.filter((i) => i.status !== 'inactive').map((i) => ({ id: i.id, name: i.name }))
+      : undefined),
+    [ownerMode, instructorList],
+  );
+
+  // Allievi suggeriti in «Con chi guidi?»: dalle guide già caricate. Prima chi
+  // ha l'esame vicino, poi chi ha guidato con te e non ha guide in agenda, poi
+  // chi ha guidato con te di recente. Al massimo tre.
+  const bookingSuggestions = useMemo((): BookingSuggestion[] => {
+    const bookable = new Set(bookingStudentOptions.map((o) => o.value));
+    const nowMs = Date.now();
+    const DAY = 86400000;
+    const me = effectiveInstructorId ?? null;
+    const exam = new Map<string, number>();
+    const last = new Map<string, number>();
+    const future = new Set<string>();
+    for (const a of appointments) {
+      const status = (a.status ?? '').trim().toLowerCase();
+      if (status === 'cancelled' || !a.studentId || !bookable.has(a.studentId)) continue;
+      const t = new Date(a.startsAt).getTime();
+      if (a.type === 'esame') {
+        if (t > nowMs && t - nowMs < 21 * DAY) exam.set(a.studentId, Math.min(exam.get(a.studentId) ?? Infinity, t));
+        continue;
+      }
+      if (a.type === 'group_lesson') continue;
+      if (t > nowMs) future.add(a.studentId);
+      else if (!me || a.instructorId === me) last.set(a.studentId, Math.max(last.get(a.studentId) ?? 0, t));
+    }
+    const out: BookingSuggestion[] = [];
+    const seen = new Set<string>();
+    const add = (id: string, reason: string) => {
+      if (seen.has(id) || out.length >= 3) return;
+      seen.add(id);
+      out.push({ id, reason });
+    };
+    [...exam.entries()].sort((x, y) => x[1] - y[1]).forEach(([id, t]) =>
+      add(id, `Esame il ${new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}`));
+    [...last.entries()].filter(([id]) => !future.has(id)).sort((x, y) => x[1] - y[1]).forEach(([id, t]) => {
+      const days = Math.floor((nowMs - t) / DAY);
+      add(id, days >= 2 ? `Senza guide da ${days} giorni` : 'Nessuna guida in agenda');
+    });
+    [...last.entries()].sort((x, y) => y[1] - x[1]).forEach(([id, t]) => {
+      const d = new Date(t);
+      const days = Math.floor((nowMs - t) / DAY);
+      const when = days < 1 ? 'oggi' : days < 6 ? d.toLocaleDateString('it-IT', { weekday: 'long' }) : `il ${d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}`;
+      add(id, `Ha guidato con te ${when}`);
+    });
+    return out;
+  }, [appointments, bookingStudentOptions, effectiveInstructorId]);
+
+  const canCreateLesson = ownerMode || canInstructorBook;
+  const createKinds = useMemo((): AgendaCreateKind[] => [
+    ...(canCreateLesson ? (['lesson'] as const) : []),
+    ...(settings?.groupLessonsEnabled === true ? (['group'] as const) : []),
+    'exam',
+    'theory',
+    'block',
+  ], [canCreateLesson, settings?.groupLessonsEnabled]);
+
+  const handleCreateAt = useCallback((kind: AgendaCreateKind, slot: AgendaCreateSlot) => {
+    const { date, startMin, durMin, outsideAvailability } = slot;
+    const at = new Date(date);
+    at.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+    const onCreated = (message: string) => {
+      setToast({ text: message, tone: 'success' });
+      setGhostResetKey((k) => k + 1);
+    };
+    if (kind === 'lesson') {
+      seedBookingStore(date, startMin, durMin);
+      const seeded = bookingSheetStore.get();
+      if (!seeded) return;
+      bookingSheetStore.set({
+        ...seeded,
+        suggestions: bookingSuggestions,
+        outsideAvailability,
+        instructorOptions: ownerInstructorOptions,
+        onDone: onCreated,
+      });
+      router.push('/(tabs)/home/quick-student');
       return;
     }
-    const preset = Math.max(windowStart, Math.min(windowEnd - 15, startMinutes));
-    // The ghost duration (free 15' steps) is carried through AS-IS. The booking
-    // (guida) form snaps it to the nearest guide duration; the block (blocca slot)
-    // form keeps it exact.
-    seedBookingStore(date, preset, durationMinutes ?? undefined);
-    seedBlockStore(date, preset, durationMinutes ?? undefined);
-    router.push('/(tabs)/home/quick-book');
-  }, [canInstructorBook, seedBookingStore, seedBlockStore, router]);
+    if (kind === 'block' || kind === 'theory') {
+      seedBlockStore(date, startMin, durMin, kind === 'theory' ? 'theory' : 'generic');
+      const seeded = blockSheetStore.get();
+      if (!seeded) return;
+      blockSheetStore.set({ ...seeded, instructorOptions: ownerInstructorOptions, onDone: onCreated });
+      router.push('/(tabs)/home/quick-block');
+      return;
+    }
+    if (kind === 'exam') {
+      examSheetStore.set({ initialDate: at.toISOString(), presetDurationMinutes: durMin, onDone: onCreated });
+      router.push('/(tabs)/home/create-exam');
+      return;
+    }
+    groupLessonSheetStore.set({
+      initialDate: at.toISOString(),
+      presetDurationMinutes: durMin,
+      instructorOptions: ownerInstructorOptions,
+      onApplied: async () => { await loadData(); },
+      onDone: onCreated,
+    });
+    router.push('/(tabs)/home/create-group-lesson');
+  }, [seedBookingStore, seedBlockStore, bookingSuggestions, ownerInstructorOptions, loadData, router]);
 
   const openExamFromAgenda = useCallback((appts: AutoscuolaAppointmentWithRelations[]) => {
     if (!appts.length) return;
@@ -2007,9 +2115,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             onPressExam={openExamFromAgenda}
             onPressGroupLesson={(groupLessonId) => openGroupLessonManage(groupLessonId)}
             onPressBlock={ownerMode ? undefined : (block) => handlePressBlock(block)}
-            onBookAt={(ownerMode || !canInstructorBook) ? undefined : (date, startMin, winStart, winEnd, durMin) => {
-              openQuickBookSheet(date, startMin, winStart, winEnd, durMin);
-            }}
+            onCreateAt={handleCreateAt}
+            createKinds={createKinds}
+            carColor={myVehicle?.color ?? null}
+            ghostIgnoresEvents={ownerMode || calendarScope === 'all'}
+            ghostResetKey={ghostResetKey}
             allowedDurations={bookingDurations}
             onGhostActiveChange={setGhostCtaActive}
           />

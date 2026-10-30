@@ -10,6 +10,8 @@
 export type ExamSheetData = {
   /** ISO string of the day the sheet opens on (default exam date). */
   initialDate: string;
+  /** REG-671: durata del blocco fantasma (l'orario sta già in `initialDate`). */
+  presetDurationMinutes?: number;
   /** Success toast after the exam is created. */
   onDone: (message: string) => void;
 };

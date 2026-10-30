@@ -5,7 +5,10 @@
  * form + the regloApi create calls. After a create succeeds it calls `onApplied`
  * (parent refreshes its agenda from the BE), then `onDone` (success toast).
  */
-export type BookingStudentOption = { value: string; label: string; subtitle: string | null; licenseCategory?: string | null; transmission?: string | null; defaultLocationId?: string | null; defaultLocationName?: string | null };
+export type BookingStudentOption = { value: string; label: string; subtitle: string | null; licenseCategory?: string | null; transmission?: string | null; defaultLocationId?: string | null; defaultLocationName?: string | null; assignedInstructorId?: string | null };
+
+/** Allievo suggerito in «Con chi guidi?» (REG-671), col motivo in una frase. */
+export type BookingSuggestion = { id: string; reason: string };
 
 export type BookingSheetData = {
   canBook: boolean;
@@ -22,6 +25,15 @@ export type BookingSheetData = {
   presetStartMinutes?: number;
   durations: number[];
   defaultDuration: number;
+  /**
+   * REG-671 (agenda → Guida): allievo scelto nel foglio «Con chi guidi?»,
+   * suggeriti col motivo, fascia fuori disponibilità (frase grigia nel
+   * riepilogo) e, per il titolare, gli istruttori fra cui scegliere.
+   */
+  presetStudentId?: string;
+  suggestions?: BookingSuggestion[];
+  outsideAvailability?: boolean;
+  instructorOptions?: { id: string; name: string }[];
   /** '' when no vehicle / vehicles disabled. */
   defaultVehicleId: string;
   /** `color` (REG-639): l'auto 3D in testa al foglio è nel colore del veicolo. */

@@ -1,4 +1,60 @@
-# Quick-book (prenotazione veloce istruttore)
+# Creazione dall'agenda — blocco fantasma (era «Quick-book»)
+
+## REG-671 (30/10/2026) — il flusso di oggi
+
+Approvato da Tiziano sulle anteprime (`/tmp/hiro-anteprime/agenda-crea/`).
+Account: istruttore, titolare-istruttore e **titolare puro** (come la web app).
+
+1. **Tocco su uno spazio libero** della Settimana → vibrazione leggera e il
+   **fantasma** compare in dissolvenza (200 ms): bordo nero pieno, velo
+   leggero, inizio e durata in testo, due maniglie tonde bianche. Tenendo
+   premuto si trascina (anche fra i giorni), con le maniglie si allunga. Un
+   tocco su un altro punto libero lo fa **scivolare lì** (220 ms, `SOFT`, niente
+   rimbalzo) tenendo la durata. Con più istruttori sulla griglia (titolare,
+   «Tutti gli istruttori") il fantasma non si ferma sugli eventi degli altri
+   (`ghostIgnoresEvents`): i conflitti li controlla il server.
+2. **Card in basso** (`GhostCreateCard` in `WeeklyAgendaView`, sopra la tab
+   bar): «Sabato 31 ottobre», «08:00 – 09:00 1 h» (seguono il fantasma dal vivo
+   anche mentre lo si trascina), X, e i tipi con il loro oggetto 3D: **Guida**
+   (auto nel colore del veicolo dell'istruttore), **Di gruppo** (solo se
+   `groupLessonsEnabled`), **Esame**, **Teoria**, **Blocca**. Guida c'è se
+   l'istruttore può prenotare (`appBookingActors`) o per il titolare. Il
+   fantasma resta sulla griglia finché la creazione non riesce
+   (`ghostResetKey`), il «+» si nasconde mentre c'è la card.
+3. **Tocco su un tipo** → `IstruttoreHomeScreen.handleCreateAt` semina lo
+   store del tipo con giorno, inizio e durata del fantasma (nessuna chiamata di
+   rete al tocco) e apre il foglio:
+   - **Guida** → `home/quick-student` «Con chi guidi?» (ricerca, «Suggeriti»
+     fino a 3, poi «Tutti»: una card sola fino a 20 allievi, oltre card per
+     lettera; `FormSheet list` = FlatList) → tocco su un allievo spinge sopra
+     `home/quick-guide` «Guida con <nome>» (`BookingForm variant="quick"`):
+     allievo (tocco = torna alla lista), Durata a stepper sulle durate
+     consentite, Istruttore (solo titolare: preimpostato all'istruttore
+     dell'allievo), Veicolo, eventuali righe moto, Luogo, Tipo; frase grigia se
+     la fascia è fuori disponibilità; CTA «Prenota guida». Stesse conferme di
+     sempre (limite settimanale, pausa, passato). A guida prenotata si chiudono
+     entrambi i fogli (`router.dismissAll()`).
+   - **Blocca / Teoria** → `home/quick-block` (`BlockForm variant="quick"`):
+     «Blocca l'orario» / «Lezione teorica», la fascia in una riga (toccandola
+     compaiono Inizio e Fine), Istruttore per il titolare, «Ripeti ogni
+     settimana» (+ quante settimane), Motivo (o Descrizione per la teoria).
+   - **Esame** → `home/create-exam` con orario e durata del fantasma
+     (`examSheetStore.presetDurationMinutes`).
+   - **Di gruppo** → `home/create-group-lesson` con orario e durata intera più
+     vicina (1–4 h); il titolare sceglie l'istruttore (`instructorOptions`).
+4. **Suggeriti** (`bookingSuggestions`, dalle guide già caricate): esame entro
+   21 giorni («Esame il 12 novembre»), chi ha guidato con te e non ha guide in
+   agenda («Senza guide da 9 giorni»), chi ha guidato con te di recente («Ha
+   guidato con te martedì»). Solo allievi in fase PRATICA.
+
+Il «+» (`home/add-action` → `new-booking`, `block-slot`, `theory-lesson`…)
+resta com'era: lì vivono anche la **prenotazione multipla** e la malattia.
+Il vecchio `home/quick-book` (segmentato «Prenota guida | Blocca orario») e la
+modalità `embedded` dei form sono stati tolti.
+
+---
+
+## Storico (fino al 30/10/2026)
 
 Prenotazione/blocco rapido dall'Agenda istruttore con l'orario già messo.
 

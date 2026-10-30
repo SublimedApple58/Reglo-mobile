@@ -94,6 +94,9 @@ export const CreateGroupLessonScreen = () => {
   useEffect(() => {
     if (!data) return;
     setStartAt(new Date(data.initialDate));
+    // REG-671: dal fantasma dell'agenda, la durata intera più vicina (1–4 ore).
+    const want = data.presetDurationMinutes;
+    if (want) setDurationMin(Math.max(60, Math.min(240, Math.round(want / 60) * 60)));
     setSelectedIds([]); setOpenInvites(true); setSaving(false);
   }, [data]);
 
@@ -161,6 +164,15 @@ export const CreateGroupLessonScreen = () => {
     optionsPickerStore.set({
       title: 'Durata', multi: false, selected: [String(durationMin)], options: DURATIONS,
       onConfirm: (vals) => { if (vals[0]) setDurationMin(Number(vals[0])); },
+    });
+    router.push(optionsPickerPath());
+  };
+  const openInstructorPicker = () => {
+    const opts = data?.instructorOptions ?? [];
+    optionsPickerStore.set({
+      title: 'Istruttore', multi: false, selected: instructorId ? [instructorId] : [],
+      options: opts.map((i) => ({ value: i.id, label: i.name })),
+      onConfirm: (vals) => { if (vals[0]) setInstructorId(vals[0]); },
     });
     router.push(optionsPickerPath());
   };
@@ -341,6 +353,15 @@ export const CreateGroupLessonScreen = () => {
             <ClayListRow title="Giorno" subtitle={fmtDay(startAt)} onPress={guard(openDatePicker)} />
             <ClayListRow title="Ora inizio" subtitle={fmtTime(startAt)} onPress={guard(openTimePicker)} />
             <ClayListRow title="Durata" subtitle={durationLabel} onPress={guard(openDurationPicker)} />
+            {/* REG-671: il titolare (senza profilo istruttore) sceglie l'istruttore. */}
+            {data?.instructorOptions?.length ? (
+              <ClayListRow
+                title="Istruttore"
+                subtitle={data.instructorOptions.find((i) => i.id === instructorId)?.name ?? 'Scegli istruttore'}
+                onPress={guard(openInstructorPicker)}
+                testID="group-instructor"
+              />
+            ) : null}
             <ClayListRow title="Capienza" subtitle={`${capacity} allievi`} onPress={guard(openCapacityPicker)} />
             {!isMoto ? (
               <ClayListRow

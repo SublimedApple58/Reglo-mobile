@@ -33,6 +33,8 @@ export type BlockSheetData = {
   presetDurationMinutes?: number;
   /** The instructor the block belongs to (for scope match). */
   instructorId: string;
+  /** REG-671: titolare senza profilo istruttore → sceglie per chi è il blocco. */
+  instructorOptions?: { id: string; name: string }[];
   /** After the create succeeds: refresh the parent's agenda from the BE. */
   onApplied: () => Promise<void>;
   /** Success toast. */

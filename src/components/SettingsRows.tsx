@@ -161,6 +161,7 @@ export const SettingStepperRow = markClayRow(function SettingStepperRow({
   min,
   max,
   onChange,
+  format,
   testID,
   ...pos
 }: ClayRowPosition & {
@@ -170,6 +171,8 @@ export const SettingStepperRow = markClayRow(function SettingStepperRow({
   min: number;
   max: number;
   onChange: (v: number) => void;
+  /** Come si legge il valore (es. un indice di durate → «1 h»). */
+  format?: (v: number) => string;
   testID?: string;
 }) {
   const step = (d: number) => {
@@ -184,7 +187,7 @@ export const SettingStepperRow = markClayRow(function SettingStepperRow({
       <View style={s.stepper}>
         <StepButton glyph="remove" disabled={value <= min} onPress={() => step(-1)} label={`Meno, ${title}`} />
         <Text style={s.stepValue} accessibilityLiveRegion="polite">
-          {value}
+          {format ? format(value) : value}
         </Text>
         <StepButton glyph="add" disabled={value >= max} onPress={() => step(1)} label={`Più, ${title}`} />
       </View>

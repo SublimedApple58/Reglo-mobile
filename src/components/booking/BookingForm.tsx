@@ -20,6 +20,7 @@ import { useLocations } from '../../hooks/queries/useLocations';
 import type { CheckInstructorBookingBatchResult, MobileBookingOptions } from '../../types/regloApi';
 import { FormSheet } from '../SheetScaffold';
 import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface, ClayToggle, markClayRow } from '../clay';
+import { SettingStepperRow, SettingValueRow } from '../SettingsRows';
 import { VITA_ART } from '../../theme/vitaArt';
 import { car34Art } from '../../road/markerArt';
 
@@ -108,16 +109,31 @@ const isoWeekStartUTC = (d: Date) => {
 };
 
 
-/* ───────── Shared booking form (used by the new-booking route + quick-book) ─────────
- * REG-639 clay: da solo è un `FormSheet` (titolo, riepilogo come sottotitolo,
- * CTA in fondo). `embedded` = dentro il FormSheet di quick-book: rende solo il
- * contenuto e, in coda, riepilogo + CTA (l'ultima cosa del foglio ospite), così
- * l'ospite tiene testata e segmentato e i due moduli si scambiano in
- * dissolvenza col `contentKey`. Righe = ClayListRow (titolo = campo,
- * sottotitolo = valore), niente icone. When the store carries
- * `presetStartMinutes` (released-scrub position), the start time is seeded to it
+/** «1 h» · «1 h 30'» · «45 min». */
+const fmtDurShort = (min: number) => {
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h} h ${m}'` : `${h} h`;
+};
+const WEEKDAY_LONG = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/* ───────── Shared booking form ─────────
+ * REG-639 clay: è un `FormSheet` (titolo, riepilogo come sottotitolo, CTA in
+ * fondo). Due varianti con la stessa logica (conferme del limite settimanale e
+ * della pausa, passato, veicoli, moto, auto al seguito):
+ * - `full` (foglio «Nuova guida» del «+»): allievo, multipla, giorno/ora/durata,
+ *   dettagli.
+ * - `quick` (REG-671, dall'agenda: fantasma → Guida → «Con chi guidi?»): il
+ *   giorno e la fascia sono già decisi dal fantasma e stanno nel sottotitolo;
+ *   l'allievo arriva scelto (`presetStudentId`), la durata è uno stepper sulle
+ *   durate consentite, poi istruttore (titolare), veicolo, luogo, tipo. Toccando
+ *   l'allievo si torna al foglio di prima; a guida prenotata si chiudono tutti.
+ * When the store carries `presetStartMinutes` the start time is seeded to it
  * instead of the current clock time. */
-export function BookingForm({ embedded = false }: { embedded?: boolean }) {
+export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }) {
+  const quick = variant === 'quick';
   const router = useRouter();
   const data = useSyncExternalStore(bookingSheetStore.subscribe, bookingSheetStore.get);
 
@@ -136,6 +152,8 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const [multiMode, setMultiMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pending, setPending] = useState(false);
+  // Titolare (REG-671): per chi è la guida. '' = l'istruttore del foglio.
+  const [pickedInstructorId, setPickedInstructorId] = useState('');
   // Prefetched so we can warn about the weekly limit *before* dismissing the
   // sheet (no flash). Reflects the CURRENT week only — bookings in other weeks
   // fall back to the background WEEKLY_LIMIT_CONFIRM handling in runOptimistic.
@@ -178,15 +196,27 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     setMultiMode(false);
     setEntries([]);
     setPending(false);
+    setPickedInstructorId('');
 
     lastSelRef.current = null;
-    if (!data.vehiclesEnabled || !data.instructorId) return;
+    // Allievo già scelto («Con chi guidi?»): lo si applica come una scelta dal
+    // picker, dopo la memoria dei veicoli (AsyncStorage, pochi ms).
+    const preset = quick ? data.presetStudentId : undefined;
+    if (!data.vehiclesEnabled || !data.instructorId) {
+      if (preset) selectStudentRef.current(preset);
+      return;
+    }
     let cancelled = false;
     void loadLastBookingSelection(data.instructorId).then((stored) => {
-      if (!cancelled) lastSelRef.current = stored;
+      if (cancelled) return;
+      lastSelRef.current = stored;
+      if (preset) selectStudentRef.current(preset);
     });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
+  // Assegnata a ogni render (sotto): la usa l'effetto qui sopra.
+  const selectStudentRef = useRef<(id: string) => void>(() => {});
 
   // Prefetch the student's weekly-limit status (current week) on selection.
   useEffect(() => {
@@ -228,7 +258,11 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
   const locationSubLabel = resolvedLocation?.address ?? locationAddress ?? null;
 
   if (!data) return <View style={s.empty} />;
-  const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, instructorId, followCarRules } = data;
+  const { vehiclesEnabled, vehicles, durations, studentOptions, defaultLocation, followCarRules } = data;
+  // Titolare: l'istruttore scelto; altrimenti quello del foglio (sé stessi).
+  const instructorOptions = data.instructorOptions ?? [];
+  const pickInstructor = instructorOptions.length > 0;
+  const instructorId = pickedInstructorId || data.instructorId;
 
   // Moto-vehicle awareness: the follow car (auto al seguito) and extra-moto
   // controls only apply when the primary vehicle is a moto.
@@ -324,30 +358,46 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     setExtraMotoVehicleIds([]);
   };
 
+  const selectStudent = (v: string) => {
+    setStudentId(v);
+    const st = studentOptions.find((o) => o.value === v);
+    if (st) presetVehiclesForStudent(st);
+    // Titolare: la guida va all'istruttore dell'allievo, se ce l'ha (come il web).
+    if (pickInstructor && st?.assignedInstructorId && instructorOptions.some((i) => i.id === st.assignedInstructorId)) {
+      setPickedInstructorId(st.assignedInstructorId);
+    }
+    // Luogo di default dell'allievo (REG-392): alla selezione precompila il
+    // Luogo col suo default, SOVRASCRIVENDO il valore corrente. Se l'allievo
+    // non ha un default, torna alla sede. Una modifica manuale successiva
+    // resta (questo scatta solo al cambio allievo).
+    if (st?.defaultLocationId) {
+      setLocationId(st.defaultLocationId);
+      setLocationName(st.defaultLocationName ?? null);
+      setLocationAddress(null);
+    } else {
+      setLocationId(defaultLocation?.id ?? null);
+      setLocationName(defaultLocation?.name ?? null);
+      setLocationAddress(defaultLocation?.address ?? null);
+    }
+  };
+  selectStudentRef.current = selectStudent;
+
   const openStudentPicker = () => {
     studentPickerStore.set({
       selectedId: studentId || null,
       options: studentOptions,
-      onSelect: (v) => {
-        setStudentId(v);
-        const st = studentOptions.find((o) => o.value === v);
-        if (st) presetVehiclesForStudent(st);
-        // Luogo di default dell'allievo (REG-392): alla selezione precompila il
-        // Luogo col suo default, SOVRASCRIVENDO il valore corrente. Se l'allievo
-        // non ha un default, torna alla sede. Una modifica manuale successiva
-        // resta (questo scatta solo al cambio allievo).
-        if (st?.defaultLocationId) {
-          setLocationId(st.defaultLocationId);
-          setLocationName(st.defaultLocationName ?? null);
-          setLocationAddress(null);
-        } else {
-          setLocationId(defaultLocation?.id ?? null);
-          setLocationName(defaultLocation?.name ?? null);
-          setLocationAddress(defaultLocation?.address ?? null);
-        }
-      },
+      onSelect: selectStudent,
     });
     router.push('/(tabs)/home/select-student');
+  };
+
+  const openInstructor = () => {
+    optionsPickerStore.set({
+      title: 'Istruttore', multi: false, selected: instructorId ? [instructorId] : [],
+      options: instructorOptions.map((i) => ({ value: i.id, label: i.name })),
+      onConfirm: (v) => setPickedInstructorId(v[0] ?? ''),
+    });
+    router.push(optionsPickerPath());
   };
 
   const openTimePicker = (current: Date, onConfirm: (date: Date) => void) => {
@@ -457,7 +507,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         // Remember this booking's vehicle choices in the kind-matching slot so
         // the next same-kind booking opens preset to them. When the follow-car
         // rule is off, the previously remembered follow car is preserved.
-        if (vehiclesEnabled && vehicleId) {
+        if (vehiclesEnabled && vehicleId && data.instructorId) {
           saveLastBookingSelection(
             data.instructorId,
             primaryIsMoto
@@ -474,7 +524,9 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
         }
         await data.onApplied();
         data.onDone(successMessage(result));
-        router.back();
+        // Quick: si chiudono insieme «Con chi guidi?» e il riepilogo.
+        if (quick) router.dismissAll();
+        else router.back();
       } catch (err: unknown) {
         const payload = (err as { payload?: Record<string, unknown> })?.payload;
         // Il BE non risponde "no": risponde "sei sicuro?". Queste NON sono
@@ -547,6 +599,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
 
   const confirmSingle = () => {
     if (!studentId) { Alert.alert('Allievo mancante', 'Seleziona un allievo.'); return; }
+    if (!instructorId) { Alert.alert('Istruttore mancante', 'Scegli con quale istruttore.'); return; }
     if (vehiclesEnabled && !vehicleId) { Alert.alert('Veicolo mancante', 'Seleziona un veicolo.'); return; }
     if (vehicleIneligible) { Alert.alert('Veicolo non idoneo', "Il veicolo selezionato non è idoneo alla patente dell'allievo."); return; }
     if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito', 'Scegli un’auto al seguito oppure "Nessuna".'); return; }
@@ -696,7 +749,7 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     submit(false);
   };
 
-  const canConfirm = !pending && !!studentId && (!vehiclesEnabled || !!vehicleId) && !vehicleIneligible && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);
+  const canConfirm = !pending && !!studentId && !!instructorId && (!vehiclesEnabled || !!vehicleId) && !vehicleIneligible && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);
 
   const summaryMain = multiMode
     ? `${entries.length} guid${entries.length === 1 ? 'a' : 'e'}`
@@ -866,17 +919,79 @@ export function BookingForm({ embedded = false }: { embedded?: boolean }) {
     />
   );
 
-  // Dentro quick-book: il foglio (testata col segmentato, X) è dell'ospite;
-  // qui solo contenuto + riepilogo + CTA, che restano l'ultima cosa del foglio.
-  if (embedded) {
+  if (quick) {
+    const presetId = data.presetStudentId ?? '';
+    const shownId = studentId || presetId;
+    const shown = studentOptions.find((o) => o.value === shownId) ?? null;
+    const name = shown?.label ?? 'Allievo';
+    const first = name.trim().split(/\s+/)[0] ?? name;
+    const end = new Date(startTime.getTime() + duration * 60 * 1000);
+    const dayShort = capitalize(date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }));
+    const reason = data.suggestions?.find((x) => x.id === shownId)?.reason ?? null;
+    const studentLine = [
+      shown?.licenseCategory ? `Patente ${shown.licenseCategory}` : null,
+      reason ? reason.charAt(0).toLowerCase() + reason.slice(1) : shown?.subtitle ?? null,
+    ].filter(Boolean).join(' · ') || null;
+    const durIdx = Math.max(0, durations.indexOf(duration));
+    const instructorName = instructorOptions.find((i) => i.id === instructorId)?.name ?? null;
     return (
-      <>
-        {body}
-        <View style={s.embeddedCta}>
-          <Text style={s.summary} numberOfLines={1}>{summary}</Text>
-          {cta}
-        </View>
-      </>
+      <FormSheet
+        title={`Guida con ${first}`}
+        subtitle={`${dayShort} · ${fmtTime(startTime)} – ${fmtTime(end)}`}
+        onClose={() => { if (!pending) router.back(); }}
+        busy={pending}
+        cta={<ClayButton title="Prenota guida" loading={pending} disabled={!canConfirm} onPress={confirmSingle} testID="booking-submit" />}
+        testID="quick-guide-sheet"
+      >
+        <ClayList>
+          <ClayListRow
+            leading={<Avatar userId={shownId || null} name={name} size={42} />}
+            title={name}
+            subtitle={studentLine ?? undefined}
+            onPress={guard(() => router.back())}
+            testID="quick-guide-student"
+          />
+        </ClayList>
+        <ClayList style={s.quickGap}>
+          {durations.length > 1 ? (
+            <SettingStepperRow
+              title="Durata"
+              value={durIdx}
+              min={0}
+              max={durations.length - 1}
+              onChange={(i) => { if (!pending) setDuration(durations[i]); }}
+              format={(i) => fmtDurShort(durations[i] ?? duration)}
+              testID="quick-guide-duration"
+            />
+          ) : (
+            <ClayListRow title="Durata" trailing={<Text style={s.value}>{fmtDurShort(duration)}</Text>} />
+          )}
+          {pickInstructor ? (
+            <SettingValueRow title="Istruttore" value={instructorName ?? 'Scegli'} onPress={guard(openInstructor)} testID="quick-guide-instructor" />
+          ) : null}
+          {vehiclesEnabled ? (
+            <SettingValueRow title="Veicolo" value={vehicleValue ?? 'Scegli'} onPress={guard(openVehicle)} testID="quick-guide-vehicle" />
+          ) : null}
+          {needFollowCar ? (
+            <SettingValueRow title="Auto al seguito" value={followCarValue ?? 'Scegli'} onPress={guard(openFollowCar)} />
+          ) : null}
+          {primaryIsMoto && extraMotoOptions.length ? (
+            <SettingValueRow title="Moto aggiuntive" value={extraMotosValue ?? 'Nessuna'} onPress={guard(openExtraMotos)} />
+          ) : null}
+          {primaryIsMoto ? (
+            <SettingValueRow title="Tipo guida moto" value={motoLessonTypeValue ?? 'Non specificato'} onPress={guard(openMotoLessonType)} />
+          ) : null}
+          <SettingValueRow title="Luogo" value={locationLabel} onPress={guard(openLocationPicker)} testID="quick-guide-location" />
+          {!primaryIsMoto ? (
+            <SettingValueRow title="Tipo" value={typeValue} onPress={guard(openType)} testID="quick-guide-type" />
+          ) : null}
+        </ClayList>
+        {data.outsideAvailability && !pickInstructor ? (
+          <Text style={s.note}>
+            {`${WEEKDAY_LONG[date.getDay()]} sei fuori dalla tua disponibilità: la guida si prenota lo stesso.`}
+          </Text>
+        ) : null}
+      </FormSheet>
     );
   }
 
@@ -926,7 +1041,7 @@ const s = StyleSheet.create({
   add: { marginTop: 18 },
   remove: { fontSize: 15, fontWeight: '500', color: '#C13515' },
   pressed: { opacity: 0.55 },
-  // Stessa distanza che `FormSheet` mette sopra la sua CTA.
-  embeddedCta: { marginTop: 22 },
-  summary: { fontSize: 14, color: CLAY.ink3, marginBottom: 10, paddingHorizontal: 4 },
+  quickGap: { marginTop: 16 },
+  value: { fontSize: 16.5, color: CLAY.ink3 },
+  note: { fontSize: 14, lineHeight: 19, color: CLAY.ink3, marginTop: 12, paddingHorizontal: 4 },
 });

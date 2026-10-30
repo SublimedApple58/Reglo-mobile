@@ -97,7 +97,9 @@ export const CreateExamScreen = () => {
     setExamDate(new Date(data.initialDate));
     setSelectedIds([]);
     setTimeSet(true);
-    setDuration(60);
+    // REG-671: dal fantasma dell'agenda la durata è la sua, sulla più vicina consentita.
+    const want = data.presetDurationMinutes;
+    setDuration(want ? EXAM_DURATIONS.reduce((b, d) => (Math.abs(d - want) < Math.abs(b - want) ? d : b), 60) : 60);
     setNotes('');
     setSaving(false);
   }, [data]);

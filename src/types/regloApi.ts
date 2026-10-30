@@ -1227,6 +1227,8 @@ export type InstructorBlock = {
 };
 
 export type CreateInstructorBlockInput = {
+  /** Solo titolare: blocco per un altro istruttore (senza = il proprio). */
+  instructorId?: Uuid;
   startsAt: IsoDate;
   endsAt: IsoDate;
   reason?: string;

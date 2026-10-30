@@ -9,7 +9,9 @@ import { blockSheetStore } from '../../stores/blockSheetStore';
 import { timePickerStore } from '../../stores/timePickerStore';
 import { dayPickerStore } from '../../stores/dayPickerStore';
 import { regloApi } from '../../services/regloApi';
-import { ClayButton, ClayField, ClayList, ClayListRow, ClaySection, ClaySegmented, ClayToggle } from '../clay';
+import { ClayButton, ClayField, ClayList, ClayListRow, ClaySection, ClaySegmented, ClayToggle, markClayRow } from '../clay';
+import { SettingToggleRow, SettingValueRow } from '../SettingsRows';
+import { optionsPickerPath, optionsPickerStore } from '../../stores/optionsPickerStore';
 import { CLAY } from '../../theme/clay';
 import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../utils/motion';
 
@@ -38,13 +40,30 @@ const fromYMD = (s: string) => { const [y, m, d] = s.split('-').map(Number); ret
 const fmtDay = (d: Date) => d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' });
 const fmtTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
-/* ───────── Shared block-slot form (block-slot, theory-lesson, quick-book) ─────────
- * REG-639 clay: da solo è un `FormSheet` (titolo, riepilogo come sottotitolo,
- * CTA in fondo). `embedded` = dentro il FormSheet di quick-book: solo contenuto
- * e, in coda, riepilogo + CTA (l'ultima cosa del foglio ospite).
+const fmtLongDay = (d: Date) => {
+  const t = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+/** Riga che compare in dissolvenza (orari aperti dal tocco sulla fascia). */
+const FadeValueRow = markClayRow(function FadeValueRow(props: React.ComponentProps<typeof SettingValueRow>) {
+  return (
+    <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
+      <SettingValueRow {...props} />
+    </Animated.View>
+  );
+});
+
+/* ───────── Shared block-slot form (block-slot, theory-lesson, agenda) ─────────
+ * REG-639 clay: un `FormSheet` (titolo, riepilogo come sottotitolo, CTA in
+ * fondo). Variante `quick` (REG-671, dall'agenda: fantasma → Blocca / Teoria):
+ * «Blocca l'orario» con la fascia del fantasma in una riga (toccandola si
+ * aprono inizio e fine), istruttore per il titolare, «Ripeti ogni settimana»
+ * e il motivo (o la descrizione per la teoria).
  * `presetStartMinutes` seeds the start time (end = +60') from the
  * released-scrub position. */
-export function BlockForm({ embedded = false }: { embedded?: boolean }) {
+export function BlockForm({ variant = 'full' }: { variant?: 'full' | 'quick' }) {
+  const quick = variant === 'quick';
   const router = useRouter();
   const data = useSyncExternalStore(blockSheetStore.subscribe, blockSheetStore.get);
 
@@ -56,6 +75,8 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
   const [recurring, setRecurring] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(4);
   const [pending, setPending] = useState(false);
+  const [timesOpen, setTimesOpen] = useState(false);
+  const [pickedInstructorId, setPickedInstructorId] = useState('');
   const reasonRef = useRef<TextInput>(null);
   const descriptionRef = useRef<TextInput>(null);
   const { accessoryID, accessory } = useDoneAccessory();
@@ -75,6 +96,8 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     setRecurring(false);
     setRecurringWeeks(4);
     setPending(false);
+    setTimesOpen(false);
+    setPickedInstructorId('');
   }, [data]);
 
   const invalidRange = useMemo(() => {
@@ -131,6 +154,7 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
         }
         // ── CREAZIONE ──
         await regloApi.createInstructorBlock({
+          ...(pickedInstructorId ? { instructorId: pickedInstructorId } : {}),
           startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
           ...(reasonVal ? { reason: reasonVal } : {}),
           ...(descVal ? { description: descVal } : {}),
@@ -176,7 +200,17 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     );
   };
 
-  const canConfirm = !pending && !invalidRange;
+  const instructorOptions = data.instructorOptions ?? [];
+  const pickInstructor = instructorOptions.length > 0 && !isEditing;
+  const canConfirm = !pending && !invalidRange && (!pickInstructor || !!pickedInstructorId);
+  const openInstructor = () => {
+    optionsPickerStore.set({
+      title: 'Istruttore', multi: false, selected: pickedInstructorId ? [pickedInstructorId] : [],
+      options: instructorOptions.map((i) => ({ value: i.id, label: i.name })),
+      onConfirm: (v) => setPickedInstructorId(v[0] ?? ''),
+    });
+    router.push(optionsPickerPath());
+  };
 
   const title = isEditing ? (isTheory ? 'Modifica lezione' : 'Modifica evento') : (isTheory ? 'Lezione teorica' : 'Blocca slot');
   const summary = `${fmtDay(date)} · ${fmtTime(startTime)}–${fmtTime(endTime)}${recurring ? ` · ${recurringWeeks} sett.` : ''}`;
@@ -282,17 +316,98 @@ export function BlockForm({ embedded = false }: { embedded?: boolean }) {
     />
   );
 
-  // Dentro quick-book: il foglio (testata col segmentato, X) è dell'ospite;
-  // qui solo contenuto + riepilogo + CTA, che restano l'ultima cosa del foglio.
-  if (embedded) {
+  if (quick) {
     return (
-      <>
-        {body}
-        <View style={s.embeddedCta}>
-          <Text style={s.summary} numberOfLines={1}>{summary}</Text>
-          {cta}
-        </View>
-      </>
+      <FormSheet
+        title={isTheory ? 'Lezione teorica' : "Blocca l'orario"}
+        subtitle={isTheory ? 'In sede, occupa l’orario' : 'Nessuno potrà prenotarlo'}
+        onClose={() => { if (!pending) router.back(); }}
+        busy={pending}
+        cta={
+          <ClayButton
+            title={isTheory ? 'Crea lezione' : "Blocca l'orario"}
+            loading={pending}
+            disabled={!canConfirm}
+            onPress={confirm}
+            testID="block-submit"
+          />
+        }
+        testID="quick-block-sheet"
+      >
+        <ClayList>
+          <SettingValueRow
+            title={fmtLongDay(date)}
+            value={`${fmtTime(startTime)} – ${fmtTime(endTime)}`}
+            onPress={guard(() => setTimesOpen((o) => !o))}
+            testID="quick-block-when"
+          />
+          {timesOpen ? (
+            <FadeValueRow title="Inizio" value={fmtTime(startTime)} onPress={guard(() => openTimePicker(startTime, setStartTime))} />
+          ) : null}
+          {timesOpen ? (
+            <FadeValueRow title="Fine" value={fmtTime(endTime)} onPress={guard(() => openTimePicker(endTime, setEndTime))} />
+          ) : null}
+          {pickInstructor ? (
+            <SettingValueRow
+              title="Istruttore"
+              value={instructorOptions.find((i) => i.id === pickedInstructorId)?.name ?? 'Scegli'}
+              onPress={guard(openInstructor)}
+              testID="quick-block-instructor"
+            />
+          ) : null}
+          <SettingToggleRow
+            title="Ripeti ogni settimana"
+            value={recurring}
+            onValueChange={(v) => { if (!pending) setRecurring(v); }}
+            testID="block-recurring-toggle"
+          />
+        </ClayList>
+        {invalidRange ? (
+          <Animated.Text entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={s.warn}>
+            L&apos;ora di fine deve essere dopo l&apos;inizio.
+          </Animated.Text>
+        ) : null}
+        {recurring ? (
+          <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT}>
+            <ClaySection title="Per quante settimane">
+              <ClaySegmented
+                options={WEEK_OPTIONS.map((w) => ({ value: w, label: `${w} sett.` }))}
+                value={recurringWeeks}
+                onChange={(w) => { if (!pending) setRecurringWeeks(w); }}
+              />
+            </ClaySection>
+          </Animated.View>
+        ) : null}
+        {isTheory ? (
+          <ClayField
+            ref={descriptionRef}
+            label="Descrizione"
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Facoltativa, es. argomento o aula"
+            editable={!pending}
+            multiline
+            maxLength={500}
+            inputAccessoryViewID={accessoryID}
+            style={s.quickField}
+            testID="block-description"
+          />
+        ) : (
+          <ClayField
+            ref={reasonRef}
+            label="Motivo"
+            value={reason}
+            onChangeText={setReason}
+            placeholder="Facoltativo, es. Officina"
+            editable={!pending}
+            returnKeyType="done"
+            inputAccessoryViewID={accessoryID}
+            style={s.quickField}
+            testID="block-reason"
+          />
+        )}
+        {accessory}
+      </FormSheet>
     );
   }
 
@@ -319,7 +434,5 @@ const s = StyleSheet.create({
   delete: { alignItems: 'center', paddingVertical: 14, marginTop: 14 },
   deleteTxt: { fontSize: 16, fontWeight: '500', color: '#C13515' },
   pressed: { opacity: 0.55 },
-  // Stessa distanza che `FormSheet` mette sopra la sua CTA.
-  embeddedCta: { marginTop: 22 },
-  summary: { fontSize: 14, color: CLAY.ink3, marginBottom: 10, paddingHorizontal: 4 },
+  quickField: { marginTop: 16 },
 });

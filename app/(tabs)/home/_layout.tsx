@@ -15,7 +15,10 @@ export default function HomeLayout() {
       <Stack.Screen name="publish-day" options={FORM_SHEET} />
       <Stack.Screen name="add-action" options={FORM_SHEET} />
       <Stack.Screen name="select-date" options={FORM_SHEET} />
-      <Stack.Screen name="quick-book" options={FORM_SHEET} />
+      {/* REG-671: dall'agenda (fantasma → tipo): «Con chi guidi?» → riepilogo; blocco/teoria. */}
+      <Stack.Screen name="quick-student" options={FORM_SHEET} />
+      <Stack.Screen name="quick-guide" options={FORM_SHEET} />
+      <Stack.Screen name="quick-block" options={FORM_SHEET} />
       <Stack.Screen name="manage-lesson" options={FORM_SHEET} />
       <Stack.Screen name="exam-manage" options={FORM_SHEET} />
       <Stack.Screen name="manage-group-lesson" options={FORM_SHEET} />

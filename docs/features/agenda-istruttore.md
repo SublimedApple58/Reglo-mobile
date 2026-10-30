@@ -17,13 +17,13 @@ lun–sab), come dopo REG-638. REG-639 ne ha rifatto lo stile (clay v2:
 
 | File | Ruolo |
 |------|-------|
-| `src/screens/IstruttoreHomeScreen.tsx` | La schermata: dati (bootstrap agenda, disponibilità, festivi, fuori disponibilità), testata clay, FAB «+», tutti i gestori di tocco (apri guida/esame/gruppo/blocco, quick-book). `ownerMode` = titolare puro in sola lettura. |
+| `src/screens/IstruttoreHomeScreen.tsx` | La schermata: dati (bootstrap agenda, disponibilità, festivi, fuori disponibilità), testata clay, FAB «+», tutti i gestori di tocco (apri guida/esame/gruppo/blocco, creazione dal fantasma `handleCreateAt`). `ownerMode` = titolare puro: niente «+», ma dal 30/10 (REG-671) **crea dal fantasma** scegliendo l'istruttore nei fogli. |
 | `src/screens/TitolareHomeScreen.tsx` | Wrapper: `<IstruttoreHomeScreen ownerMode />`. |
 | `src/components/WeeklyAgendaView.tsx` | La griglia settimanale: settimane affiancate a scorrimento, colonne bianche col filetto, giorni in minuscolo, disponibilità come tinta appena accennata, blocchi istruttore neutri, linea dell'ora nera, link «Oggi» testuale, blocco fantasma per prenotare. L'intestazione dei giorni NON è tappabile (come prima). |
 | `src/utils/agendaLook.ts` | Aspetto di un evento (un solo punto): `guideLook`, `EXAM_LOOK`, `GROUP_LOOK`, `GROUP_MOTO_LOOK`, `blockLabel`. Vedi [agenda-block-colors.md](agenda-block-colors.md). |
 | `src/utils/agendaColors.ts` | Criterio colore (da «Aspetto agenda») + interruttore `AGENDA_BLOCK_BAR` (oggi `false`), `mixWithWhite`. |
 | `app/(tabs)/home/add-action.tsx` | Foglio «Nuovo» del «+» (`FORM_SHEET` + `<FormSheet>`): `ClayList` di solo testo — Guida, Guida di gruppo (se `groupLessonsEnabled`), Esame, Lezione teorica, Blocca un orario, Malattia. Al tocco chiude e lancia l'azione a foglio chiuso (iOS +380 ms). Dati da `homeAddSheetStore`. |
-| `app/(tabs)/home/quick-book.tsx` | Prenotazione veloce dal blocco fantasma della griglia: [quick-book.md](quick-book.md). |
+| `app/(tabs)/home/quick-student.tsx` · `quick-guide.tsx` · `quick-block.tsx` | Creazione dal blocco fantasma della griglia (REG-671): [quick-book.md](quick-book.md). Il vecchio `quick-book` (segmentato) è stato tolto. |
 | `src/components/InboxBellButton.tsx` (+ `AvailabilityButton`) | Campanella e orologio in testata (solo app istruttore, non `ownerMode`), cerchi bianchi clay `raiseSm`. Aprono `home/notifications` e `home/availability` come push (swipe indietro). Al tocco di un blocco l'Agenda chiede già il percorso Road della guida (`prefetchRoadForAppointment`). |
 
 ## La vista
@@ -55,7 +55,7 @@ l'agenda si apre e resta sulla Settimana.
 - esami senza orario: card bianca clay sopra la griglia («Esame · giorno»);
 - linea dell'ora nera sulla colonna di oggi;
 - tocco/trascinamento su uno spazio libero → blocco fantasma → «Scegli i
-  dettagli» → quick-book.
+  dettagli» → quick-book. **Dal 30/10 (REG-671)**: tocco → fantasma + card con i tipi in 3D → foglio del tipo ([quick-book.md](quick-book.md)).
 
 **FAB «+»**: cerchio nero 56 col volume della CTA primaria
 (`CLAY_CTA.primary`, `testID="agenda-fab"`) → foglio «Nuovo». Si nasconde mentre
@@ -96,7 +96,7 @@ IstruttoreHomeScreen
 
 ## Connessioni
 
-- [quick-book.md](quick-book.md) — prenotazione dal blocco fantasma.
+- [quick-book.md](quick-book.md) — creazione dal blocco fantasma (REG-671).
 - [agenda-block-colors.md](agenda-block-colors.md) — colore dei blocchi.
 - [group-lessons.md](group-lessons.md), [exam-creation.md](exam-creation.md),
   [exam-outcome.md](exam-outcome.md), [lezione-teorica.md](lezione-teorica.md),
