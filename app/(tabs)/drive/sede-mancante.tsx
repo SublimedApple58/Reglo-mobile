@@ -20,7 +20,7 @@ export default function RoadSedeMancanteSheet() {
       cta={<ClayButton title="Ho capito" onPress={() => router.back()} testID="road-sede-mancante-ok" />}
     >
       <View style={s.body}>
-        <Image source={require('../../../assets/icons3d-ai/edificio.png')} style={s.art} resizeMode="contain" />
+        <Image source={require('../../../assets/web/settings/sede-autoscuola.png')} style={s.art} resizeMode="contain" />
         <Text style={s.title}>Manca l&apos;indirizzo della sede</Text>
         <Text style={s.text}>
           Il titolare deve ancora inserirlo nella web app, in Impostazioni › Sede e luoghi. Fino ad allora il giro

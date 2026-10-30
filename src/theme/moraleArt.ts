@@ -10,7 +10,7 @@ export const MORALE_ART = {
   /** «Giornata libera» (agenda). */
   espresso: require('../../assets/morale/espresso.png'),
   /** «Nessuna notifica». */
-  aeroplanino: require('../../assets/morale/aeroplanino.png'),
+  aeroplanino: require('../../assets/web/settings/notifica-inviata.png'),
   /** Liste vuote: luoghi, veicoli. */
   piantina: require('../../assets/morale/piantina.png'),
   /** Traguardi (ore di guida). */

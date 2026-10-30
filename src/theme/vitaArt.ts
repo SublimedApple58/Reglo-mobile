@@ -9,13 +9,14 @@ import type { ImageSourcePropType } from 'react-native';
  * come velo grigio semitrasparente e su bianco l'icona è identica a prima.
  */
 export const VITA_ART = {
-  calendario: require('../../assets/vita/calendario.png') as ImageSourcePropType,
+  /** REG-672: icone che esistono già nella web app → stesso PNG (`assets/web/`, design-system §0.10). */
+  calendario: require('../../assets/web/nav/agenda-3d.png') as ImageSourcePropType,
   volante: require('../../assets/vita/volante.png') as ImageSourcePropType,
   esame: require('../../assets/vita/esame.png') as ImageSourcePropType,
-  edificio: require('../../assets/vita/edificio.png') as ImageSourcePropType,
-  termometro: require('../../assets/vita/termometro.png') as ImageSourcePropType,
-  /** Campanella ambra (set notte 28/10, PNG trasparente). */
-  campanella: require('../../assets/vita/campanella.png') as ImageSourcePropType,
+  edificio: require('../../assets/web/settings/sede-autoscuola.png') as ImageSourcePropType,
+  /** Malattia: lo sfigmomanometro del web (impostazioni istruttori). */
+  termometro: require('../../assets/web/settings/malattia-icon.png') as ImageSourcePropType,
+  campanella: require('../../assets/web/menu/bell-3d.png') as ImageSourcePropType,
   /** Fondo della card «Guida» del foglio «Nuovo» (370×138 pt): auto 3D sopra. */
   cartinaRoad: require('../../assets/vita/cartina-road.jpg') as ImageSourcePropType,
   /**
@@ -23,7 +24,7 @@ export const VITA_ART = {
    * (voto del pagellino) e orologio (ore al volante, Ore di guida). Il
    * pagellino non ha un'icona sua: riusa quella dell'esame.
    */
-  stella: require('../../assets/vita/stella.png') as ImageSourcePropType,
+  stella: require('../../assets/web/menu/feedback-mid.png') as ImageSourcePropType,
   orologio: require('../../assets/vita/orologio.png') as ImageSourcePropType,
   pagellino: require('../../assets/vita/esame.png') as ImageSourcePropType,
   /**

@@ -12,7 +12,7 @@ import { GlassCloseButton } from './GlassCloseButton';
 
 const ART_ESAME = require('../../assets/icons3d-ai/esame.png');
 const ART_PERSONE = require('../../assets/icons3d-ai/persone.png');
-const ART_EDIFICIO = require('../../assets/icons3d-ai/edificio.png');
+const ART_EDIFICIO = require('../../assets/web/settings/sede-autoscuola.png');
 
 /**
  * "Impostazioni allievo" in un form sheet: nella scheda allievo le tre righe

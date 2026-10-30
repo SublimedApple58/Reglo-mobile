@@ -291,6 +291,12 @@ nell'app allievo**, in attesa del suo giro.
 
 **Regole (Tiziano, 28/10/2026 — vincono su §10.2 e sulle note «Fluent»):**
 
+0. **Prima di generare un'icona nuova, controlla se esiste già nella web
+   app** (`../reglo/public/images/`: `nav/`, `menu/`, `settings/`, `3d/`,
+   `road/`; sorgenti più grandi delle stesse in `../dashboard/images/`) e
+   nella tabella «Icone condivise con la web app» qui sotto. Se c'è un
+   equivalente si usa QUELLO (REG-672, Tiziano 30/10/2026), anche se una
+   versione mobile esiste già.
 1. **Meno icone possibili.** Un'icona c'è solo se porta informazione che il
    testo non dà, o dove il testo non ci sta (la mappa), o dove dà la «vita»
    dosata di §0.2. Una CTA nera non ha disegnino.
@@ -308,14 +314,42 @@ nell'app allievo**, in attesa del suo giro.
    chevron, indietro, «+», «centra», filtro. La tab bar resta a glifi.
 6. `<Icon3D source={…} size={…} />`: solo `source`, mai `tintColor`.
 
+**Icone condivise con la web app (REG-672, 30/10/2026)** — copie in
+`assets/web/<stesso percorso di public/images>`, con `@2x`/`@3x` ricavate dal
+PNG del web (mai ingrandite oltre la sorgente). Si cerca QUI prima di
+generare. Il registro resta quello del set (`VITA_ART`, `MORALE_ART`,
+`markerArt`, `lessonArt`): cambia solo il file.
+
+| Mobile (chiave / punto d'uso) | File mobile | Web (`public/images/`) | Note |
+|---|---|---|---|
+| `VITA_ART.calendario` (Blocca, card fantasma, «Oggi», Il mio gruppo) · data in `booking-flow` | `web/nav/agenda-3d` 52 pt | `nav/agenda-3d.png` | sorgente 295 px `dashboard/images/icon-agenda.png` (stessa immagine), margine vuoto tolto |
+| `VITA_ART.campanella` (avviso home istruttore) | `web/menu/bell-3d` 30 pt | `menu/bell-3d.png` | margine vuoto tolto |
+| `VITA_ART.edificio` (Teoria) · `drive/sede-mancante` · `StudentSettingsSheet` | `web/settings/sede-autoscuola` 96 pt | `settings/sede-autoscuola.png` | |
+| `VITA_ART.stella` (pagellino) | `web/menu/feedback-mid` 40 pt | `menu/feedback-mid.png` | il web ha fondo bianco: qui reso trasparente |
+| `VITA_ART.termometro` (Malattia) | `web/settings/malattia-icon` 84 pt | `settings/malattia-icon.png` | idem, fondo reso trasparente |
+| `MORALE_ART.aeroplanino` (notifiche vuote) | `web/settings/notifica-inviata` 84 pt | `settings/notifica-inviata.png` | fondo bianco: solo su fondo bianco (`ClayEmpty`) |
+| Eroe di `AllievoAwaitingScreen` | `web/menu/dai-un-boost` 156 pt | `menu/dai-un-boost.png` | |
+| `ROAD_ASSETS.road` (emblema Road) | `web/nav/road-3d` 46 pt | `nav/road-3d.png` | |
+| `carTopArt` / `car34Art` (10 tinte) · `lessonArtSource` (schede piccole allievo) | `web/road/cars/auto-{su,34}-<tinta>` 30 / 76 pt | `road/cars/` | il 3/4 del web è 200 px: oltre ~76 pt si sgrana |
+| Capitoli teoria · `stat-quizzes` | `icons/chapters/`, `icons/stat-quizzes` | `3d/chapters/`, `road/f-alt.png` | già identici byte per byte |
+
+**Restano mobile di proposito** (scelte di Tiziano 30/10): le 12 segnalazioni
+Road `assets/road/f-*`, `s-*` (il web usa ancora le Fluent con il blu: semmai
+si portano le mobile sul web); salvadanaio vuoto/pieno (il web ha solo il
+maialino rosa vuoto a 176 px); l'auto GRANDE — eroe della home allievo
+(`heroArtSource`, `icons3d-ai/auto`) e auto 3/4 da 120+ pt del «+» e del
+riepilogo prenotazione (`car34HeroArt`, `assets/road/cars/auto-34-*`).
+Tutto il resto non ha un equivalente sul web.
+
 **Inventario:**
 
 | Set | File | Registro | Dove |
 |---|---|---|---|
-| «Vita» | `assets/vita/` calendario, volante, esame (= pagellino), edificio, termometro, stella, orologio, campanella, **salvadanaio** e **salvadanaio-pieno** (76 pt); foto `cartina-road.jpg`, `sede-foto.jpg` | `src/theme/vitaArt.ts` (`VITA_ART`) | Agenda, foglio «Nuovo», Il mio gruppo, dettaglio allievo, Ore di guida, Pagellino, malattia, dettaglio guida («Com'è andata?», stella); **Pagamenti** (hero) e riga Pagamenti del dettaglio allievo (46 pt): salvadanaio = da riscuotere, pieno = tutto saldato |
-| Road | `assets/road/` 12 segnalazioni, emblema, auto 3/4 e dall'alto per colore | `src/road/markerArt.ts` | mappa, griglia segnalazioni, briefing, «Parti con» |
-| Allievo / Allievi | `assets/icons3d-ai/` auto, moto, esame, persone, edificio, scambio, blocconote, calendario, pin | `require` diretto, `src/utils/lessonArt.ts` | home allievo, gruppi, scambi, dettaglio allievo |
-| Morale | `assets/morale/` espresso, aeroplanino, piantina, trofeo, esame (84 pt) | `src/theme/moraleArt.ts` (`MORALE_ART`) | SOLO stati vuoti (`ClayEmpty`), traguardo ore, testata del foglio esame |
+| «Vita» | `assets/vita/` volante, esame (= pagellino), orologio, **salvadanaio** e **salvadanaio-pieno** (76 pt); foto `cartina-road.jpg`, `sede-foto.jpg` | `src/theme/vitaArt.ts` (`VITA_ART`) | Agenda, foglio «Nuovo», Il mio gruppo, dettaglio allievo, Ore di guida, Pagellino, malattia, dettaglio guida («Com'è andata?», stella); **Pagamenti** (hero) e riga Pagamenti del dettaglio allievo (46 pt): salvadanaio = da riscuotere, pieno = tutto saldato |
+| Road | `assets/road/` 12 segnalazioni, auto 3/4 grande per colore; emblema e auto piccole da `assets/web/` | `src/road/markerArt.ts` | mappa, griglia segnalazioni, briefing, «Parti con» |
+| Allievo / Allievi | `assets/icons3d-ai/` auto (solo eroe), moto, esame, persone, scambio, blocconote, pin | `require` diretto, `src/utils/lessonArt.ts` | home allievo, gruppi, scambi, dettaglio allievo |
+| Morale | `assets/morale/` espresso, piantina, trofeo, esame (84 pt); aeroplanino da `assets/web/` | `src/theme/moraleArt.ts` (`MORALE_ART`) | SOLO stati vuoti (`ClayEmpty`), traguardo ore, testata del foglio esame |
+| Web (REG-672) | `assets/web/` (tabella sopra) | registri dei set qui sopra | ovunque esista un equivalente nella web app |
 | Teoria (vecchie) | `assets/icons/` `stat-*`, `cta-*`, `chapters/` | `require` diretto | percorso teoria allievo: da rifare con questo metodo quando si tocca la teoria |
 
 **Formato:** segnalazioni 48 pt, righe 40 pt, «vita» 64 pt (64/128/192 px),
