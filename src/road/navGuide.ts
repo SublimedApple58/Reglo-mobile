@@ -59,6 +59,8 @@ export function placeSteps(m: MeasuredLine, steps: RoadRouteStep[]): PlacedStep[
   const out: PlacedStep[] = [];
   let from = 0;
   for (const s of steps) {
+    // «Continua su via X»: solo un cambio di nome, non una manovra (come Apple Maps).
+    if (s.maneuver === 'NAME_CHANGE') continue;
     const hit = projectOnLine(m, s, from);
     // Svolta lontana dalla linea (linea semplificata, tratto d'esame): si salta.
     if (hit.off > 40) continue;
@@ -169,17 +171,28 @@ export function navState(input: {
   done: string[];
   p: { lat: number; lng: number };
   prevAlong: number;
+  /** Fuori percorso confermato (da 12 s, come il riaggancio): solo allora la card lo dice. */
+  offConfirmed?: boolean;
 }): NavState & { along: number } {
   const { m, p } = input;
   let along = input.prevAlong;
   let offLine = false;
   if (m && m.line.length >= 2) {
     // Finestra di ricerca: dal vertice di prima a ~1,5 km avanti.
-    const fromIdx = Math.max(0, m.cum.findIndex((c) => c >= input.prevAlong - 30));
+    // Il tratto che contiene il punto di prima (l'ultimo vertice prima di lì):
+    // con vertici lontani (strade dritte, linea semplificata) partire dal
+    // vertice DOPO saltava il tratto dell'auto e la distanza restava ferma.
+    let fromIdx = 0;
+    for (let i = 0; i < m.cum.length; i++) {
+      if (m.cum[i] <= input.prevAlong - 30) fromIdx = i;
+      else break;
+    }
     const toIdx = m.cum.findIndex((c) => c > input.prevAlong + 1500);
     const hit = projectOnLine(m, p, fromIdx, toIdx < 0 ? m.line.length - 1 : toIdx);
-    offLine = hit.off > NAV_OFF_M;
-    if (!offLine && hit.along >= input.prevAlong - 30) along = Math.max(input.prevAlong, hit.along);
+    // Appena fuori (partenza da un parcheggio, GPS che balla) si resta sulla
+    // svolta di prima; «Fuori dal giro» solo quando il riaggancio lo conferma.
+    offLine = hit.off > NAV_OFF_M && input.offConfirmed === true;
+    if (hit.off <= NAV_OFF_M && hit.along >= input.prevAlong - 30) along = Math.max(input.prevAlong, hit.along);
   }
 
   const nextStep = m && !offLine ? input.steps.find((s) => s.along > along + STEP_PASSED_M) ?? null : null;
@@ -193,7 +206,9 @@ export function navState(input: {
     const placed = input.stopAlong.find((x) => x.key === s.key)?.along ?? null;
     const meters =
       m && placed != null && !offLine && placed >= along ? placed - along : haversineMeters(p.lat, p.lng, s.lat, s.lng);
-    stop = { key: s.key, n: i + 1, title: s.title, street: s.street ?? null, meters };
+    // La tappa di un punto dell'allievo ha come titolo la via: niente «Via Roma · Via Roma».
+    const street = s.street && s.street !== s.title ? s.street : null;
+    stop = { key: s.key, n: i + 1, title: s.title, street, meters };
     return true;
   });
 
@@ -205,9 +220,15 @@ export function navState(input: {
 /** Da quanto prima compare la card (in linea d'aria). */
 export const HOTSPOT_AHEAD_M = 180;
 /** Entro tanti metri si è «sul punto»: compaiono «Meglio» / «Ancora no». */
-export const HOTSPOT_AT_M = 35;
+export const HOTSPOT_AT_M = 45;
+/**
+ * Passati accanto: il centro del punto è una media delle segnalazioni e la
+ * strada può passarci a qualche decina di metri. Arrivati entro tanto e poi
+ * allontanati, il punto conta come passato (si chiede com'è andata).
+ */
+export const HOTSPOT_PASS_M = 100;
 /** Dopo il punto la card resta per decidere, poi si chiude da sola. */
-export const HOTSPOT_DECIDE_MS = 15_000;
+export const HOTSPOT_DECIDE_MS = 20_000;
 /** Allontanati di tanto senza esserci passati: l'avviso si chiude. */
 const HOTSPOT_AWAY_M = 260;
 /** Lo stesso punto riavvisa solo dopo essersene allontanati di tanto. */
@@ -223,6 +244,8 @@ export type HotspotAlert = {
   minMeters: number;
   /** Quando è iniziata la fase «decide» (ms). */
   leftAt: number | null;
+  /** Toccato «Meglio» / «Ancora no»: la card resta finché la chiude la schermata. */
+  decided?: boolean;
 };
 
 export type HotspotWatch = {
@@ -255,13 +278,16 @@ export function stepHotspotWatch(
     if (armed[h.key] === false && haversineMeters(p.lat, p.lng, h.lat, h.lng) > HOTSPOT_REARM_M) rearm(h.key, true);
   }
 
+  if (alert?.decided) return armed === watch.armed ? watch : { alert, armed };
   if (alert) {
     const h = alert.hotspot;
     const d = haversineMeters(p.lat, p.lng, h.lat, h.lng);
     const minMeters = Math.min(alert.minMeters, d);
     if (alert.phase === 'ahead') {
       if (d <= HOTSPOT_AT_M) alert = { ...alert, phase: 'at', meters: d, minMeters };
-      else if (d > minMeters + HOTSPOT_AWAY_M || d > HOTSPOT_AHEAD_M + HOTSPOT_AWAY_M) alert = null;
+      else if (minMeters <= HOTSPOT_PASS_M && d > minMeters + 15) {
+        alert = { ...alert, phase: 'decide', meters: d, minMeters, leftAt: p.t };
+      } else if (d > minMeters + HOTSPOT_AWAY_M || d > HOTSPOT_AHEAD_M + HOTSPOT_AWAY_M) alert = null;
       else if (Math.round(d / 10) !== Math.round(alert.meters / 10)) alert = { ...alert, meters: d, minMeters };
     } else if (alert.phase === 'at') {
       // Passato il punto: si decide (la card resta 15 s).

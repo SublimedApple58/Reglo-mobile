@@ -24,8 +24,8 @@ import { RoadMarkerPin } from './RoadMapParts';
 const STOP_SLOTS = 3;
 const LINE_AHEAD = 'rgba(17,17,17,0.92)';
 const LINE_CASE = 'rgba(255,255,255,1)';
-const LINE_W = 6;
-const CASE_W = 11;
+const LINE_W = 8;
+const CASE_W = 14;
 const FADE_MS = 240;
 
 type Pt = { latitude: number; longitude: number };

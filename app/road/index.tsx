@@ -47,6 +47,7 @@ import { CAR_DISC, RoadLiveCar, RoadLiveCarMarker } from '../../src/components/r
 import { RoadNavCard } from '../../src/components/road/RoadNavCard';
 import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
+import { REROUTE_OFF_MS } from '../../src/road/reroute';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
 /**
@@ -74,8 +75,8 @@ const MAP_PADDING_TOP = 330;
 const CAMERA_FRAME_MS = 33;
 /** Quanto dura il riaggancio animato prima che riparta il fotogramma per fotogramma. */
 const RECENTER_MS = 500;
-/** Il «Segnato» del ripasso resta tanto, poi la card si chiude. */
-const CHECK_DONE_MS = 3_500;
+/** Il «Segnato» del ripasso resta 5 s (come il toast delle segnalazioni), poi la card si chiude. */
+const CHECK_DONE_MS = 5_000;
 
 /** Il primo fix GPS della guida (o null dopo 60 s): la linea parte da lì. */
 function waitFirstFix(): Promise<{ lat: number; lng: number } | null> {
@@ -221,6 +222,7 @@ function useNav(): NavState {
   const fix = useRoadSelector((s) => s.fix);
   const reached = useRoadSelector((s) => s.planProgress.reached);
   const skipped = useRoadSelector((s) => s.reroute.skipped);
+  const offSince = useRoadSelector((s) => s.reroute.offSince);
   const measured = useMemo(() => (guide?.line && guide.line.length >= 2 ? measureLine(guide.line) : null), [guide?.line]);
   const steps = useMemo(() => (measured && guide?.steps?.length ? placeSteps(measured, guide.steps) : []), [measured, guide?.steps]);
   const stops = guide?.stops ?? EMPTY_STOPS;
@@ -234,10 +236,11 @@ function useNav(): NavState {
   const done = useMemo(() => [...reached, ...skipped], [reached, skipped]);
   return useMemo(() => {
     if (!fix) return { step: null, stop: null, left: null, offLine: false };
-    const r = navState({ m: measured, steps, stops, stopAlong, done, p: fix, prevAlong: along.current });
+    const offConfirmed = offSince != null && fix.t - offSince >= REROUTE_OFF_MS;
+    const r = navState({ m: measured, steps, stops, stopAlong, done, p: fix, prevAlong: along.current, offConfirmed });
     along.current = r.along;
     return r;
-  }, [fix, measured, steps, stops, stopAlong, done]);
+  }, [fix, measured, steps, stops, stopAlong, done, offSince]);
 }
 
 // ─── Schermata ──────────────────────────────────────────────────────────────
@@ -592,14 +595,15 @@ function LiveTop({ top, topH, onLayoutTop }: { top: number; topH: number; onLayo
   useEffect(() => {
     setDecision((d) => (d && d.key !== alertKey ? null : d));
   }, [alertKey]);
-  // Dopo il punto la card resta 15 s per decidere, anche da fermi (senza fix).
+  // Dopo il punto la card resta 20 s per decidere, anche da fermi (senza fix).
   const leftAt = alert?.leftAt ?? null;
+  const decided = alert?.decided === true;
   useEffect(() => {
-    if (!alertKey || leftAt == null || decision) return;
+    if (!alertKey || leftAt == null || decision || decided) return;
     const t = setTimeout(() => roadStore.closeHotspotAlert(alertKey), Math.max(400, HOTSPOT_DECIDE_MS - (Date.now() - leftAt)));
     return () => clearTimeout(t);
-  }, [alertKey, leftAt, decision]);
-  // «Segnato»: resta 3,5 s con «Annulla», poi la card si chiude.
+  }, [alertKey, leftAt, decision, decided]);
+  // «Segnato»: resta 5 s con «Annulla» (come le segnalazioni), poi la card si chiude.
   useEffect(() => {
     if (!decision) return;
     const t = setTimeout(() => roadStore.closeHotspotAlert(decision.key), CHECK_DONE_MS);
@@ -610,13 +614,17 @@ function LiveTop({ top, topH, onLayoutTop }: { top: number; topH: number; onLayo
     if (!alert || decision) return;
     if (outcome === 'better') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => undefined);
+    const key = alert.hotspot.key;
+    roadStore.markHotspotDecided(key, true);
     const clientId = await recordHotspotCheck(alert.hotspot, outcome);
-    if (clientId) setDecision({ key: alert.hotspot.key, clientId, outcome });
+    if (clientId) setDecision({ key, clientId, outcome });
+    else roadStore.markHotspotDecided(key, false);
   };
   const onUndoCheck = () => {
     if (!decision) return;
     Haptics.selectionAsync().catch(() => undefined);
     void undoHotspotCheck(decision.clientId);
+    roadStore.markHotspotDecided(decision.key, false);
     setDecision(null);
   };
 

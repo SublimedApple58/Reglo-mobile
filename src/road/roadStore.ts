@@ -336,7 +336,10 @@ export const roadStore = {
       }
       fix = { lat, lng, speed, heading: h ?? fix?.heading ?? null, accuracy, t };
       track.push({ latitude: lat, longitude: lng });
-      if (hotspots.length) hotspotWatch = stepHotspotWatch(hotspotWatch, hotspots, { lat, lng, t });
+      // La finestra «com'è andata» si misura con l'orologio del telefono (lo
+      // stesso del timer della schermata): il tempo dei punti GPS può essere
+      // su un'altra base (punti arrivati in ritardo, simulatore).
+      if (hotspots.length) hotspotWatch = stepHotspotWatch(hotspotWatch, hotspots, { lat, lng, t: Date.now() });
       if (stops.length) {
         if (planAlert && planAlertExpired(planAlert, t)) planAlert = null;
         ({ progress: planProgress, alert: planAlert } = stepPlanAlerts(stops, planProgress, planAlert, { lat, lng, t }));
@@ -372,6 +375,17 @@ export const roadStore = {
     const cur = state.hotspotWatch.alert;
     if (!cur || (key && cur.hotspot.key !== key)) return;
     set({ hotspotWatch: { ...state.hotspotWatch, alert: null } });
+  },
+
+  /**
+   * REG-681: «Meglio» / «Ancora no» toccato (la card resta col «Segnato») o
+   * annullato (si torna a chiedere, con altri 20 s per decidere).
+   */
+  markHotspotDecided(key: string, decided: boolean) {
+    const cur = state.hotspotWatch.alert;
+    if (!cur || cur.hotspot.key !== key) return;
+    const alert = decided ? { ...cur, decided: true } : { ...cur, decided: false, phase: 'decide' as const, leftAt: Date.now() };
+    set({ hotspotWatch: { ...state.hotspotWatch, alert } });
   },
 
   addCheck(check: RoadLocalCheck) {

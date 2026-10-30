@@ -171,10 +171,10 @@ const GuidesList = React.memo(function GuidesList({
  * guida («Meglio» / «Ancora no»): in miglioramento, superato, o da lavorare.
  */
 function hotspotSubtitle(h: RoadStudentHotspot): string {
-  const errors = `${h.errors} ${h.errors === 1 ? 'errore' : 'errori'} in ${h.sessions} ${h.sessions === 1 ? 'guida' : 'guide'}`;
+  const errors = `${h.errors} ${h.errors === 1 ? 'errore' : 'errori'}`;
   const better = h.checks?.better ?? 0;
-  const worse = h.checks?.worse ?? 0;
-  const ripassi = better + worse ? ` · ripassato ${better + worse} ${better + worse === 1 ? 'volta' : 'volte'}, ${better} meglio` : '';
+  const total = better + (h.checks?.worse ?? 0);
+  const ripassi = total ? `, meglio ${better} su ${total}` : ` in ${h.sessions} ${h.sessions === 1 ? 'guida' : 'guide'}`;
   if (h.status === 'overcome') return `Superato · ${errors}${ripassi}`;
   if (h.status === 'improving') return `In miglioramento · ${errors}${ripassi}`;
   return `${errors}${ripassi}`;
@@ -190,7 +190,7 @@ const HotspotsList = React.memo(function HotspotsList({ hotspots }: { hotspots: 
             key={h.key}
             leading={<Image source={markerArt(h.kind)} style={s.hsImg} resizeMode="contain" />}
             title={h.street ? `${h.label} · ${h.street}` : h.label}
-            subtitle={h.note ? `${hotspotSubtitle(h)}\n«${h.note}»` : hotspotSubtitle(h)}
+            subtitle={hotspotSubtitle(h)}
             dimmed={h.status === 'overcome'}
             testID="student-road-hotspot"
           />
