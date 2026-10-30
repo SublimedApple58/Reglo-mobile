@@ -75,7 +75,10 @@ export const RoadPlanMap = React.memo(function RoadPlanMap({
       ) : null}
       {start ? <StartMarker lat={start.lat} lng={start.lng} small={small} /> : null}
       {stops.map((x, i) => (
-        <NumMarker key={x.key} lat={x.lat} lng={x.lng} n={i + 1} small={small} />
+        // Chiave per posizione: i segnaposto si aggiungono/tolgono solo in fondo.
+        // Inserirne uno in mezzo (giro tornato al suggerito, REG-668) su iOS New
+        // Architecture non lo disegnava; così cambiano solo le coordinate.
+        <NumMarker key={i} lat={x.lat} lng={x.lng} n={i + 1} small={small} />
       ))}
     </MapView>
   );
