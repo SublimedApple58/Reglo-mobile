@@ -13,7 +13,6 @@ import Animated, {
 import { Marker } from 'react-native-maps';
 
 import { carTopArt } from '../../road/markerArt';
-import { CLAY_SHADOW } from '../../theme';
 
 /**
  * REG-678 Reglo Road — l'auto della guida dal vivo.
@@ -24,12 +23,20 @@ import { CLAY_SHADOW } from '../../theme';
  * pulsazione) sono valori condivisi di Reanimated, animati sul thread UI: un
  * punto GPS nuovo non ridisegna né la mappa né la schermata.
  *
- * Disegno: disco bianco clay con ombra morbida, auto vista dall'alto nel colore
- * del veicolo, alone dell'accuratezza grigio chiarissimo e due anelli che
- * pulsano piano (2,4 s, senza rimbalzo). «Riduci movimento» non spegne niente.
+ * Disegno (REG-682, «l'auto non è più in 3D?»): l'auto 3D vista dall'alto nel
+ * colore del veicolo (`assets/road/cars/auto-su-*`, la stessa del web), da sola
+ * sulla mappa, senza il disco bianco che la faceva sembrare un'icona piatta.
+ * 30×46 pt = esattamente il PNG @3x (90×138 px): nitida, mai ingrandita.
+ * Ombra morbida dalla sagoma del PNG su un contenitore che NON ruota: la luce
+ * resta sempre dall'alto mentre l'auto gira. Sotto, l'alone dell'accuratezza
+ * grigio chiarissimo e due anelli che pulsano piano (2,4 s, senza rimbalzo).
+ * «Riduci movimento» non spegne niente.
  */
 
 export const CAR_DISC = 54;
+/** L'auto 3D: misura del PNG @1x (il @3x è 90×138 px). */
+const CAR_W = 30;
+const CAR_H = 46;
 const PULSE_MS = 2400;
 
 function PulseRing({ delay }: { delay: number }) {
@@ -80,10 +87,12 @@ export function RoadLiveCar({
       <Animated.View style={[s.acc, acc]} />
       <PulseRing delay={0} />
       <PulseRing delay={PULSE_MS / 2} />
-      <View style={[s.disc, CLAY_SHADOW.raiseSm]} />
-      <Animated.View style={[s.carBox, car]}>
-        <Image source={carTopArt(color)} style={s.car} resizeMode="contain" />
-      </Animated.View>
+      <View style={s.shadowBox}>
+        {Platform.OS === 'android' ? <Animated.View style={[s.androidShadow, car]} /> : null}
+        <Animated.View style={[s.carRot, car]}>
+          <Image source={carTopArt(color)} style={s.car} resizeMode="contain" />
+        </Animated.View>
+      </View>
     </Animated.View>
   );
 }
@@ -107,8 +116,10 @@ export function RoadLiveCarMarker({
   return (
     <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} opacity={opacity} zIndex={10} tracksViewChanges={Platform.OS === 'android'}>
       <View style={s.markerBox} pointerEvents="none">
-        <View style={[s.disc, s.discStatic, CLAY_SHADOW.raiseSm]} />
-        <Image source={carTopArt(color)} style={[s.car, { transform: [{ rotate: `${rotation}deg` }] }]} resizeMode="contain" />
+        <View style={s.markerShadow}>
+          {Platform.OS === 'android' ? <View style={[s.androidShadow, s.androidShadowStatic, { transform: [{ rotate: `${rotation}deg` }] }]} /> : null}
+          <Image source={carTopArt(color)} style={[s.car, { transform: [{ rotate: `${rotation}deg` }] }]} resizeMode="contain" />
+        </View>
       </View>
     </Marker>
   );
@@ -128,17 +139,39 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(17,17,17,0.22)',
   },
-  disc: {
+  // Contenitore fermo (non ruota) con l'ombra: su iOS l'ombra segue la sagoma
+  // trasparente del PNG; la luce resta in alto anche quando l'auto gira.
+  shadowBox: {
     position: 'absolute',
-    left: -CAR_DISC / 2,
-    top: -CAR_DISC / 2,
-    width: CAR_DISC,
-    height: CAR_DISC,
-    borderRadius: CAR_DISC / 2,
-    backgroundColor: '#FFFFFF',
+    left: -CAR_W / 2,
+    top: -CAR_H / 2,
+    width: CAR_W,
+    height: CAR_H,
+    shadowColor: '#000000',
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 6 },
   },
-  carBox: { position: 'absolute', left: -15, top: -23, width: 30, height: 46 },
-  car: { width: 30, height: 46 },
-  markerBox: { width: CAR_DISC + 16, height: CAR_DISC + 16, alignItems: 'center', justifyContent: 'center' },
-  discStatic: { left: 8, top: 8 },
+  carRot: { width: CAR_W, height: CAR_H },
+  car: { width: CAR_W, height: CAR_H },
+  // Android non fa ombre dalla trasparenza: una sagoma arrotondata con boxShadow sotto l'auto.
+  androidShadow: {
+    position: 'absolute',
+    left: 2,
+    top: 3,
+    width: CAR_W - 4,
+    height: CAR_H - 6,
+    borderRadius: 12,
+    boxShadow: '0px 5px 10px rgba(0,0,0,0.30)',
+  },
+  androidShadowStatic: {},
+  markerBox: { width: CAR_W + 24, height: CAR_H + 24, alignItems: 'center', justifyContent: 'center' },
+  markerShadow: {
+    width: CAR_W,
+    height: CAR_H,
+    shadowColor: '#000000',
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 6 },
+  },
 });
