@@ -495,7 +495,8 @@ const RoadHomeMap = React.memo(function RoadHomeMap({
       style={StyleSheet.absoluteFill}
       initialRegion={initialRegion}
       onMapReady={() => setReady(true)}
-      mapPadding={{ top: topInset, right: 0, bottom: 28, left: 0 }}
+      // Logo «Maps» e «Legal» sopra il bordo arrotondato del foglio, mai sotto.
+      mapPadding={{ top: topInset, right: 0, bottom: COVER_OVERLAP + 18, left: 10 }}
       mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
       showsPointsOfInterest={false}
       showsCompass={false}

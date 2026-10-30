@@ -255,22 +255,32 @@ const car = StyleSheet.create({
 });
 
 /**
- * Alone rosso sotto il punto (più errori = più grande e più intenso).
+ * Alone rosso sotto il punto (più errori = più grande e più intenso), sfumato
+ * senza bordi netti (Tiziano 30/10, REG-661).
  * Marker con una vista e non `Circle`: con questa versione di
  * react-native-maps sulla New Architecture il cerchio non si disegnava.
  */
+/** Anelli sovrapposti dell'alone: sommati fanno una sfumatura radiale morbida. */
+const HALO_RINGS = 12;
+
 export const HeatHalo = React.memo(function HeatHalo({ lat, lng, k, hidden = false }: { lat: number; lng: number; k: number; hidden?: boolean }) {
   const [laid, setLaid] = useState(false);
   const coordinate = useMemo(() => ({ latitude: lat, longitude: lng }), [lat, lng]);
-  const size = Math.round(56 + 52 * k);
+  const size = Math.round(84 + 64 * k);
+  // Ogni anello è tenue (bordo quasi invisibile); al centro si sommano tutti.
+  const alpha = (0.03 + 0.03 * k).toFixed(3);
   return (
     <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={!laid} zIndex={1} opacity={hidden ? 0 : 1}>
-      <View
-        pointerEvents="none"
-        onLayout={() => setLaid(true)}
-        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: `rgba(220,38,38,${(0.12 + 0.14 * k).toFixed(2)})`, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <View style={{ width: size * 0.56, height: size * 0.56, borderRadius: size * 0.28, backgroundColor: `rgba(220,38,38,${(0.1 + 0.12 * k).toFixed(2)})` }} />
+      <View pointerEvents="none" onLayout={() => setLaid(true)} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        {Array.from({ length: HALO_RINGS }, (_, i) => {
+          const d = Math.round(size * (1 - i / HALO_RINGS));
+          return (
+            <View
+              key={i}
+              style={{ position: 'absolute', width: d, height: d, borderRadius: d / 2, backgroundColor: `rgba(220,38,38,${alpha})` }}
+            />
+          );
+        })}
       </View>
     </Marker>
   );
