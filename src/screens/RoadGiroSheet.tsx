@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Animated as RNAnimated, InteractionManager, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated as RNAnimated, InteractionManager, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -19,12 +19,22 @@ import {
   planMinutesFor,
   planStopLabel,
   prefetchPlanRoute,
-  setPlanOverride,
+  resetPlanOverride,
+  savePlanOverride,
   usePlan,
   usePlanChoice,
   usePlanRoute,
+  useSavedPlan,
 } from '../road/planStore';
-import { CLAY } from '../theme';
+import { CLAY, colors } from '../theme';
+
+/** «alle 17:12» oggi, «il 29/10 alle 17:12» gli altri giorni. */
+function savedWhen(iso: string) {
+  const d = new Date(iso);
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? `alle ${hm}` : `il ${d.getDate()}/${d.getMonth() + 1} alle ${hm}`;
+}
 
 /** Come il server (`PLAN_MAX_STOPS`). */
 const MAX_STOPS = 3;
@@ -81,20 +91,24 @@ function fromSchool(h: RoadHotspot): RoadPlanStop {
  * la linea suggerita (strade vere, chiusa in sede) e le tappe numerate; sotto
  * le tappe, che si tolgono (−), si riordinano (trascinando la maniglia) e si
  * aggiungono dai punti critici dell'allievo e dell'autoscuola (al massimo 3).
- * Salva = il giro modificato vale per questa guida (`setPlanOverride`) e si
- * manda al server all'ingresso in Road; la linea si ricalcola sull'ordine scelto.
+ * Salva = il giro modificato si salva sul server per questa guida (REG-668,
+ * `savePlanOverride`): spinner sul bottone, il foglio si chiude solo quando il
+ * server risponde; errore = messaggio sotto le tappe e il foglio resta aperto.
+ * Riaprendo si vede il giro salvato («Salvato alle …»), con «Torna al giro
+ * suggerito». La linea si ricalcola sull'ordine scelto.
  */
 export default function RoadGiroSheet() {
   const router = useRouter();
   const [sel] = useState(() => giroSheetStore.get());
-  const res = usePlan(sel?.studentId, sel?.durationMin ?? 60);
+  const res = usePlan(sel?.studentId, sel?.durationMin ?? 60, sel?.appointmentId);
+  const saved = useSavedPlan(sel?.appointmentId);
   const [, setOn] = usePlanChoice(sel?.studentId);
   const free = useSyncExternalStore(roadFreeStore.subscribe, roadFreeStore.get);
   const hq = free?.headquarters ?? null;
   const start = useMemo(() => (hq ? { lat: hq.lat, lng: hq.lng } : null), [hq]);
 
   const plan = res?.plan ?? null;
-  const custom = hasPlanOverride(sel?.studentId, sel?.durationMin ?? 60);
+  const custom = hasPlanOverride(sel?.appointmentId);
   const baseRoute = usePlanRoute(start, plan?.stops ?? null, !custom);
   const baseOrdered = useMemo(
     () => (plan ? (custom ? plan.stops : orderGuideStops(plan.stops, baseRoute?.order)) : []),
@@ -105,6 +119,8 @@ export default function RoadGiroSheet() {
   const stops = draft ?? baseOrdered;
   const dirty = draft !== null;
   const [step, setStep] = useState<'edit' | 'add'>('edit');
+  const [busy, setBusy] = useState<'save' | 'reset' | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // La linea dell'ordine scelto (niente riottimizzazione): parte quando cambia la bozza.
   const draftRoute = usePlanRoute(start, dirty ? draft : null, false);
@@ -142,6 +158,7 @@ export default function RoadGiroSheet() {
   const remove = useCallback(
     (key: string) => {
       Haptics.selectionAsync().catch(() => undefined);
+      setError(null);
       setDraft(stops.filter((x) => x.key !== key));
     },
     [stops],
@@ -153,6 +170,7 @@ export default function RoadGiroSheet() {
       const next = [...stops];
       const [it] = next.splice(from, 1);
       next.splice(to, 0, it);
+      setError(null);
       setDraft(next);
     },
     [stops],
@@ -160,20 +178,46 @@ export default function RoadGiroSheet() {
   const add = useCallback(
     (c: RoadPlanStop) => {
       Haptics.selectionAsync().catch(() => undefined);
+      setError(null);
       setDraft([...stops, c]);
       setStep('edit');
     },
     [stops],
   );
 
-  const save = () => {
-    if (!sel) return;
-    if (dirty && draft) {
-      setPlanOverride(sel.studentId, sel.durationMin, { stops: draft, minutes: minutes ?? plan?.minutes ?? 0 });
-      setOn(true);
+  const save = async () => {
+    if (!sel || busy) return;
+    if (!dirty || !draft) {
+      router.back();
+      return;
     }
-    setDraft(null);
-    router.back();
+    setBusy('save');
+    setError(null);
+    try {
+      await savePlanOverride(sel.appointmentId, { stops: draft, minutes: minutes ?? plan?.minutes ?? 0 });
+      setOn(true);
+      setDraft(null);
+      setBusy(null);
+      router.back();
+    } catch {
+      setBusy(null);
+      setError('Non sono riuscito a salvare il giro. Controlla la connessione e riprova.');
+    }
+  };
+
+  // «Torna al giro suggerito»: il foglio resta aperto e mostra il proposto.
+  const reset = async () => {
+    if (!sel || busy) return;
+    setBusy('reset');
+    setError(null);
+    try {
+      await resetPlanOverride(sel.appointmentId);
+      Haptics.selectionAsync().catch(() => undefined);
+      setDraft(null);
+    } catch {
+      setError('Non sono riuscito a tornare al giro suggerito. Riprova.');
+    }
+    setBusy(null);
   };
 
   if (!sel || !plan) {
@@ -196,9 +240,10 @@ export default function RoadGiroSheet() {
       subtitle={subtitle}
       contentKey={step}
       dirty={dirty}
+      busy={busy !== null}
       cta={
         step === 'edit' ? (
-          <ClayButton title="Salva" onPress={save} testID="giro-save" />
+          <ClayButton title="Salva" onPress={save} loading={busy === 'save'} disabled={busy === 'reset'} testID="giro-save" />
         ) : (
           <ClayButton title="Indietro" variant="secondary" onPress={() => setStep('edit')} testID="giro-add-back" />
         )
@@ -235,6 +280,29 @@ export default function RoadGiroSheet() {
               </Pressable>
             ) : null}
           </ClaySurface>
+          {error ? (
+            <Text style={s.error} testID="giro-error">
+              {error}
+            </Text>
+          ) : null}
+          {custom && saved && !dirty ? (
+            <View style={s.savedRow} testID="giro-saved">
+              <Text style={s.savedTx} numberOfLines={1}>
+                Giro modificato · salvato {savedWhen(saved.updatedAt)}
+              </Text>
+              <Pressable
+                onPress={reset}
+                disabled={busy !== null}
+                hitSlop={8}
+                style={({ pressed }) => [s.resetBtn, pressed && s.pressed]}
+                accessibilityRole="button"
+                testID="giro-reset"
+              >
+                {busy === 'reset' ? <ActivityIndicator size="small" color={CLAY.ink} /> : null}
+                <Text style={s.resetTx}>Torna al giro suggerito</Text>
+              </Pressable>
+            </View>
+          ) : null}
           {!start ? <Text style={s.note}>Senza la sede la linea non si può disegnare: restano le tappe.</Text> : null}
         </View>
       ) : (
@@ -370,4 +438,9 @@ const s = StyleSheet.create({
   addTx: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink },
   cand: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   note: { fontSize: 13, color: CLAY.ink3, marginTop: 10, paddingHorizontal: 4 },
+  error: { fontSize: 13.5, lineHeight: 19, color: colors.destructive, marginTop: 12, paddingHorizontal: 4 },
+  savedRow: { marginTop: 14, paddingHorizontal: 4, gap: 6 },
+  savedTx: { fontSize: 13.5, color: CLAY.ink3 },
+  resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', paddingVertical: 4 },
+  resetTx: { fontSize: 15, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
 });

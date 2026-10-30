@@ -86,7 +86,7 @@ export default function RoadInviteSheet() {
       </ClaySurface>
 
       {showPlan ? (
-        <RoadPlanCard studentId={lesson.student?.id} durationMin={planMin} style={s.plan} testID="road-invite-plan" />
+        <RoadPlanCard studentId={lesson.student?.id} durationMin={planMin} appointmentId={lesson.appointmentId} style={s.plan} testID="road-invite-plan" />
       ) : (
         // Solo testo: le tre cose che fa Road (icone tolte, design-system §0.4).
         <View style={s.features}>

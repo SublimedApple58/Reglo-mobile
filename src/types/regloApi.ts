@@ -1634,7 +1634,10 @@ export type RoadPlanStop = {
 };
 
 export type RoadPlan = { stops: RoadPlanStop[]; minutes: number };
-export type RoadStoredPlan = RoadPlan & { chosenAt: string };
+/** `custom`: giro modificato dall'istruttore (REG-668), tiene il suo ordine. */
+export type RoadStoredPlan = RoadPlan & { chosenAt: string; custom?: boolean };
+/** REG-668: il giro modificato di una guida futura, salvato sul server. */
+export type SavedRoadPlan = RoadPlan & { updatedAt: string };
 
 /** Punto critico dell'allievo: i suoi errori ripetuti (REG-647). */
 export type RoadStudentHotspot = {

@@ -108,7 +108,7 @@ export async function loadRoadGuide(
     : Promise.resolve([] as RoadStudentHotspot[]);
 
   // REG-667: un giro modificato dall'istruttore tiene il suo ordine (niente riottimizzazione).
-  const custom = !!studentId && hasPlanOverride(studentId, lessonMinutes(session.lesson));
+  const custom = session.plan?.custom === true || hasPlanOverride(session.lesson.appointmentId);
   const routeReq = planStops.length
     ? startPoint(session, waitFix).then((start) =>
         start ? regloApi.getRoadPlanRoute({ start, stops: planStops, optimize: !custom }).catch(() => null) : null,

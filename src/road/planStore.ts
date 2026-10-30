@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { regloApi } from '../services/regloApi';
 import { FALLBACK_BASE_CATALOG } from './markerArt';
-import type { RoadLesson, RoadPlan, RoadPlanResponse, RoadPlanRouteResponse, RoadPlanStop } from '../types/regloApi';
+import type { RoadLesson, RoadPlan, RoadPlanResponse, RoadPlanRouteResponse, RoadPlanStop, SavedRoadPlan } from '../types/regloApi';
 
 /**
  * REG-649 Reglo Road — il giro della prossima guida nei fogli di partenza.
@@ -74,45 +74,90 @@ export function prefetchPlan(studentId: string | null | undefined, durationMin: 
 
 export function prefetchLessonPlan(lesson: RoadLesson | null | undefined) {
   if (lesson?.student?.id) prefetchPlan(lesson.student.id, lessonMinutes(lesson));
+  if (lesson?.appointmentId) prefetchSavedPlan(lesson.appointmentId);
 }
 
 /**
- * REG-667: il giro modificato dall'istruttore (tappe tolte, riordinate,
- * aggiunte) vince su quello proposto, per allievo e durata. Resta in memoria
- * come la scelta «Segui il giro»; si manda al server all'ingresso in Road.
+ * REG-667/668: il giro modificato dall'istruttore (tappe tolte, riordinate,
+ * aggiunte) vince su quello proposto. È salvato sul server per guida
+ * (`/road/plan/saved`, REG-668): si legge insieme al giro proposto, prima del
+ * tocco; si scrive con «Salva» nel foglio «Il giro» (UI solo sulla risposta).
+ * Alla partenza il server usa comunque quello salvato.
  */
-const overrides = new Map<string, RoadPlan>();
-/** Risposta con il giro modificato al posto di quello proposto (stabile per useSyncExternalStore). */
-const merged = new Map<string, { base: RoadPlanResponse | null; over: RoadPlan; out: RoadPlanResponse | null }>();
-function withOverride(key: string, data: RoadPlanResponse | null): RoadPlanResponse | null {
-  const over = overrides.get(key);
-  if (!over) return data;
-  const hit = merged.get(key);
-  if (hit && hit.base === data && hit.over === over) return hit.out;
-  const out = data ? { ...data, plan: over } : null;
-  merged.set(key, { base: data, over, out });
-  return out;
+const overrides = new Map<string, SavedRoadPlan | null>();
+const savedJobs = new Map<string, Promise<void>>();
+
+export function prefetchSavedPlan(appointmentId: string | null | undefined) {
+  if (!appointmentId || overrides.has(appointmentId) || savedJobs.has(appointmentId)) return;
+  const job = regloApi
+    .getSavedRoadPlan(appointmentId)
+    .then((r) => {
+      overrides.set(appointmentId, r.saved?.stops.length ? r.saved : null);
+    })
+    // Rete giù: vale il giro proposto (al prossimo dettaglio si riprova).
+    .catch(() => undefined)
+    .finally(() => {
+      savedJobs.delete(appointmentId);
+      notify();
+    });
+  savedJobs.set(appointmentId, job);
 }
 
-export function setPlanOverride(studentId: string, durationMin: number, plan: RoadPlan | null) {
-  const key = planKey(studentId, durationMin);
-  if (plan) overrides.set(key, plan);
-  else overrides.delete(key);
-  merged.delete(key);
+/** Salva il giro modificato della guida; errore = eccezione (il foglio resta aperto). */
+export async function savePlanOverride(appointmentId: string, plan: RoadPlan) {
+  const r = await regloApi.saveRoadPlan({ appointmentId, stops: plan.stops, minutes: plan.minutes });
+  overrides.set(appointmentId, r.saved);
+  merged.delete(appointmentId);
   notify();
 }
 
-export function hasPlanOverride(studentId: string | null | undefined, durationMin: number) {
-  return !!studentId && overrides.has(planKey(studentId, durationMin));
+/** «Torna al giro suggerito»: cancella il giro salvato. */
+export async function resetPlanOverride(appointmentId: string) {
+  await regloApi.deleteSavedRoadPlan(appointmentId);
+  overrides.set(appointmentId, null);
+  merged.delete(appointmentId);
+  notify();
 }
 
-/** Il giro di allievo + durata: `undefined` = in arrivo, `null` = non c'è. */
-export function usePlan(studentId: string | null | undefined, durationMin: number): RoadPlanResponse | null | undefined {
+/** Risposta con il giro salvato al posto di quello proposto (stabile per useSyncExternalStore). */
+const merged = new Map<string, { base: RoadPlanResponse | null; over: SavedRoadPlan; out: RoadPlanResponse | null }>();
+function withOverride(appointmentId: string | null | undefined, data: RoadPlanResponse | null): RoadPlanResponse | null {
+  const over = appointmentId ? overrides.get(appointmentId) : null;
+  if (!appointmentId || !over) return data;
+  const hit = merged.get(appointmentId);
+  if (hit && hit.base === data && hit.over === over) return hit.out;
+  const out = data ? { ...data, plan: { stops: over.stops, minutes: over.minutes } } : null;
+  merged.set(appointmentId, { base: data, over, out });
+  return out;
+}
+
+export function hasPlanOverride(appointmentId: string | null | undefined) {
+  return !!appointmentId && !!overrides.get(appointmentId);
+}
+
+/** Il giro salvato della guida (per «salvato alle …» nel foglio), o null. */
+export function useSavedPlan(appointmentId: string | null | undefined): SavedRoadPlan | null {
+  const get = useCallback(() => (appointmentId ? overrides.get(appointmentId) ?? null : null), [appointmentId]);
+  return useSyncExternalStore(subscribe, get);
+}
+
+/**
+ * Il giro di allievo + durata: `undefined` = in arrivo, `null` = non c'è. Con
+ * `appointmentId` vince il giro salvato per quella guida (e si aspetta anche
+ * lui, così non si vede prima il proposto e poi quello salvato).
+ */
+export function usePlan(
+  studentId: string | null | undefined,
+  durationMin: number,
+  appointmentId?: string | null,
+): RoadPlanResponse | null | undefined {
   const key = studentId ? planKey(studentId, durationMin) : '';
   const get = useCallback(() => {
     const entry = key ? entries.get(key) : undefined;
-    return entry ? withOverride(key, entry.data) : undefined;
-  }, [key]);
+    if (!entry) return undefined;
+    if (appointmentId && savedJobs.has(appointmentId)) return undefined;
+    return withOverride(appointmentId, entry.data);
+  }, [key, appointmentId]);
   return useSyncExternalStore(subscribe, get);
 }
 
@@ -175,15 +220,15 @@ export function usePlanChoice(studentId: string | null | undefined): [boolean, (
 }
 
 /** Il giro da mandare all'ingresso in Road: solo se c'è, è acceso e l'istruttore non ha scelto «Senza giro». */
-export function chosenPlan(studentId: string | null | undefined, durationMin: number): RoadPlan | null {
+export function chosenPlan(studentId: string | null | undefined, durationMin: number, appointmentId?: string | null): RoadPlan | null {
   if (!studentId || choices.get(studentId) === false) return null;
-  const key = planKey(studentId, durationMin);
-  const plan = overrides.get(key) ?? entries.get(key)?.data?.plan ?? null;
+  const over = appointmentId ? overrides.get(appointmentId) : null;
+  const plan = over ? { stops: over.stops, minutes: over.minutes } : (entries.get(planKey(studentId, durationMin))?.data?.plan ?? null);
   return plan?.stops.length ? plan : null;
 }
 
 export function chosenLessonPlan(lesson: RoadLesson): RoadPlan | null {
-  return chosenPlan(lesson.student?.id, lessonMinutes(lesson));
+  return chosenPlan(lesson.student?.id, lessonMinutes(lesson), lesson.appointmentId);
 }
 
 /** «Pedoni · SS150»: cosa e dove (la via da sola si ripete, QA 30/10). Percorso d'esame: il suo nome. */

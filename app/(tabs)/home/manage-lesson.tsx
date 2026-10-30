@@ -507,6 +507,7 @@ export default function ManageLessonScreen() {
         {roadLesson ? (
           // REG-667: una riga con la miniatura del giro; tocco = foglio «Il giro».
           <RoadPlanRow
+            appointmentId={roadLesson.appointmentId}
             studentId={roadLesson.student?.id}
             studentName={roadLesson.student?.name}
             durationMin={lessonMinutes(roadLesson)}

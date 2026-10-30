@@ -123,6 +123,7 @@ import {
   RoadPlanResponse,
   RoadPlanRouteResponse,
   RoadPlanStop,
+  SavedRoadPlan,
   RoadDetail,
   RoadExamRoute,
   RoadHotspotDetail,
@@ -1064,6 +1065,18 @@ export const createRegloApi = (baseUrl?: string) => {
       optimize?: boolean;
     }) =>
       client.request<RoadPlanRouteResponse>('/api/autoscuole/road/plan/route', { method: 'POST', body: input }),
+    /** REG-668: il giro modificato di una guida futura (null = vale il proposto). */
+    getSavedRoadPlan: async (appointmentId: string) =>
+      client.request<{ saved: SavedRoadPlan | null }>(
+        `/api/autoscuole/road/plan/saved?appointmentId=${encodeURIComponent(appointmentId)}`,
+      ),
+    saveRoadPlan: async (input: { appointmentId: string; stops: RoadPlanStop[]; minutes: number }) =>
+      client.request<{ saved: SavedRoadPlan }>('/api/autoscuole/road/plan/saved', { method: 'PUT', body: input }),
+    deleteSavedRoadPlan: async (appointmentId: string) =>
+      client.request<{ saved: null }>(
+        `/api/autoscuole/road/plan/saved?appointmentId=${encodeURIComponent(appointmentId)}`,
+        { method: 'DELETE' },
+      ),
     getRoadSession: async (sessionId: string) =>
       client.request<RoadDetail>(`/api/autoscuole/road/sessions/${sessionId}`),
     /** Lotto di punti idempotente su `seq`: rimandarlo dà `duplicate: true`. */

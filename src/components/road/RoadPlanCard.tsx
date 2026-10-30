@@ -10,7 +10,16 @@ import { ClaySurface } from '../clay/ClaySurface';
 import { ClayToggle } from '../clay/ClayToggle';
 import { SkeletonBlock } from '../Skeleton';
 import { SEGMENT_TIMING } from '../../utils/motion';
-import { hasPlanOverride, planMinutesFor, planStopLabel, prefetchPlanRoute, usePlan, usePlanChoice, usePlanRoute } from '../../road/planStore';
+import {
+  hasPlanOverride,
+  planMinutesFor,
+  planStopLabel,
+  prefetchPlanRoute,
+  prefetchSavedPlan,
+  usePlan,
+  usePlanChoice,
+  usePlanRoute,
+} from '../../road/planStore';
 import { roadFreeStore, warmRoadFree } from '../../road/freeStartStore';
 import { GIRO_SHEET_ROUTE, giroSheetStore } from '../../road/giroSheetStore';
 import { orderGuideStops } from '../../road/roadGuide';
@@ -33,15 +42,18 @@ import { RoadPlanMap } from './RoadPlanMap';
 export const RoadPlanCard = React.memo(function RoadPlanCard({
   studentId,
   durationMin,
+  appointmentId,
   style,
   testID = 'road-plan',
 }: {
   studentId: string | null | undefined;
   durationMin: number;
+  /** La guida: con il giro salvato (REG-668) si mostra quello. */
+  appointmentId?: string | null;
   style?: object;
   testID?: string;
 }) {
-  const res = usePlan(studentId, durationMin);
+  const res = usePlan(studentId, durationMin, appointmentId);
   const [on, setOn] = usePlanChoice(studentId);
   if (res === undefined) return studentId ? <PlanSkeleton style={style} /> : null;
   const plan = res?.plan;
@@ -86,12 +98,14 @@ export const RoadPlanLine = React.memo(function RoadPlanLine({
  * modificabili. Linea e sede arrivano all'apertura del dettaglio, mai al tocco.
  */
 export const RoadPlanRow = React.memo(function RoadPlanRow({
+  appointmentId,
   studentId,
   studentName,
   durationMin,
   style,
   testID = 'road-plan-row',
 }: {
+  appointmentId: string;
   studentId: string | null | undefined;
   studentName?: string | null;
   durationMin: number;
@@ -99,7 +113,7 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   testID?: string;
 }) {
   const router = useRouter();
-  const res = usePlan(studentId, durationMin);
+  const res = usePlan(studentId, durationMin, appointmentId);
   const [on, setOn] = usePlanChoice(studentId);
   const free = useSyncExternalStore(roadFreeStore.subscribe, roadFreeStore.get);
   const hq = free?.headquarters ?? null;
@@ -107,11 +121,12 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   const plan = res?.plan ?? null;
   const stops = plan?.stops ?? null;
   // Giro modificato dall'istruttore: il suo ordine, niente riottimizzazione.
-  const custom = hasPlanOverride(studentId, durationMin);
+  const custom = hasPlanOverride(appointmentId);
   const route = usePlanRoute(start, stops, !custom);
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
       if (!free) warmRoadFree();
+      prefetchSavedPlan(appointmentId);
       if (start && stops?.length) void prefetchPlanRoute(start, stops, !custom);
     });
     return () => task.cancel();
@@ -124,7 +139,7 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   const minutes = planMinutesFor(route?.lengthMeters, ordered.length) ?? plan.minutes;
   const open = () => {
     if (!studentId) return;
-    giroSheetStore.set({ studentId, durationMin, studentName });
+    giroSheetStore.set({ appointmentId, studentId, durationMin, studentName });
     router.push(GIRO_SHEET_ROUTE as never);
   };
   return (
