@@ -21,6 +21,7 @@ export const RoadPlanMap = React.memo(function RoadPlanMap({
   interactive = false,
   small = false,
   edgePadding = 24,
+  onReady,
 }: {
   line: Array<[number, number]> | null | undefined;
   stops: RoadPlanStop[];
@@ -29,6 +30,8 @@ export const RoadPlanMap = React.memo(function RoadPlanMap({
   /** Numeri e linea più piccoli (miniatura). */
   small?: boolean;
   edgePadding?: number;
+  /** La mappa ha disegnato le tessere (per la dissolvenza della miniatura). */
+  onReady?: () => void;
 }) {
   const ref = useRef<MapView>(null);
   const coords = useMemo(() => (line ?? []).map(([latitude, longitude]) => ({ latitude, longitude })), [line]);
@@ -44,6 +47,7 @@ export const RoadPlanMap = React.memo(function RoadPlanMap({
     return small ? { ...r, latitudeDelta: d, longitudeDelta: d } : r;
   }, [all, small]);
   const fit = () => {
+    onReady?.();
     if (small || all.length < 2) return;
     ref.current?.fitToCoordinates(all, {
       edgePadding: { top: edgePadding, right: edgePadding, bottom: edgePadding, left: edgePadding },

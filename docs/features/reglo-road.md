@@ -356,3 +356,11 @@ Invito (`home/road-invite`) e foglio della guida (`manage-lesson`, «Avvia con R
 - **In Road**: il server usa il giro salvato alla partenza e lo segna `plan.custom`; `roadGuide` non riottimizza se `session.plan.custom` (o se la guida ha un giro salvato).
 - **`RoadPlanMap`**: segnaposto delle tappe con chiave per POSIZIONE (`key={i}`): un segnaposto inserito in mezzo ai figli della MapView (giro tornato al suggerito) su iOS New Architecture non si disegnava.
 - Invito Road (`road-invite`): `RoadPlanCard` riceve `appointmentId`, quindi mostra il giro salvato.
+
+
+### Il giro con la miniatura anche in «Entri in modalità Road?» e «Avvia guida» (REG-669, 30/10)
+- Il giro non compare più come lista di tappe da nessuna parte: `RoadPlanCard` (lista) è stato tolto, resta solo `RoadPlanRow` (miniatura + tappe in breve + «Segui il giro»).
+- **Invito Road** (`home/road-invite`): `RoadPlanRow` con `appointmentId` → giro salvato (REG-668) se c'è, tocco = foglio «Il giro» modificabile (`home/giro` sopra l'invito); «Entra in Road» manda il giro scelto (`chosenLessonPlan`).
+- **«Avvia guida»** (`drive/avvia-allievo`, partenza libera): `RoadPlanRow` senza `appointmentId` = sola anteprima (niente tocco né freccia: non c'è una guida su cui salvare).
+- **Miniatura** (`PlanThumb`): skeleton finché la mappa non è pronta (`RoadPlanMap.onReady`, ripiego dopo 1,5 s) e la linea non è arrivata, poi dissolvenza 240 ms (`SOFT`, mai spenta da «Riduci movimento»). Skeleton della riga con la stessa forma (miniatura, tre righe, interruttore).
+- La riga di una riga sola nel foglio «Parti con …» (`RoadPlanLine`) resta: lì il giro è un riassunto.

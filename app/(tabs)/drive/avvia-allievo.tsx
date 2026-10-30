@@ -8,7 +8,7 @@ import { FormSheet } from '../../../src/components/SheetScaffold';
 import { CLAY } from '../../../src/theme';
 import { ClayButton, ClayList, ClayListRow, ClaySurface, PlayGlyph } from '../../../src/components/clay';
 import { BriefingRows, RouteThumb } from '../../../src/components/road/RoadTabParts';
-import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
+import { RoadPlanRow } from '../../../src/components/road/RoadPlanCard';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import { ROAD_FADE_IN, ROAD_FADE_OUT } from '../../../src/road/motion';
 import { beginRoadEntry, SHEET_HANDOFF_MS } from '../../../src/road/entryFlow';
@@ -116,7 +116,8 @@ export default function AvviaAllievoSheet() {
         </Animated.View>
       )}
 
-      <RoadPlanCard studentId={studentId} durationMin={duration} style={s.gap} testID="road-avvio-plan" />
+      {/* REG-669: la riga con la miniatura; senza guida in agenda è sola anteprima. */}
+      <RoadPlanRow studentId={studentId} durationMin={duration} style={s.gap} testID="road-avvio-plan" />
     </FormSheet>
   );
 }

@@ -1,15 +1,18 @@
-import React, { useEffect, useSyncExternalStore } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import type { RoadPlan, RoadPlanStop } from '../../types/regloApi';
+import type { RoadPlanStop } from '../../types/regloApi';
 import { CLAY } from '../../theme/clay';
 import { ClaySurface } from '../clay/ClaySurface';
 import { ClayToggle } from '../clay/ClayToggle';
 import { SkeletonBlock } from '../Skeleton';
-import { SEGMENT_TIMING } from '../../utils/motion';
+import { SOFT } from '../../utils/motion';
+
+/** Dissolvenza della miniatura: 240 ms, senza rimbalzo, mai spenta da «Riduci movimento». */
+const THUMB_FADE = { duration: 240, easing: SOFT, reduceMotion: ReduceMotion.Never } as const;
 import {
   hasPlanOverride,
   planMinutesFor,
@@ -26,41 +29,11 @@ import { orderGuideStops } from '../../road/roadGuide';
 import { RoadPlanMap } from './RoadPlanMap';
 
 /**
- * REG-649 Reglo Road — «Il giro» nei fogli di partenza (tab Road, invito,
- * foglio della guida, «Avvia guida»).
+ * REG-649/667/669 Reglo Road — il giro di una guida.
  *
- * Una card clay: «Il giro · circa N min», le tappe numerate in ordine (via o
- * percorso d'esame, il motivo, i minuti di strada) e in fondo «Segui il giro»
- * con l'interruttore: spento = senza giro (le tappe restano, attenuate,
- * così la card non cambia altezza). Il numero è lo stesso del segnaposto
- * sulla mappa. Niente pillole: motivi e minuti sono righe secondarie.
- *
- * Il giro arriva già scaricato (`planStore`, §15.8): qui nessuna chiamata.
- * Non c'è niente da mostrare (interruttore spento, nessuna tappa, rete giù)
- * → la card non c'è.
+ * Il giro arriva già scaricato (`planStore`, §15.8): qui nessuna chiamata al
+ * tocco. Non c'è niente da mostrare (nessuna tappa, rete giù) → niente card.
  */
-export const RoadPlanCard = React.memo(function RoadPlanCard({
-  studentId,
-  durationMin,
-  appointmentId,
-  style,
-  testID = 'road-plan',
-}: {
-  studentId: string | null | undefined;
-  durationMin: number;
-  /** La guida: con il giro salvato (REG-668) si mostra quello. */
-  appointmentId?: string | null;
-  style?: object;
-  testID?: string;
-}) {
-  const res = usePlan(studentId, durationMin, appointmentId);
-  const [on, setOn] = usePlanChoice(studentId);
-  if (res === undefined) return studentId ? <PlanSkeleton style={style} /> : null;
-  const plan = res?.plan;
-  if (!plan?.stops.length) return null;
-  return <PlanBody plan={plan} on={on} onToggle={setOn} style={style} testID={testID} />;
-});
-
 /**
  * Tab Road, nel briefing di ogni volto: il giro in una riga («Il giro · Via
  * Roma, Via Sacchi · circa 16 min»), le tappe numerate sono sulla mappa. Le
@@ -96,6 +69,10 @@ export const RoadPlanLine = React.memo(function RoadPlanLine({
  * le tappe numerate, «Il giro · circa N min» e le tappe in breve; sotto «Segui
  * il giro». Tocco sulla riga = foglio «Il giro» con mappa grande e tappe
  * modificabili. Linea e sede arrivano all'apertura del dettaglio, mai al tocco.
+ *
+ * REG-669: la stessa riga nel foglio «Entri in modalità Road?» (con la guida:
+ * giro salvato e foglio modificabile) e in «Avvia guida» (senza guida in
+ * agenda: sola anteprima, niente su cui salvare → niente tocco né freccia).
  */
 export const RoadPlanRow = React.memo(function RoadPlanRow({
   appointmentId,
@@ -105,7 +82,8 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   style,
   testID = 'road-plan-row',
 }: {
-  appointmentId: string;
+  /** La guida. Senza = partenza libera: sola anteprima. */
+  appointmentId?: string | null;
   studentId: string | null | undefined;
   studentName?: string | null;
   durationMin: number;
@@ -138,16 +116,22 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   const ordered = custom ? plan.stops : orderGuideStops(plan.stops, route?.order);
   const minutes = planMinutesFor(route?.lengthMeters, ordered.length) ?? plan.minutes;
   const open = () => {
-    if (!studentId) return;
+    if (!studentId || !appointmentId) return;
     giroSheetStore.set({ appointmentId, studentId, durationMin, studentName });
     router.push(GIRO_SHEET_ROUTE as never);
   };
+  const editable = !!appointmentId;
   return (
     <ClaySurface padded={false} style={[s.rowCard, style]} testID={testID}>
-      <Pressable onPress={open} style={({ pressed }) => [s.rowMain, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Apri il giro" testID={`${testID}-open`}>
-        <View style={[s.thumb, !on && s.dim]} pointerEvents="none">
-          <RoadPlanMap line={route?.line} stops={ordered} start={start} small />
-        </View>
+      <Pressable
+        onPress={open}
+        disabled={!editable}
+        style={({ pressed }) => [s.rowMain, pressed && s.pressed]}
+        accessibilityRole={editable ? 'button' : undefined}
+        accessibilityLabel={editable ? 'Apri il giro' : undefined}
+        testID={`${testID}-open`}
+      >
+        <PlanThumb line={route?.line} stops={ordered} start={start} lineReady={route !== undefined} dimmed={!on} />
         <View style={[s.rowText, !on && s.dim]}>
           <Text style={s.title} numberOfLines={1}>
             Il giro <Text style={s.titleMeta}>· circa {minutes} min</Text>
@@ -158,7 +142,7 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
             </Text>
           ))}
         </View>
-        <Ionicons name="chevron-forward" size={17} color="#B9B9B9" />
+        {editable ? <Ionicons name="chevron-forward" size={17} color="#B9B9B9" /> : null}
       </Pressable>
       <View style={s.rowToggle}>
         <Text style={s.toggleTx}>Segui il giro</Text>
@@ -168,76 +152,19 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   );
 });
 
-export function hasPlanStops(plan: RoadPlan | null | undefined) {
-  return !!plan?.stops.length;
-}
-
-function PlanBody({
-  plan,
-  on,
-  onToggle,
-  style,
-  testID,
-}: {
-  plan: RoadPlan;
-  on: boolean;
-  onToggle: (v: boolean) => void;
-  style?: object;
-  testID: string;
-}) {
-  const dim = useSharedValue(on ? 1 : 0.38);
-  useEffect(() => {
-    dim.value = withTiming(on ? 1 : 0.38, SEGMENT_TIMING);
-  }, [on, dim]);
-  const fade = useAnimatedStyle(() => ({ opacity: dim.value }));
-  return (
-    <ClaySurface style={[s.card, style]} testID={testID}>
-      <Animated.View style={fade}>
-        <Text style={s.title}>
-          Il giro <Text style={s.titleMeta}>· circa {plan.minutes} min</Text>
-        </Text>
-        {plan.stops.map((st, i) => (
-          <StopRow key={st.key} stop={st} index={i} />
-        ))}
-      </Animated.View>
-      <View style={s.toggleRow}>
-        <Text style={s.toggleTx}>Segui il giro</Text>
-        <ClayToggle value={on} onValueChange={onToggle} accessibilityLabel="Segui il giro" testID={`${testID}-toggle`} />
-      </View>
-    </ClaySurface>
-  );
-}
-
-const StopRow = React.memo(function StopRow({ stop, index }: { stop: RoadPlanStop; index: number }) {
-  return (
-    <View style={[s.row, index > 0 && s.sep]} testID="road-plan-stop">
-      <View style={s.num}>
-        <Text style={s.numTx}>{index + 1}</Text>
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={s.stopTitle} numberOfLines={1}>{stop.title}</Text>
-        <Text style={s.reason} numberOfLines={2}>{stop.reason}</Text>
-      </View>
-      {stop.minutes > 0 ? <Text style={s.minutes}>{stop.minutes} min</Text> : null}
-    </View>
-  );
-});
-
-/** Stessa forma della card (titolo + due tappe + interruttore): all'arrivo non salta niente. */
+/** Stessa forma della riga (miniatura, titolo, due tappe, interruttore): all'arrivo non salta niente. */
 function PlanSkeleton({ style }: { style?: object }) {
   return (
-    <ClaySurface style={[s.card, style]} testID="road-plan-skeleton">
-      <SkeletonBlock width="46%" height={17} radius={6} />
-      {[0, 1].map((i) => (
-        <View key={i} style={[s.row, i > 0 && s.sep]}>
-          <SkeletonBlock width={26} height={26} radius={13} />
-          <View style={{ flex: 1, gap: 6 }}>
-            <SkeletonBlock width="62%" height={14} radius={5} />
-            <SkeletonBlock width="84%" height={12} radius={5} />
-          </View>
+    <ClaySurface padded={false} style={[s.rowCard, style]} testID="road-plan-skeleton">
+      <View style={s.rowMain}>
+        <SkeletonBlock width={92} height={92} radius={16} />
+        <View style={[s.rowText, { gap: 8 }]}>
+          <SkeletonBlock width="58%" height={15} radius={5} />
+          <SkeletonBlock width="74%" height={13} radius={5} />
+          <SkeletonBlock width="66%" height={13} radius={5} />
         </View>
-      ))}
-      <View style={s.toggleRow}>
+      </View>
+      <View style={s.rowToggle}>
         <SkeletonBlock width={96} height={15} radius={5} />
         <SkeletonBlock width={50} height={30} radius={15} />
       </View>
@@ -245,30 +172,52 @@ function PlanSkeleton({ style }: { style?: object }) {
   );
 }
 
+/**
+ * La miniatura: skeleton finché la mappa non è pronta e la linea non è
+ * arrivata (o non c'è), poi la mappa entra in dissolvenza (240 ms, senza
+ * rimbalzo). La mappa si monta subito, invisibile, così carica intanto.
+ */
+function PlanThumb({
+  line,
+  stops,
+  start,
+  lineReady,
+  dimmed,
+}: {
+  line: Array<[number, number]> | null | undefined;
+  stops: RoadPlanStop[];
+  start: { lat: number; lng: number } | null;
+  lineReady: boolean;
+  dimmed: boolean;
+}) {
+  const [mapReady, setMapReady] = useState(false);
+  // Se la mappa non avvisa (Android liteMode), dopo poco si mostra comunque.
+  useEffect(() => {
+    const t = setTimeout(() => setMapReady(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+  const shown = mapReady && lineReady;
+  const fade = useSharedValue(0);
+  useEffect(() => {
+    if (shown) fade.value = withTiming(1, THUMB_FADE);
+  }, [shown, fade]);
+  const style = useAnimatedStyle(() => ({ opacity: fade.value }));
+  return (
+    <View style={[s.thumb, dimmed && s.dim]} pointerEvents="none" testID="road-plan-thumb">
+      {!shown ? <SkeletonBlock width={92} height={92} radius={16} style={StyleSheet.absoluteFill} /> : null}
+      <Animated.View style={[StyleSheet.absoluteFill, style]}>
+        <RoadPlanMap line={line} stops={stops} start={start} small onReady={() => setMapReady(true)} />
+      </Animated.View>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
-  card: { marginTop: 14 },
   line: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CLAY.hairline },
   lineTx: { fontSize: 14.5, fontWeight: '400', color: CLAY.ink2, letterSpacing: -0.15 },
   lineHead: { fontWeight: '600', color: CLAY.ink },
   title: { fontSize: 15, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2, marginBottom: 4 },
   titleMeta: { fontWeight: '400', color: CLAY.ink3 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10 },
-  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CLAY.hairline },
-  // Lo stesso numero del segnaposto sulla mappa: nero, cifra bianca.
-  num: { marginTop: -1, width: 26, height: 26, borderRadius: 13, backgroundColor: CLAY.ink, alignItems: 'center', justifyContent: 'center' },
-  numTx: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  stopTitle: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
-  reason: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, marginTop: 2, lineHeight: 18 },
-  minutes: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3, fontVariant: ['tabular-nums'], marginTop: 2 },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: CLAY.hairline,
-  },
   toggleTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   rowCard: { marginTop: 14 },
   rowMain: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, paddingRight: 16 },

@@ -11,7 +11,7 @@ import { formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';
 import { dismissInvite } from '../../../src/road/roadActions';
 import { lessonMinutes, usePlan } from '../../../src/road/planStore';
-import { RoadPlanCard } from '../../../src/components/road/RoadPlanCard';
+import { RoadPlanRow } from '../../../src/components/road/RoadPlanCard';
 import {
   SHEET_HANDOFF_MS,
   beginRoadEntry,
@@ -38,7 +38,7 @@ export default function RoadInviteSheet() {
 
   const planLesson = seed?.lesson ?? null;
   const planMin = planLesson ? lessonMinutes(planLesson) : 60;
-  const plan = usePlan(planLesson?.student?.id, planMin);
+  const plan = usePlan(planLesson?.student?.id, planMin, planLesson?.appointmentId);
 
   if (!seed) return <View style={s.root} />;
   const { lesson, locationName } = seed;
@@ -86,7 +86,15 @@ export default function RoadInviteSheet() {
       </ClaySurface>
 
       {showPlan ? (
-        <RoadPlanCard studentId={lesson.student?.id} durationMin={planMin} appointmentId={lesson.appointmentId} style={s.plan} testID="road-invite-plan" />
+        // REG-669: la stessa riga del dettaglio guida (miniatura, giro salvato, tocco = foglio «Il giro»).
+        <RoadPlanRow
+          appointmentId={lesson.appointmentId}
+          studentId={lesson.student?.id}
+          studentName={lesson.student?.name}
+          durationMin={planMin}
+          style={s.plan}
+          testID="road-invite-plan"
+        />
       ) : (
         // Solo testo: le tre cose che fa Road (icone tolte, design-system §0.4).
         <View style={s.features}>
