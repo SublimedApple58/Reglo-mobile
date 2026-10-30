@@ -206,6 +206,8 @@ fissa** (saluto + titolo + bottoni) perché sotto scorre la griglia.
 `ClayPageHeader` (testata dentro lo scroll, che non collassa) resta **solo
 nell'app allievo**, in attesa del suo giro.
 
+**Copertina elastica** (REG-661, 30/10, `src/components/clay/StretchyCover.tsx`): per le pagine con mappa in alto (home Road, Punti critici). La copertina sta dietro lo scroll; copertina e foglio scorrono insieme; tirando giù la copertina si allarga ancorata in alto (niente vuoto bianco), scorrendo su sale a metà velocità. Con poco contenuto la copertina riempie lo spazio, il foglio arriva alla tab bar e lo scroll si ferma dove finisce il contenuto. Solo transform guidati dallo scroll; cambi di altezza in 220 ms senza rimbalzo.
+
 ### 0.6 Fogli — adattivi, testata fissa e opaca, CTA fissa, X, niente grabber
 
 **Un solo foglio per tutto**: rotta con `FORM_SHEET` + componente

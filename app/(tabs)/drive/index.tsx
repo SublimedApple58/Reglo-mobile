@@ -418,6 +418,14 @@ const RecentSection = React.memo(function RecentSection({
   );
 });
 
+/** Distanza in km (equirettangolare: basta per dire «stessa zona»). */
+const NEAR_KM = 15;
+function kmBetween(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+  const x = (b.longitude - a.longitude) * Math.cos(((a.latitude + b.latitude) / 2) * (Math.PI / 180));
+  const y = b.latitude - a.latitude;
+  return Math.sqrt(x * x + y * y) * 111.32;
+}
+
 /** Regione che contiene i punti, con un minimo (un punto solo = la sua zona). */
 function regionFor(pts: Array<{ latitude: number; longitude: number }>) {
   if (!pts.length) return null;
@@ -456,8 +464,12 @@ const RoadHomeMap = React.memo(function RoadHomeMap({
   const shown = useMemo(() => (hotspots ?? []).slice(0, COVER_HOTSPOTS), [hotspots]);
   const max = shown.reduce((m, h) => Math.max(m, h.errors), 0);
   const target = useMemo(() => {
+    // I punti critici comandano; la sede entra solo se è nella stessa zona
+    // (entro 15 km): una sede lontana allargherebbe la mappa a una regione.
     const pts = shown.map((h) => ({ latitude: h.lat, longitude: h.lng }));
-    if (hq) pts.push({ latitude: hq.lat, longitude: hq.lng });
+    if (hq && (!pts.length || pts.some((p) => kmBetween(p, { latitude: hq.lat, longitude: hq.lng }) <= NEAR_KM))) {
+      pts.push({ latitude: hq.lat, longitude: hq.lng });
+    }
     if (!pts.length && pos) pts.push(pos);
     return regionFor(pts);
   }, [shown, hq, pos]);
