@@ -22,7 +22,7 @@ import { FormSheet } from '../SheetScaffold';
 import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface, ClayToggle, markClayRow } from '../clay';
 import { SettingStepperRow, SettingValueRow } from '../SettingsRows';
 import { VITA_ART } from '../../theme/vitaArt';
-import { car34HeroArt } from '../../road/markerArt';
+import { car34Art } from '../../road/markerArt';
 
 const MOTO_ART = require('../../../assets/icons3d-ai/moto.png');
 import { CLAY } from '../../theme/clay';
@@ -811,7 +811,7 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
           {selectedVehicle && isMotoLicenseCategory(selectedVehicle.licenseCategory) ? (
             <Image source={MOTO_ART} style={s.moto} resizeMode="contain" />
           ) : (
-            <Image source={car34HeroArt(selectedVehicle?.color ?? 'rosso')} style={s.car} resizeMode="contain" />
+            <Image source={car34Art(selectedVehicle?.color ?? 'rosso')} style={s.car} resizeMode="contain" />
           )}
         </View>
         <ClayListRow

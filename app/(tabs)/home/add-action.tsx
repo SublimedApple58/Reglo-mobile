@@ -8,7 +8,7 @@ import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayListRow, ClaySurface } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme/clay';
 import { VITA_ART } from '../../../src/theme/vitaArt';
-import { car34HeroArt } from '../../../src/road/markerArt';
+import { car34Art } from '../../../src/road/markerArt';
 
 const PERSONE = require('../../../assets/icons3d-ai/persone.png') as ImageSourcePropType;
 
@@ -49,7 +49,7 @@ export default function AddActionScreen() {
             <Image source={VITA_ART.cartinaRoad} style={s.map} resizeMode="cover" />
             {/* Alone bianco morbido dietro l'auto: la stacca dalla cartina (Tiziano 28/10). */}
             <View pointerEvents="none" style={s.glow} />
-            <Image source={car34HeroArt(vehicle?.color ?? 'rosso')} style={s.car} resizeMode="contain" />
+            <Image source={car34Art(vehicle?.color ?? 'rosso')} style={s.car} resizeMode="contain" />
           </View>
           <View style={s.cardText}>
             <View style={s.cardMain}>

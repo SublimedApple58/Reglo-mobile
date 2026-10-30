@@ -32,8 +32,7 @@ export const ROAD_ASSETS = {
 };
 
 /**
- * Auto 3D nel colore del veicolo della guida: gli STESSI PNG della web app
- * (`assets/web/road/cars/`, REG-672), chiavi =
+ * Auto 3D nel colore del veicolo della guida: varianti pre-generate, chiavi =
  * `carColor` del backend (reglo/lib/autoscuole/road/car-colors.ts). Il server
  * risolve già veicolo → tinta istruttore → bianco; qui solo il fallback.
  */
@@ -41,37 +40,19 @@ export const CAR_COLOR_KEYS = ['bianco', 'argento', 'grigio', 'nero', 'rosso', '
 export type CarColorKey = (typeof CAR_COLOR_KEYS)[number];
 
 const CAR_TOP: Record<CarColorKey, ImageSourcePropType> = {
-  bianco: require('../../assets/web/road/cars/auto-su-bianco.png'),
-  argento: require('../../assets/web/road/cars/auto-su-argento.png'),
-  grigio: require('../../assets/web/road/cars/auto-su-grigio.png'),
-  nero: require('../../assets/web/road/cars/auto-su-nero.png'),
-  rosso: require('../../assets/web/road/cars/auto-su-rosso.png'),
-  arancio: require('../../assets/web/road/cars/auto-su-arancio.png'),
-  giallo: require('../../assets/web/road/cars/auto-su-giallo.png'),
-  verde: require('../../assets/web/road/cars/auto-su-verde.png'),
-  azzurro: require('../../assets/web/road/cars/auto-su-azzurro.png'),
-  blu: require('../../assets/web/road/cars/auto-su-blu.png'),
+  bianco: require('../../assets/road/cars/auto-su-bianco.png'),
+  argento: require('../../assets/road/cars/auto-su-argento.png'),
+  grigio: require('../../assets/road/cars/auto-su-grigio.png'),
+  nero: require('../../assets/road/cars/auto-su-nero.png'),
+  rosso: require('../../assets/road/cars/auto-su-rosso.png'),
+  arancio: require('../../assets/road/cars/auto-su-arancio.png'),
+  giallo: require('../../assets/road/cars/auto-su-giallo.png'),
+  verde: require('../../assets/road/cars/auto-su-verde.png'),
+  azzurro: require('../../assets/road/cars/auto-su-azzurro.png'),
+  blu: require('../../assets/road/cars/auto-su-blu.png'),
 };
 
 const CAR_34: Record<CarColorKey, ImageSourcePropType> = {
-  bianco: require('../../assets/web/road/cars/auto-34-bianco.png'),
-  argento: require('../../assets/web/road/cars/auto-34-argento.png'),
-  grigio: require('../../assets/web/road/cars/auto-34-grigio.png'),
-  nero: require('../../assets/web/road/cars/auto-34-nero.png'),
-  rosso: require('../../assets/web/road/cars/auto-34-rosso.png'),
-  arancio: require('../../assets/web/road/cars/auto-34-arancio.png'),
-  giallo: require('../../assets/web/road/cars/auto-34-giallo.png'),
-  verde: require('../../assets/web/road/cars/auto-34-verde.png'),
-  azzurro: require('../../assets/web/road/cars/auto-34-azzurro.png'),
-  blu: require('../../assets/web/road/cars/auto-34-blu.png'),
-};
-
-/**
- * Auto di 3/4 GRANDE (≥ 120 pt: card «Guida» del «+», riepilogo prenotazione):
- * il PNG del web è 200 px e lì si sgranerebbe, quindi resta il set mobile
- * (REG-672, scelta di Tiziano 30/10).
- */
-const CAR_34_HERO: Record<CarColorKey, ImageSourcePropType> = {
   bianco: require('../../assets/road/cars/auto-34-bianco.png'),
   argento: require('../../assets/road/cars/auto-34-argento.png'),
   grigio: require('../../assets/road/cars/auto-34-grigio.png'),
@@ -91,8 +72,6 @@ const carKey = (color: string | null | undefined): CarColorKey =>
 export const carTopArt = (color?: string | null) => CAR_TOP[carKey(color)];
 /** Auto di 3/4 (invito, card). */
 export const car34Art = (color?: string | null) => CAR_34[carKey(color)];
-/** Auto di 3/4 grande (card «Guida», riepilogo): set mobile ad alta risoluzione. */
-export const car34HeroArt = (color?: string | null) => CAR_34_HERO[carKey(color)];
 
 export const CUSTOM_KIND_PREFIX = 'custom:';
 

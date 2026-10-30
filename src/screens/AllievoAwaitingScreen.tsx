@@ -16,7 +16,7 @@ import { spacing } from '../theme/spacing';
  * titolo calmo, e il percorso come timeline verticale a itinerario. Nessuna
  * CTA: è l'autoscuola che deve attivare l'allievo dal web.
  */
-const HERO = require('../../assets/web/menu/dai-un-boost.png');
+const HERO = require('../../assets/icons-3d/rocket.png');
 
 export const AllievoAwaitingScreen: React.FC = () => {
   const { user, signOut } = useSession();

@@ -1513,7 +1513,7 @@ export const AllievoHomeScreen = () => {
         {upcoming.length === 0 && !nextExam && studentsLoaded && (appointmentsQuery.data != null) && (
           <View style={styles.emptyState}>
             <Image
-              source={heroArtSource(studentLicenseCategory)}
+              source={lessonArtSource(studentLicenseCategory)}
               style={styles.emptyStateIcon}
             />
             <Text style={styles.emptyStateTitle}>Nessuna guida in programma</Text>
@@ -1578,7 +1578,7 @@ export const AllievoHomeScreen = () => {
             </Animated.View>
 
             <Animated.View entering={FadeInUp.delay(140).duration(320).springify()} style={styles.examPrompt}>
-              <Image source={lessonArtSource(studentLicenseCategory)} style={styles.examPromptIcon} resizeMode="contain" />
+              <Image source={lessonArtSource(studentLicenseCategory)} style={styles.examPromptIcon} />
               <Text style={styles.examPromptTitle}>Non hai guide prenotate</Text>
               <Text style={styles.examPromptSub}>
                 {studentBookingDisabledByPolicy
@@ -1738,7 +1738,6 @@ export const AllievoHomeScreen = () => {
                     <Image
                       source={lessonArtSource(lesson.vehicle?.licenseCategory ?? studentLicenseCategory)}
                       style={styles.miniCardIcon}
-                      resizeMode="contain"
                     />
                     <Text style={styles.miniCardTime} numberOfLines={1}>
                       {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}

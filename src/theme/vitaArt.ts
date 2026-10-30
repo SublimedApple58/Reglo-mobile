@@ -9,7 +9,7 @@ import type { ImageSourcePropType } from 'react-native';
  * come velo grigio semitrasparente e su bianco l'icona è identica a prima.
  */
 export const VITA_ART = {
-  /** REG-672: icone che esistono già nella web app → stesso PNG (`assets/web/`, design-system §0.10). */
+  /** REG-672: icone che esistono già nella web app → stesso PNG (`assets/web/`, design-system §0.9). */
   calendario: require('../../assets/web/nav/agenda-3d.png') as ImageSourcePropType,
   volante: require('../../assets/vita/volante.png') as ImageSourcePropType,
   esame: require('../../assets/vita/esame.png') as ImageSourcePropType,
@@ -24,7 +24,7 @@ export const VITA_ART = {
    * (voto del pagellino) e orologio (ore al volante, Ore di guida). Il
    * pagellino non ha un'icona sua: riusa quella dell'esame.
    */
-  stella: require('../../assets/web/menu/feedback-mid.png') as ImageSourcePropType,
+  stella: require('../../assets/vita/stella.png') as ImageSourcePropType,
   orologio: require('../../assets/vita/orologio.png') as ImageSourcePropType,
   pagellino: require('../../assets/vita/esame.png') as ImageSourcePropType,
   /**
