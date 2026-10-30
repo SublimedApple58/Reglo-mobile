@@ -26,6 +26,7 @@ export default function RoadMapScreen() {
       <RoadRouteMap
         track={detail.track}
         markers={detail.markers}
+        stops={detail.stops}
         interactive
         labeled
         style={StyleSheet.absoluteFill}

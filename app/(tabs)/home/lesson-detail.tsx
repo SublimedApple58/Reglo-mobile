@@ -156,7 +156,7 @@ export default function LessonDetailScreen() {
               accessibilityLabel="Apri la mappa del percorso"
               testID="lesson-road-map"
             >
-              <RoadRouteMap track={road.track} markers={road.markers} style={s.roadMini} />
+              <RoadRouteMap track={road.track} markers={road.markers} stops={road.stops} style={s.roadMini} />
               <View style={s.roadExpand}>
                 <BlurView intensity={70} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
                 <View style={s.roadExpandTint} />

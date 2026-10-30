@@ -1,8 +1,8 @@
 import React, { useMemo, useRef } from 'react';
 import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
-import type { RoadMarker } from '../../types/regloApi';
-import { RoadEndpointDot, RoadMarkerPin, RoadTrack } from './RoadMapParts';
+import type { RoadMarker, RoadStop } from '../../types/regloApi';
+import { RoadEndpointDot, RoadMarkerPin, RoadStopMarker, RoadTrack } from './RoadMapParts';
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -34,6 +34,7 @@ export function regionFor(points: LatLng[]) {
 export function RoadRouteMap({
   track,
   markers,
+  stops,
   interactive = false,
   labeled = false,
   style,
@@ -41,6 +42,8 @@ export function RoadRouteMap({
 }: {
   track: Array<[number, number, number]>;
   markers: RoadMarker[];
+  /** REG-665: soste ≥ 5 min (capsula «Sosta X min» se `labeled`). */
+  stops?: RoadStop[];
   interactive?: boolean;
   /** Segnalazioni con etichetta (mappa a tutto schermo). */
   labeled?: boolean;
@@ -93,6 +96,14 @@ export function RoadRouteMap({
         <RoadTrack coordinates={coords} width={interactive ? 6 : 5} />
         {coords.length > 1 ? <RoadEndpointDot coordinate={coords[0]} /> : null}
         {coords.length > 1 ? <RoadEndpointDot coordinate={coords[coords.length - 1]} /> : null}
+        {(stops ?? []).map((st) => (
+          <RoadStopMarker
+            key={`stop-${st.startMs}`}
+            coordinate={{ latitude: st.lat, longitude: st.lng }}
+            minutes={st.minutes}
+            labeled={labeled}
+          />
+        ))}
         {markers.map((m) => (
           <RoadMarkerPin
             key={m.id || m.clientId}

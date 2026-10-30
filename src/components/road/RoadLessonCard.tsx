@@ -73,7 +73,7 @@ export function RoadLessonCard({
         <View style={[s.mini, s.mapHolder]}>
           {mapReady ? (
             <Animated.View entering={SOFT_SWAP_IN} style={StyleSheet.absoluteFill}>
-              <RoadRouteMap track={detail.track} markers={detail.markers} style={s.miniFill} />
+              <RoadRouteMap track={detail.track} markers={detail.markers} stops={detail.stops} style={s.miniFill} />
             </Animated.View>
           ) : null}
         </View>

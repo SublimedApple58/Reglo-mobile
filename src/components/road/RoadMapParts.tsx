@@ -53,6 +53,7 @@ const TAG_H = 36;
 const TAG_H_SMALL = 30;
 const GAP = 7;
 const DOT = 18;
+const STOP_DOT = 14;
 /** Quanto la punta del fumetto scende sotto il fumetto (`pin.tail`). */
 const TAIL_TIP = 6;
 
@@ -140,6 +141,38 @@ export function RoadEndpointDot({ coordinate }: { coordinate: LatLng }) {
 }
 
 /**
+ * REG-665 — sosta di almeno 5 minuti sul percorso. Miniatura: un punto nero
+ * bordato di bianco (come i capi del percorso ma pieno). Mappa grande
+ * (`labeled`): sopra il punto la capsula «Sosta 7 min».
+ */
+export function RoadStopMarker({ coordinate, minutes, labeled }: { coordinate: LatLng; minutes: number; labeled?: boolean }) {
+  const tracksViewChanges = useTracksViewChanges([minutes, labeled ? 1 : 0]);
+  if (!labeled) {
+    return (
+      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={tracksViewChanges} zIndex={3}>
+        <View style={pin.stop} pointerEvents="none" />
+      </Marker>
+    );
+  }
+  return (
+    <Marker
+      coordinate={coordinate}
+      anchor={{ x: 0.5, y: 1 - STOP_DOT / 2 / (TAG_H_SMALL + GAP + STOP_DOT) }}
+      tracksViewChanges={tracksViewChanges}
+      zIndex={3}
+    >
+      <View style={pin.wrap} pointerEvents="none">
+        <View style={[pin.tag, pin.stopTag]}>
+          <Text style={pin.label}>Sosta {minutes} min</Text>
+          <View style={pin.tail} />
+        </View>
+        <View style={[pin.stop, { marginTop: GAP }]} />
+      </View>
+    </Marker>
+  );
+}
+
+/**
  * Auto vista dall'alto, ruotata nella direzione di marcia. `rotation` è già
  * relativa alla camera (Apple Maps non ruota i marker da sé).
  */
@@ -217,6 +250,16 @@ const pin = StyleSheet.create({
     borderColor: '#FFFFFF',
     boxShadow: '0px 2px 3px rgba(0,0,0,0.25)',
   },
+  stop: {
+    width: STOP_DOT,
+    height: STOP_DOT,
+    borderRadius: STOP_DOT / 2,
+    backgroundColor: '#111111',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    boxShadow: '0px 1px 3px rgba(0,0,0,0.3)',
+  },
+  stopTag: { height: TAG_H_SMALL, borderRadius: TAG_H_SMALL / 2, paddingLeft: 12, paddingRight: 12 },
   endpoint: {
     width: 16,
     height: 16,

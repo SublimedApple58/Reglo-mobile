@@ -142,7 +142,7 @@ export default function RiepilogoScreen() {
 
       {/* La mappa si ritaglia nel figlio: l'ombra clay sta sul contenitore. */}
       <View style={[s.miniWrap, CLAY_SHADOW.raise]}>
-        <RoadRouteMap track={summary.track} markers={summary.markers} style={s.mini} />
+        <RoadRouteMap track={summary.track} markers={summary.markers} stops={summary.stops} style={s.mini} />
       </View>
 
       <View style={s.sum}>

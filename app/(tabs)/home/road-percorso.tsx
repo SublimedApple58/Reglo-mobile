@@ -52,7 +52,7 @@ export default function RoadPercorsoSheet() {
           style={({ pressed }) => [s.miniWrap, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.98 }] }]}
         >
           {/* La mappa si ritaglia nel figlio: l'ombra clay sta sul contenitore. */}
-          <RoadRouteMap track={detail.track} markers={detail.markers} style={s.mini} />
+          <RoadRouteMap track={detail.track} markers={detail.markers} stops={detail.stops} style={s.mini} />
         </Pressable>
 
         <View style={s.sum}>

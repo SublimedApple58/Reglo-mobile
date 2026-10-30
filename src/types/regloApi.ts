@@ -1797,10 +1797,15 @@ export type RoadEvaluationSummary = {
 
 export type RoadDetail = RoadSessionWithLesson & {
   markers: RoadMarker[];
-  /** [lat, lng, tMs] in ordine. */
+  /** [lat, lng, tMs] in ordine. REG-665: traccia pulita (e sulle strade a guida finita). */
   track: Array<[number, number, number]>;
+  /** REG-665: soste di almeno 5 minuti (assente dai backend precedenti). */
+  stops?: RoadStop[];
   evaluation?: RoadEvaluationSummary | null;
 };
+
+/** REG-665: l'auto è rimasta ferma qui per `minutes` minuti (≥ 5). */
+export type RoadStop = { lat: number; lng: number; startMs: number; endMs: number; minutes: number };
 
 /** Punto critico (REG-643/646): dove gli allievi dell'autoscuola sbagliano più spesso. */
 export type RoadHotspot = {
