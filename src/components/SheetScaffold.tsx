@@ -229,7 +229,8 @@ export function FormSheet({
           contentContainerStyle={[fs.body, cta ? null : fs.bodyLast]}
           contentInsetAdjustmentBehavior="never"
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
           alwaysBounceVertical={false}
           ListHeaderComponent={<SheetAnticipateContext.Provider value={anticipate}>{children}</SheetAnticipateContext.Provider>}
@@ -257,7 +258,13 @@ export function FormSheet({
         // La safe area la gestisce il foglio: iOS non deve aggiungerla sotto.
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        // Tastiera (REG-664, QA Road 30/10: la nota restava sotto la tastiera e
+        // scorrendo la tastiera si chiudeva). iOS: lo scroll si accorcia dell'area
+        // coperta dalla tastiera e porta in vista il campo con il focus (lo fa
+        // RN nativamente con questa prop); scorrere non chiude più la tastiera,
+        // la si trascina giù col dito come in Note/Messaggi.
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
         alwaysBounceVertical={false}
         {...scrollProps}
@@ -299,8 +306,17 @@ export function FormSheet({
           {cta}
         </View>
       ) : null}
+      {/* Android: il foglio nativo non si sposta dalla tastiera; lo spazio in
+          fondo alto quanto la tastiera spinge su centro e CTA (REG-664). */}
+      {isAndroid ? <AndroidKeyboardSpacer /> : null}
     </View>
   );
+}
+
+function AndroidKeyboardSpacer() {
+  const keyboard = useAnimatedKeyboard();
+  const style = useAnimatedStyle(() => ({ height: keyboard.height.value }));
+  return <Animated.View pointerEvents="none" style={style} />;
 }
 
 /**

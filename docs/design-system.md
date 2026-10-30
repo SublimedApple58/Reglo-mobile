@@ -1387,6 +1387,8 @@ Ogni foglio, anche con liste lunghe, è un **form sheet alto quanto il contenuto
 
 > **Corollario, costato un rilascio rotto il 23/09/2026 (REG-510).** In un form `SCROLL_SHEET` ci deve essere **un solo contenitore scrollabile**: quello dello `SheetScaffold`. Mettere accanto a lui un'altra `ScrollView` — anche solo **orizzontale**, come una barra filtri — li fa competere per l'altezza dentro la colonna flex: quella orizzontale collassa e il suo contenuto trabocca sopra l'header e la X. Titolo, filtri e lista vanno **dentro** lo scaffold e scorrono insieme, com'è in `StudentPaymentsScreen`.
 
+> **Tastiera nei fogli (REG-664, 30/10/2026).** Lo scroll di `FormSheet` ha `automaticallyAdjustKeyboardInsets` (iOS: si accorcia dell'area coperta dalla tastiera e porta in vista il campo con il focus) e `keyboardDismissMode="interactive"` (scorrere NON chiude la tastiera; la si trascina giù col dito). Su Android il foglio aggiunge in fondo uno spazio alto quanto la tastiera. Vale per ogni campo in ogni `FormSheet`: niente `KeyboardAvoidingView` o `keyboardDismissMode="on-drag"` nei singoli fogli, e niente `react-native-keyboard-controller` (modulo nativo: con un OTA farebbe crashare la 2.4.0).
+
 ---
 
 ## 8. Animazioni
