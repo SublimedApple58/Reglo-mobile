@@ -9,7 +9,9 @@ import { StatusBar } from 'expo-status-bar';
 
 import type { RoadExamRoute, RoadHotspot } from '../types/regloApi';
 import { ClayEmpty, ClayListRow, ClaySegmented, ClaySurface, Icon3D } from '../components/clay';
-import { ClayLargeTitle, ClayNavBar, NAV_BAR_H, useLargeTitleScroll } from '../components/ClayLargeTitle';
+import { ClayLargeTitle, ClayNavBar, NAV_BAR_H } from '../components/ClayLargeTitle';
+import { COVER_OVERLAP, StretchyCover, StretchySpacer, stretchyPanel, useStretchyCover } from '../components/clay/StretchyCover';
+import { useTabBarHeight } from '../components/tabBarSpace';
 import { HeatHalo, RoadMarkerPin } from '../components/road/RoadMapParts';
 import { SkeletonBlock } from '../components/Skeleton';
 import { markerArt } from '../road/markerArt';
@@ -52,7 +54,6 @@ export default function RoadHotspotsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const { scrollY, onScroll } = useLargeTitleScroll();
   useHotspotsVersion();
 
   const [period, setPeriod] = useState<HotspotPeriod>(DEFAULT_HOTSPOT_PERIOD);
@@ -102,12 +103,34 @@ export default function RoadHotspotsScreen() {
 
   const hotspots = data?.hotspots ?? null;
   const loading = !hotspots && !error;
-  const mapH = Math.round(height * 0.38);
+
+  // Spazio della tab bar misurato davvero (REG-659): se il layout lo riserva
+  // già la lista non aggiunge niente, altrimenti si tiene la barra in fondo.
+  const tabBarH = useTabBarHeight();
+  const [rootH, setRootH] = useState(0);
+  const overlap = rootH ? Math.max(0, tabBarH - (height - rootH)) : 0;
+  const stretch = useStretchyCover({
+    base: Math.round(height * 0.4),
+    viewportHeight: rootH || height,
+    bottomInset: overlap,
+    // Lista coi lati trasparenti: la copertina sale col foglio, mai ai lati delle righe.
+    parallax: 1,
+  });
 
   const [rowBase, setRowBase] = useState(0);
   // La riga più alta (le icone arrivano dopo il primo layout): la superficie non resta mai più corta.
   const onRowBase = useCallback((h: number) => setRowBase((prev) => Math.max(prev, Math.round(h))), []);
   const backdropH = hotspots?.length && rowBase ? hotspots.length * rowBase + LIST_INSET * 2 : 0;
+
+  // Altezza del contenuto (intestazione + righe + piede): con poco contenuto la
+  // copertina prende lo spazio libero e il foglio arriva fino alla tab bar.
+  const [headH, setHeadH] = useState(0);
+  const [footH, setFootH] = useState(0);
+  const rowsReady = !hotspots?.length || backdropH > 0;
+  useEffect(() => {
+    if (headH && rowsReady) stretch.setPanelHeight(headH + backdropH + footH);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headH, backdropH, footH, rowsReady]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: RoadHotspot; index: number }) => (
@@ -131,90 +154,105 @@ export default function RoadHotspotsScreen() {
 
   const header = (
     <View>
-      <HotspotsMap height={mapH} topInset={insets.top} hotspots={hotspots} routes={routes} onOpen={open} />
-      <View style={s.panel}>
-        <ClayLargeTitle title="Punti critici" subtitle={lead} />
-        <Text style={s.note}>
-          Gli incroci dove almeno 2 allievi hanno sbagliato 3 volte o più. Vale per tutta l&apos;autoscuola; nel
-          dettaglio vedi solo le tue guide.
-        </Text>
-        <ClaySegmented
-          options={HOTSPOT_PERIODS.map((p) => ({ value: p.value, label: p.label, testID: `hotspots-period-${p.value}` }))}
-          value={period}
-          onChange={changePeriod}
-          style={s.segmented}
-          testID="hotspots-period"
-        />
-      </View>
-      <View style={s.body}>
-        {/* Spazio vero e non padding: la superficie sotto parte da `top: '100%'` del contenuto. */}
-        <View style={s.gap} />
-        {error && !hotspots ? (
-          <Animated.Text entering={ROAD_FADE_IN} style={s.error}>
-            {error}
-          </Animated.Text>
-        ) : loading ? (
-          <Animated.View exiting={ROAD_FADE_OUT} testID="hotspots-skeleton">
-            <ClaySurface padded={false} style={s.skList}>
-              {[0, 1, 2, 3].map((i) => (
-                <View key={i} style={s.skRow}>
-                  <SkeletonBlock width={44} height={44} radius={14} />
-                  <View style={{ flex: 1, gap: 7 }}>
-                    <SkeletonBlock width="46%" height={15} radius={6} />
-                    <SkeletonBlock width="70%" height={12} radius={6} />
+      <StretchySpacer style={stretch.spacerStyle} />
+      <View style={s.sheet} onLayout={(e) => setHeadH(Math.round(e.nativeEvent.layout.height))}>
+        <View style={s.panel}>
+          <ClayLargeTitle title="Punti critici" subtitle={lead} />
+          <ClaySegmented
+            options={HOTSPOT_PERIODS.map((p) => ({ value: p.value, label: p.label, testID: `hotspots-period-${p.value}` }))}
+            value={period}
+            onChange={changePeriod}
+            style={s.segmented}
+            testID="hotspots-period"
+          />
+        </View>
+        <View style={s.body}>
+          {/* Spazio vero e non padding: la superficie sotto parte da `top: '100%'` del contenuto. */}
+          <View style={s.gap} />
+          {error && !hotspots ? (
+            <Animated.Text entering={ROAD_FADE_IN} style={s.error}>
+              {error}
+            </Animated.Text>
+          ) : loading ? (
+            <Animated.View exiting={ROAD_FADE_OUT} testID="hotspots-skeleton">
+              <ClaySurface padded={false} style={s.skList}>
+                {[0, 1, 2].map((i) => (
+                  <View key={i} style={s.skRow}>
+                    <SkeletonBlock width={44} height={44} radius={14} />
+                    <View style={{ flex: 1, gap: 7 }}>
+                      <SkeletonBlock width="46%" height={15} radius={6} />
+                      <SkeletonBlock width="70%" height={12} radius={6} />
+                    </View>
                   </View>
+                ))}
+              </ClaySurface>
+            </Animated.View>
+          ) : hotspots && hotspots.length === 0 ? (
+            // Stato vuoto composto (Tiziano 30/10): una card subito sotto il periodo, non sperduta.
+            <Animated.View entering={ROAD_FADE_IN}>
+              <ClaySurface style={s.emptyCard} testID="hotspots-empty">
+                <Icon3D source={MORALE_ART.piantina} size={64} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.emptyTitle}>Ancora nessun punto critico</Text>
+                  <Text style={s.emptyText}>
+                    {data?.totalErrors
+                      ? `${data.totalErrors === 1 ? '1 segnalazione' : `${data.totalErrors} segnalazioni`} «da migliorare», ma ancora sparse: un punto compare dove 2 allievi sbagliano nello stesso posto.`
+                      : 'Quando in guida segni «da migliorare», gli errori che si ripetono nello stesso posto compaiono qui.'}
+                  </Text>
                 </View>
-              ))}
-            </ClaySurface>
-          </Animated.View>
-        ) : hotspots && hotspots.length === 0 ? (
-          <Animated.View entering={ROAD_FADE_IN}>
-            <ClayEmpty
-              icon={MORALE_ART.piantina}
-              title="Ancora nessun punto critico"
-              text={
-                data?.totalErrors
-                  ? `${data.totalErrors === 1 ? '1 segnalazione' : `${data.totalErrors} segnalazioni`} «da migliorare» ${periodLong}, ma ancora sparse: un punto compare quando 2 allievi sbagliano nello stesso posto.`
-                  : 'Quando in guida segni «da migliorare», gli errori che si ripetono nello stesso posto compaiono qui.'
-              }
-              testID="hotspots-empty"
-            />
-          </Animated.View>
-        ) : null}
-        {backdropH ? (
-          <View pointerEvents="none" style={[s.backdrop, { height: backdropH }]}>
-            <ClaySurface padded={false} style={s.backdropFill} />
-          </View>
-        ) : null}
+              </ClaySurface>
+            </Animated.View>
+          ) : null}
+          {backdropH ? (
+            <View pointerEvents="none" style={[s.backdrop, { height: backdropH }]}>
+              <ClaySurface padded={false} style={s.backdropFill} />
+            </View>
+          ) : null}
+        </View>
       </View>
     </View>
   );
 
-  const footer =
-    hotspots?.length && routes?.length ? (
-      <Text style={s.footnote}>
-        La linea tratteggiata sulla mappa {routes.length === 1 ? `è il percorso d'esame «${routes[0].name}»` : `sono i ${routes.length} percorsi d'esame`} dell&apos;autoscuola.
-      </Text>
-    ) : null;
+  const footer = (
+    <View onLayout={(e) => setFootH(Math.round(e.nativeEvent.layout.height))} style={s.foot}>
+      {hotspots?.length ? (
+        <Text style={s.footnote}>
+          Un punto compare dove almeno 2 allievi sbagliano 3 volte. Vale per tutta l&apos;autoscuola; nel dettaglio vedi le tue guide.
+          {routes?.length
+            ? ` La linea tratteggiata ${routes.length === 1 ? `è il percorso d'esame «${routes[0].name}»` : `sono i ${routes.length} percorsi d'esame`}.`
+            : ''}
+        </Text>
+      ) : null}
+    </View>
+  );
 
   return (
-    <View style={s.root}>
+    <View style={s.root} onLayout={(e) => setRootH(Math.round(e.nativeEvent.layout.height))}>
       <StatusBar style="dark" />
+      <StretchyCover style={stretch.coverStyle} testID="hotspots-cover">
+        <HotspotsMap topInset={insets.top} hotspots={hotspots} routes={routes} onOpen={open} />
+      </StretchyCover>
       <Animated.FlatList
+        style={StyleSheet.absoluteFill}
         data={hotspots ?? EMPTY}
         keyExtractor={keyOf}
         renderItem={renderItem}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
-        onScroll={onScroll}
+        onScroll={stretch.onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={s.content}
+        contentContainerStyle={{ paddingBottom: overlap }}
         initialNumToRender={10}
         windowSize={7}
         testID="road-hotspots"
       />
-      <ClayNavBar title="Punti critici" scrollY={scrollY} onBack={() => router.back()} overlay={mapH - 26 - (insets.top + NAV_BAR_H) + 30} />
+      <ClayNavBar
+        title="Punti critici"
+        scrollY={stretch.scrollY}
+        onBack={() => router.back()}
+        overlay={stretch.coverHeight - COVER_OVERLAP - (insets.top + NAV_BAR_H) + 30}
+      />
     </View>
   );
 }
@@ -229,13 +267,11 @@ const keyOf = (h: RoadHotspot) => h.key;
  * dettaglio come la riga della lista.
  */
 const HotspotsMap = React.memo(function HotspotsMap({
-  height,
   topInset,
   hotspots,
   routes,
   onOpen,
 }: {
-  height: number;
   topInset: number;
   hotspots: RoadHotspot[] | null;
   routes: RoadExamRoute[] | null;
@@ -265,13 +301,14 @@ const HotspotsMap = React.memo(function HotspotsMap({
   }, [ready, target]);
 
   return (
-    <View style={{ height }} testID="hotspots-map">
+    <View style={StyleSheet.absoluteFill} testID="hotspots-map">
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
         onMapReady={() => setReady(true)}
-        mapPadding={{ top: topInset, right: 0, bottom: 28, left: 0 }}
+        // Logo «Maps» e «Legal» sopra il bordo arrotondato del foglio.
+        mapPadding={{ top: topInset, right: 0, bottom: COVER_OVERLAP + 18, left: 10 }}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsPointsOfInterest={false}
         showsCompass={false}
@@ -382,20 +419,13 @@ const HotspotRow = React.memo(function HotspotRow({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
-  // Lo spazio della tab bar lo riserva il layout (FULL_PAGES).
-  content: { paddingBottom: 40 },
-  // Pannello bianco che sale sulla mappa, come nella tab Road.
-  panel: {
-    marginTop: -28,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    backgroundColor: CLAY.bg,
-    paddingTop: 24,
-    paddingHorizontal: H_PAD + 4,
-    // Solo l'ombra verso l'alto: l'anello da 1 px disegnava una linea sotto il pannello.
-    boxShadow: [{ offsetX: 0, offsetY: -10, blurRadius: 28, spreadDistance: -14, color: 'rgba(17,17,17,0.22)' }],
-  },
-  note: { fontSize: 14, lineHeight: 20, color: CLAY.ink3, marginTop: 10 },
+  // Foglio bianco che sale sulla copertina (REG-659: copertina elastica).
+  sheet: { ...stretchyPanel },
+  panel: { paddingTop: 24, paddingHorizontal: H_PAD + 4 },
+  foot: { paddingBottom: 28 },
+  emptyCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 24 },
+  emptyTitle: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.25 },
+  emptyText: { fontSize: 13.5, lineHeight: 19, color: CLAY.ink3, marginTop: 4 },
   segmented: { marginTop: 18 },
   body: { paddingHorizontal: H_PAD },
   gap: { height: 18 },

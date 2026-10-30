@@ -36,6 +36,7 @@ export function useStretchyCover({
   viewportHeight,
   bottomInset,
   scrollY: external,
+  parallax = PARALLAX,
 }: {
   /** Altezza della copertina a contenuto pieno. */
   base: number;
@@ -43,6 +44,12 @@ export function useStretchyCover({
   /** Spazio coperto in fondo (tab bar a vetro). */
   bottomInset: number;
   scrollY?: SharedValue<number>;
+  /**
+   * Velocità della copertina scorrendo su (0,5 = metà). 1 = sale col foglio:
+   * serve alle liste coi lati trasparenti (Punti critici), dove una copertina
+   * più lenta spunterebbe ai lati delle righe.
+   */
+  parallax?: number;
 }) {
   const own = useSharedValue(0);
   const scrollY = external ?? own;
@@ -72,7 +79,7 @@ export function useStretchyCover({
       const k = (h - y) / h;
       return { height: h, transform: [{ translateY: ((k - 1) * h) / 2 }, { scale: k }] };
     }
-    return { height: h, transform: [{ translateY: -y * PARALLAX }, { scale: 1 }] };
+    return { height: h, transform: [{ translateY: -y * parallax }, { scale: 1 }] };
   });
   const spacerStyle = useAnimatedStyle(() => ({ height: height.value - COVER_OVERLAP }));
 
@@ -81,7 +88,13 @@ export function useStretchyCover({
     setPanelHeight((prev) => (Math.abs(prev - h) < 1 ? prev : h));
   }, []);
 
-  return { scrollY, onScroll, coverStyle, spacerStyle, onPanelLayout, coverHeight };
+  /** Altezza del contenuto passata a mano (liste: intestazione + righe + piede). */
+  const setPanelHeightValue = useCallback((h: number) => {
+    const r = Math.round(h);
+    setPanelHeight((prev) => (Math.abs(prev - r) < 1 ? prev : r));
+  }, []);
+
+  return { scrollY, onScroll, coverStyle, spacerStyle, onPanelLayout, setPanelHeight: setPanelHeightValue, coverHeight };
 }
 
 /** La copertina, dietro lo scroll. */
