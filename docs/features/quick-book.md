@@ -16,6 +16,12 @@ Prenotazione/blocco rapido dall'Agenda istruttore con l'orario già messo.
 > sono **storiche** (la timeline `BookableBand` e la vista giorno vecchia non
 > esistono più dal 28/10).
 
+> **REG-670 (30/10/2026).** La card in basso del blocco fantasma («Scegli i
+> dettagli») sta a `14 + useTabBarOverlap()` dal fondo: dal 28/10 la tab bar in
+> vetro dell'istruttore sta SOPRA l'agenda e con `bottom: 14` la copriva (il
+> fantasma compariva, la card no). Colpiva solo la 2.4.0; la 2.3.0 degli store
+> non ha la tab bar in vetro.
+
 ## Architettura
 
 I form delle due route dedicate sono **componenti condivisi**, riusati sia

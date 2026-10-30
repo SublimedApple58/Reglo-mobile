@@ -1333,6 +1333,8 @@ export default function WeeklyAgendaView({
 }: WeeklyAgendaViewProps) {
   const { width: screenWidth } = useWindowDimensions();
   const pageWidth = screenWidth;
+  // La tab bar in vetro sta sopra l'agenda: la CTA del blocco fantasma va sopra la barra.
+  const barOverlap = useTabBarOverlap();
   // Reclaim the wasted right margin (was -24) so the 6 day columns get a bit
   // more width; keep a small 8px breathing edge.
   const gridWidth = screenWidth - GUTTER_W - 8;
@@ -1483,7 +1485,7 @@ export default function WeeklyAgendaView({
         <Animated.View
           entering={FadeInUp.duration(220)}
           exiting={FadeOut.duration(140)}
-          style={styles.ctaBar}
+          style={[styles.ctaBar, { bottom: 14 + barOverlap }]}
         >
           <Pressable
             onPress={dismissGhost}
