@@ -30,6 +30,8 @@ const MAX_BATCHES_PER_FLUSH = 6;
 
 let flushing: Promise<boolean> | null = null;
 let lastFlushAt = 0;
+/** REG-693: ultimo invio andato a buon fine (lo stato «Offline» del pannello). */
+let lastOkAt = Date.now();
 let failures = 0;
 let nextAttemptAt = 0;
 let lastGeocodeAt = 0;
@@ -199,6 +201,10 @@ export const roadUploader = {
     return street;
   },
 
+  get lastOkAt() {
+    return lastOkAt;
+  },
+
   /** Via corrente, aggiornata se è passato abbastanza tempo. */
   refreshStreet,
 
@@ -224,6 +230,7 @@ export const roadUploader = {
         await flushPoints();
         failures = 0;
         nextAttemptAt = 0;
+        lastOkAt = Date.now();
         return roadQueue.pendingAllPoints === 0 && roadQueue.pendingMarkers === 0;
       } catch {
         failures += 1;

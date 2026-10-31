@@ -59,6 +59,7 @@ import { RoadNavCard } from '../../src/components/road/RoadNavCard';
 import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
+import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
 /**
@@ -506,9 +507,19 @@ export default function RoadScreen() {
       const f = roadStore.get().fix;
       if (!f || f === last) return;
       last = f;
-      if (Date.now() - lastWatchAt.current > WATCH_STALE_MS) feed(f, f.t);
+      if (Date.now() - lastWatchAt.current > WATCH_STALE_MS) {
+        feed(f, f.t);
+        // REG-693: anche lo stato del segnale e la velocità seguono il tracking se l'ascolto tace.
+        liveStatus.reportFix({ accuracy: f.accuracy, speed: f.speed });
+      }
     });
   }, [feed]);
+
+  // REG-693: stato del segnale e watchdog del tracking finché si è in guida.
+  useEffect(() => {
+    liveStatus.start();
+    return () => liveStatus.stop();
+  }, []);
 
   // L'ascolto della schermata: un punto al secondo, la fonte del movimento.
   useEffect(() => {
@@ -518,6 +529,8 @@ export default function RoadScreen() {
       { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 0, timeInterval: 1000 },
       (l) => {
         const c = l.coords;
+        // REG-693: anche i fix scartati dicono qualcosa (GPS debole).
+        liveStatus.reportFix({ accuracy: c.accuracy ?? null, speed: c.speed != null && c.speed >= 0 ? c.speed : null });
         if (c.accuracy != null && c.accuracy > 50) return;
         lastWatchAt.current = Date.now();
         feed(
@@ -1060,8 +1073,8 @@ const LiveControls = React.memo(function LiveControls({
   onRecenter: () => void;
   onNorth: () => void;
 }) {
-  const fix = useRoadSelector((s) => s.fix);
-  const speedKmh = !fix || fix.speed == null || Date.now() - fix.t > 15_000 ? 0 : Math.max(0, Math.round(fix.speed * 3.6));
+  // REG-693: velocità dall'ascolto a 1 Hz, a 0 dopo 3 s senza fix (prima restava ferma sull'ultimo valore).
+  const { speedKmh } = useLiveStatus();
   const showNorth = !following && Math.abs(headingDelta(0, mapHeading)) > 3;
   return (
     <>
@@ -1101,6 +1114,33 @@ const LiveControls = React.memo(function LiveControls({
         ) : null}
       </View>
     </>
+  );
+});
+
+// ─── REG-693: «sto registrando?» sotto il nome ──────────────────────────────
+
+/**
+ * Tutto a posto: pallino rosso «in diretta» + orario e minuti. Qualcosa non va
+ * (GPS debole o perso, offline, tracking riacceso): anello vuoto e la frase.
+ * Stessa altezza in tutti gli stati (il pannello non cambia misura).
+ */
+const LiveStatusRow = React.memo(function LiveStatusRow({ range, minutes }: { range: string; minutes: string }) {
+  const st = useLiveStatus();
+  const line = liveStatusLine(st);
+  const text = line ?? `${range} · ${minutes} min`;
+  return (
+    <View style={s.liveRow} testID="road-live-status" accessibilityLiveRegion="polite">
+      <View style={line ? s.liveRing : s.liveDot} />
+      <Animated.Text
+        key={line ?? 'ok'}
+        entering={ROAD_TEXT_IN}
+        style={[s.liveTx, line ? s.liveWarn : null]}
+        numberOfLines={1}
+        accessibilityLabel={line ?? `In corso, ${range}`}
+      >
+        {text}
+      </Animated.Text>
+    </View>
   );
 });
 
@@ -1145,12 +1185,7 @@ const LivePanel = React.memo(function LivePanel({
         <Avatar userId={lesson.student?.id} name={lessonName} size={42} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.name} numberOfLines={1}>{lessonName}</Text>
-          <View style={s.liveRow}>
-            <View style={s.liveDot} />
-            <Text style={s.liveTx} numberOfLines={1} accessibilityLabel={`In corso, ${formatRange(lesson.startsAt, lesson.endsAt)}`}>
-              {formatRange(lesson.startsAt, lesson.endsAt)} · {formatMinutes(elapsedSec)} min
-            </Text>
-          </View>
+          <LiveStatusRow range={formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} />
         </View>
         {/* Giro Road (Tiziano 28/10): le note si prendono anche durante la guida. */}
         <Pressable
@@ -1299,7 +1334,9 @@ const s = StyleSheet.create({
   name: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   liveRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#E5484D', marginRight: 6 },
-  liveTx: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3 },
+  liveTx: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3, flexShrink: 1 },
+  liveRing: { width: 7, height: 7, borderRadius: 3.5, borderWidth: 1.5, borderColor: CLAY.ink, marginRight: 6 },
+  liveWarn: { color: CLAY.ink },
   iconBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: CLAY.surface },
   stats: { flexDirection: 'row', marginTop: 14, paddingHorizontal: 4 },
   stat: { flex: 1 },

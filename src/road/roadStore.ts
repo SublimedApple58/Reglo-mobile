@@ -81,6 +81,8 @@ type State = {
   catalog: RoadCatalog;
   track: Array<{ latitude: number; longitude: number }>;
   distanceMeters: number;
+  /** Salti impossibili di fila rispetto all'ultimo fix (REG-693). */
+  spikes: number;
   fix: RoadFix | null;
   street: string | null;
   markers: RoadLocalMarker[];
@@ -130,6 +132,7 @@ const INITIAL: State = {
   catalog: { base: FALLBACK_BASE_CATALOG, custom: [] },
   track: [],
   distanceMeters: 0,
+  spikes: 0,
   fix: null,
   street: null,
   markers: [],
@@ -162,6 +165,8 @@ function set(patch: Partial<State>) {
 // Filtri uguali al backend: fix imprecisi (> 50 m) e salti > 180 km/h fuori.
 const MAX_ACCURACY_M = 50;
 const MAX_SPEED_MS = 50;
+/** Dopo tanti salti di fila il riferimento era sbagliato: si riparte dal punto nuovo. */
+const MAX_SPIKES = 3;
 
 export const roadStore = {
   get: () => state,
@@ -244,6 +249,7 @@ export const roadStore = {
         ? {}
         : {
             track: [],
+            spikes: 0,
             distanceMeters: session.distanceMeters ?? 0,
             fix: session.last
               ? {
@@ -316,7 +322,7 @@ export const roadStore = {
 
   ingestPoints(points: RoadPoint[]) {
     if (state.phase !== 'active' && state.phase !== 'ending') return;
-    let { fix, distanceMeters, planProgress, planAlert, guidePassed, reroute, hotspotWatch } = state;
+    let { fix, distanceMeters, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes } = state;
     const hotspots = state.guide?.hotspots ?? [];
     let request: RerouteRequest | null = null;
     const track = state.track.slice();
@@ -333,7 +339,19 @@ export const roadStore = {
       if (fix) {
         const d = haversineMeters(fix.lat, fix.lng, lat, lng);
         const dt = Math.max(0.001, (t - fix.t) / 1000);
-        if (d / dt > MAX_SPEED_MS) continue;
+        if (d / dt > MAX_SPEED_MS) {
+          // REG-693: un salto isolato è un fix sbagliato e si scarta. Ma se i
+          // salti continuano è il riferimento a essere sbagliato (era lui il
+          // fix fuori posto): si riparte dal punto nuovo senza contare la
+          // distanza, altrimenti km e linea restavano fermi fino alla fine.
+          spikes += 1;
+          if (spikes < MAX_SPIKES) continue;
+          spikes = 0;
+          fix = { lat, lng, speed, heading: heading ?? null, accuracy, t };
+          track.push({ latitude: lat, longitude: lng });
+          continue;
+        }
+        spikes = 0;
         distanceMeters += d;
         if ((h == null || h < 0) && d > 3) h = bearingDeg(fix.lat, fix.lng, lat, lng);
       }
@@ -369,7 +387,7 @@ export const roadStore = {
         }
       }
     }
-    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed, reroute, hotspotWatch });
+    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes });
     if (request) rerouteHandler?.(request);
   },
 

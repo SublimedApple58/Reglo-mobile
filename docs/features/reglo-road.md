@@ -103,6 +103,17 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400
   (guida chiusa da troppo, tipo sconosciuto) le scarta.
 - Via: `reverseGeocodeAsync` dell'ultimo punto al massimo ogni ~20 s, campo `street`.
+- **REG-693 — «sto registrando?»** (`src/road/liveStatus.ts`): sotto il nome dell'allievo la
+  riga `LiveStatusRow` mostra pallino rosso + orario quando va tutto bene; altrimenti anello
+  vuoto e una frase corta: «Ricerca del GPS…», «Segnale GPS debole» (precisione > 25 m o, in
+  movimento, fix più vecchio di 5 s), «GPS perso · in pausa» (in movimento e nessun fix da
+  15 s; da fermi iOS può non mandarne, quindi solo dopo 2 min), «Offline · salvato sul
+  telefono» (punti in coda e nessun invio riuscito da 60 s), «GPS riattivato». Stessa altezza
+  in tutti gli stati. Lo alimentano l'ascolto a 1 Hz (anche i fix scartati) e, se tace, i punti
+  del tracking. La velocità viene da lì e va a 0 dopo 4 s senza fix (prima restava ferma
+  sull'ultimo valore). Watchdog ogni 30 s: se il task di tracking non è attivo lo riaccende.
+  Lo store riparte dal punto nuovo dopo 3 salti impossibili di fila (prima un solo fix fuori
+  posto fermava km e linea fino alla fine della guida).
 - **Ripresa dopo kill**: all'avvio `/road/state.activeSession` → `resumeRoad()` → rientra
   in Road, ricarica percorso e segnalazioni dal server, riaccende il GPS se era fermo.
 - Km durante la guida = stima locale (stessi filtri del server: accuratezza > 50 m e salti
