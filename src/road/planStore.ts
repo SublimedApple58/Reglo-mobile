@@ -47,6 +47,25 @@ export function setPlanOrigin(next: { lat: number; lng: number } | null) {
   origin = next;
 }
 
+/** REG-694: giri il cui caricamento è fallito (`entries` ha `null`, come «nessun giro»). */
+const planFailed = new Set<string>();
+
+/** Il giro di allievo + durata non è arrivato per un errore (non perché non c'è). */
+export function usePlanFailed(studentId: string | null | undefined, durationMin: number): boolean {
+  const key = studentId ? planKey(studentId, durationMin) : '';
+  const get = useCallback(() => !!key && planFailed.has(key), [key]);
+  return useSyncExternalStore(subscribe, get);
+}
+
+/** «Riprova»: torna a «in arrivo» (scheletro) e richiede. */
+export function retryPlan(studentId: string, durationMin: number) {
+  const key = planKey(studentId, durationMin);
+  entries.delete(key);
+  planFailed.delete(key);
+  notify();
+  prefetchPlan(studentId, durationMin);
+}
+
 export function prefetchPlan(studentId: string | null | undefined, durationMin: number) {
   if (!studentId) return;
   const key = planKey(studentId, durationMin);
@@ -57,12 +76,15 @@ export function prefetchPlan(studentId: string | null | undefined, durationMin: 
     .then((data) => {
       const prev = entries.get(key)?.data;
       entries.set(key, { data, at: Date.now() });
+      if (planFailed.delete(key)) notify();
       if (JSON.stringify(prev) !== JSON.stringify(data)) notify();
     })
     .catch(() => {
       // Giro non disponibile: i fogli partono senza, come con l'interruttore spento.
+      // REG-694: ma la riga lo dice («Giro non caricato · Riprova»), non sparisce.
       if (!entries.has(key)) {
         entries.set(key, { data: null, at: Date.now() });
+        planFailed.add(key);
         notify();
       }
     })

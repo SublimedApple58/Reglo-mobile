@@ -17,7 +17,7 @@ import { openRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { dayLabel, formatKm, formatMinutes, formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';
 import { firstName, useAvvioData, usePerson } from '../../../src/road/avvioParts';
-import { AVVIO_PARTI_ROUTE, avvioStore, hasRoadHistory, useRoadStudent } from '../../../src/road/avvioFlow';
+import { AVVIO_PARTI_ROUTE, avvioStore, hasRoadHistory, retryRoadStudent, useRoadStudentState } from '../../../src/road/avvioFlow';
 
 /**
  * REG-662 (piano 005) — avvio guida, foglio 2 di 3: «<Nome> su Road».
@@ -34,7 +34,7 @@ export default function AvviaAllievoSheet() {
   const studentId = lesson?.student?.id ?? choice.studentId;
   const data = useAvvioData();
   const person = usePerson(studentId, data);
-  const road = useRoadStudent(studentId);
+  const { data: road, failed } = useRoadStudentState(studentId);
   const name = lesson ? lessonStudentName(lesson) : person?.name ?? 'Allievo';
   const first = firstName(name);
   const duration = lesson ? lessonMinutes(lesson) : data.options?.defaultDuration ?? 60;
@@ -77,7 +77,23 @@ export default function AvviaAllievoSheet() {
         />
       }
     >
-      {road === undefined ? (
+      {road === undefined && failed && studentId ? (
+        // REG-694: errore ≠ «prima guida». Si può partire lo stesso.
+        <Animated.View entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT} testID="road-avvio-error">
+          <ClaySurface style={s.card}>
+            <Text style={s.cardTitle}>Guide di {first} non caricate</Text>
+            <Text style={s.errTx}>Controlla la connessione. Puoi partire lo stesso.</Text>
+            <ClayButton
+              title="Riprova"
+              variant="secondary"
+              compact
+              onPress={() => retryRoadStudent(studentId)}
+              style={s.retry}
+              testID="road-avvio-retry"
+            />
+          </ClaySurface>
+        </Animated.View>
+      ) : road === undefined ? (
         // Stessa forma del contenuto: il foglio non cambia altezza all'arrivo.
         <Animated.View exiting={ROAD_FADE_OUT} testID="road-avvio-skeleton">
           <ClaySurface style={s.card}>
@@ -108,7 +124,7 @@ export default function AvviaAllievoSheet() {
                 leading={<RouteThumb thumb={last.thumb} size={52} carColor={null} />}
                 title="Ultima guida"
                 subtitle={lastLine}
-                onPress={() => void openRoadPercorso(router, 'drive', last.appointmentId)}
+                onPress={() => openRoadPercorso(router, 'drive', last.appointmentId)}
                 testID="road-avvio-ultima"
               />
             </ClayList>
@@ -128,4 +144,6 @@ const s = StyleSheet.create({
   skRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   gap: { marginTop: 12 },
   first: { fontSize: 15.5, color: CLAY.ink3, lineHeight: 21 },
+  errTx: { fontSize: 15, color: CLAY.ink3, lineHeight: 21 },
+  retry: { alignSelf: 'flex-start', marginTop: 12, marginBottom: 10 },
 });

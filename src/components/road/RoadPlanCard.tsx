@@ -20,7 +20,9 @@ import {
   prefetchPlanRoute,
   prefetchSavedPlan,
   usePlan,
+  retryPlan,
   usePlanChoice,
+  usePlanFailed,
   usePlanRoute,
 } from '../../road/planStore';
 import { roadFreeStore, warmRoadFree } from '../../road/freeStartStore';
@@ -92,6 +94,7 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
 }) {
   const router = useRouter();
   const res = usePlan(studentId, durationMin, appointmentId);
+  const failed = usePlanFailed(studentId, durationMin);
   const [on, setOn] = usePlanChoice(studentId);
   const free = useSyncExternalStore(roadFreeStore.subscribe, roadFreeStore.get);
   const hq = free?.headquarters ?? null;
@@ -112,6 +115,25 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   }, [free, start?.lat, start?.lng, stops, custom]);
 
   if (res === undefined) return studentId ? <PlanSkeleton style={style} /> : null;
+  if (failed && studentId) {
+    return (
+      <ClaySurface padded={false} style={[s.rowCard, style]} testID={`${testID}-error`}>
+        <Pressable
+          onPress={() => retryPlan(studentId, durationMin)}
+          style={({ pressed }) => [s.rowMain, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Riprova a caricare il giro"
+          testID={`${testID}-retry`}
+        >
+          <View style={s.rowText}>
+            <Text style={s.title}>Giro non caricato</Text>
+            <Text style={s.rowStop}>Si parte senza giro. Tocca per riprovare.</Text>
+          </View>
+          <Ionicons name="refresh" size={17} color={CLAY.ink3} />
+        </Pressable>
+      </ClaySurface>
+    );
+  }
   if (!plan?.stops.length) return null;
   const ordered = custom ? plan.stops : orderGuideStops(plan.stops, route?.order);
   const minutes = planMinutesFor(route?.lengthMeters, ordered.length) ?? plan.minutes;

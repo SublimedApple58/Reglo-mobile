@@ -91,7 +91,7 @@ export function RoadLessonCard({
           title="Apri percorso e segnalazioni"
           variant="secondary"
           compact
-          onPress={() => void openRoadPercorso(router, 'home', appointmentId, detail)}
+          onPress={() => openRoadPercorso(router, 'home', appointmentId, detail)}
           style={s.open}
           testID="road-lesson-open"
         />

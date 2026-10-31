@@ -37,6 +37,11 @@ export const avvioStore = {
 // ── Road di un allievo (briefing, guide, punti da migliorare) ────────────
 const cache = new Map<string, RoadStudentRoad | null>();
 const inflight = new Map<string, Promise<RoadStudentRoad | null>>();
+/**
+ * REG-694: errori a parte, MAI in `cache`. Prima un errore diventava `null`,
+ * cioè «nessuna storia»: a schermo «Prima guida in Road», niente briefing.
+ */
+const failed = new Set<string>();
 let version = 0;
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -50,7 +55,7 @@ const subscribe = (fn: () => void) => {
   };
 };
 
-/** `undefined` = non ancora saputo, `null` = errore o Road spento. */
+/** `undefined` = non ancora saputo (o errore: vedi `roadStudentFailed`), `null` = Road spento. */
 export function roadStudentData(id: string | null | undefined): RoadStudentRoad | null | undefined {
   return id ? cache.get(id) : undefined;
 }
@@ -59,12 +64,20 @@ export function prefetchRoadStudent(id: string): Promise<RoadStudentRoad | null>
   if (cache.has(id)) return Promise.resolve(cache.get(id) ?? null);
   const cur = inflight.get(id);
   if (cur) return cur;
+  failed.delete(id);
   const p = regloApi
     .getRoadForStudent(id)
-    .then((res) => res ?? null)
-    .catch(() => null)
+    .then(
+      (res) => {
+        cache.set(id, res ?? null);
+        return res ?? null;
+      },
+      () => {
+        failed.add(id);
+        return null;
+      },
+    )
     .then((res) => {
-      cache.set(id, res);
       inflight.delete(id);
       emit();
       return res;
@@ -73,11 +86,22 @@ export function prefetchRoadStudent(id: string): Promise<RoadStudentRoad | null>
   return p;
 }
 
+export function roadStudentFailed(id: string | null | undefined): boolean {
+  return !!id && failed.has(id);
+}
+
+/** «Riprova»: torna a «non ancora saputo» (scheletro) e richiede. */
+export function retryRoadStudent(id: string) {
+  failed.delete(id);
+  emit();
+  void prefetchRoadStudent(id);
+}
+
 /** Scalda i dati di più allievi uno alla volta, a riposo (suggeriti, ultime guide). */
 export function warmRoadStudents(ids: string[]) {
   const task = InteractionManager.runAfterInteractions(async () => {
     for (const id of ids) {
-      if (!cache.has(id)) await prefetchRoadStudent(id);
+      if (!cache.has(id) && !failed.has(id)) await prefetchRoadStudent(id);
     }
   });
   return () => task.cancel();
@@ -87,11 +111,17 @@ export function warmRoadStudents(ids: string[]) {
 export function useRoadStudent(id: string | null | undefined): RoadStudentRoad | null | undefined {
   useSyncExternalStore(subscribe, () => version);
   useEffect(() => {
-    if (!id || cache.has(id)) return;
+    if (!id || cache.has(id) || failed.has(id)) return;
     const task = InteractionManager.runAfterInteractions(() => void prefetchRoadStudent(id));
     return () => task.cancel();
   }, [id]);
   return roadStudentData(id);
+}
+
+/** Come `useRoadStudent`, con l'errore distinto dal vuoto. */
+export function useRoadStudentState(id: string | null | undefined) {
+  const data = useRoadStudent(id);
+  return { data, failed: roadStudentFailed(id) };
 }
 
 /** Ha qualcosa da dire su Road (briefing, guide o punti)? Altrimenti il foglio 2 si salta. */
@@ -102,5 +132,6 @@ export function hasRoadHistory(data: RoadStudentRoad | null | undefined): boolea
 
 /** Svuota la cache (fine guida: i dati dell'allievo sono cambiati). */
 export function forgetRoadStudent(id: string) {
-  if (cache.delete(id)) emit();
+  const had = failed.delete(id);
+  if (cache.delete(id) || had) emit();
 }
