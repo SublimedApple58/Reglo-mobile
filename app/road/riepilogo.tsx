@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../src/components/SheetScaffold';
 import { useNavigation, useRouter } from 'expo-router';
 
@@ -22,7 +22,16 @@ import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadEnter } from '../../src/road/
 import { RoadNotesCard } from '../../src/components/road/RoadNotesCard';
 import { planOutcomeLine } from '../../src/road/planAlerts';
 
-type EvalState = { enabled: boolean; total: number; done: number } | null;
+/**
+ * REG-694 (1.7): il pagellino non sparisce più se la lettura fallisce. Se in
+ * guida era acceso, la card c'è da subito (scheletro), poi i numeri; in errore
+ * resta con «Riprova».
+ */
+type EvalState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ok'; enabled: boolean; total: number; done: number }
+  | null;
 
 /** Oltre, «+N altre»: il foglio abbraccia il contenuto e non deve superare lo schermo. */
 const MAX_MARKERS = 4;
@@ -37,7 +46,9 @@ export default function RiepilogoScreen() {
   const router = useRouter();
   const summary = useRoadSelector((s) => s.summary);
   const syncing = useRoadSelector((s) => s.summarySyncing);
-  const [ev, setEv] = useState<EvalState>(null);
+  const evaluationOn = useRoadSelector((s) => s.evaluationEnabled);
+  const [ev, setEv] = useState<EvalState>(() => (evaluationOn ? { status: 'loading' } : null));
+  const [evTry, setEvTry] = useState(0);
 
   const appointmentId = summary?.appointmentId;
   const evalStamp = summary?.evaluation?.updatedAt ?? '';
@@ -47,16 +58,23 @@ export default function RiepilogoScreen() {
     regloApi
       .getAppointmentEvaluation(appointmentId)
       .then((data) => {
-        if (!alive || !data) return;
+        if (!alive) return;
+        if (!data) {
+          setEv({ status: 'ok', enabled: false, total: 0, done: 0 });
+          return;
+        }
         const active = (data.items ?? []).filter((it) => !it.archived);
         const scored = (data.scores ?? []).filter((sc) => sc.score != null || sc.notApplicable).length;
-        setEv({ enabled: !!data.enabled, total: active.length, done: scored });
+        setEv({ status: 'ok', enabled: !!data.enabled, total: active.length, done: scored });
       })
-      .catch(() => setEv(null));
+      .catch(() => {
+        // Errore di rete: la card resta (se il pagellino è acceso) con «Riprova».
+        if (alive) setEv((prev) => (prev || evaluationOn ? { status: 'error' } : null));
+      });
     return () => {
       alive = false;
     };
-  }, [appointmentId, evalStamp]);
+  }, [appointmentId, evalStamp, evTry, evaluationOn]);
 
   // Guida nata da Road libero: in agenda la fine segue l'ora reale.
   const freeStarted = useSyncExternalStore(roadFreeStarted.subscribe, roadFreeStarted.get);
@@ -87,9 +105,19 @@ export default function RiepilogoScreen() {
     .filter(Boolean)
     .join(' · ');
 
-  const showPagellino = ev?.enabled && ev.total > 0;
-  const pgEmpty = (ev?.done ?? 0) === 0;
-  const pgComplete = !!ev && ev.done >= ev.total;
+  const evOk = ev?.status === 'ok' ? ev : null;
+  const showPagellino = !!ev && (ev.status !== 'ok' || (ev.enabled && ev.total > 0));
+  const pgEmpty = (evOk?.done ?? 0) === 0;
+  const pgComplete = !!evOk && evOk.done >= evOk.total;
+  const pgLine = !ev || ev.status === 'loading'
+    ? null
+    : ev.status === 'error'
+      ? 'Stato non disponibile'
+      : pgEmpty
+        ? 'Ancora da compilare'
+        : pgComplete
+          ? `${ev.total} ${ev.total === 1 ? 'voce' : 'voci'} · completo`
+          : `${ev.done} ${ev.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev.total}`;
 
   const shown = summary.markers.slice(0, MAX_MARKERS);
   const more = summary.markers.length - shown.length;
@@ -106,17 +134,32 @@ export default function RiepilogoScreen() {
         <>
       <Animated.View style={s.foot} layout={ROAD_LAYOUT}>
         {showPagellino ? (
-          <Animated.View entering={roadEnter(160)} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
+          <Animated.View entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
             <ClaySurface radius={24} style={s.pg}>
               <View style={{ flex: 1 }}>
                 <Text style={s.pgTitle}>Pagellino</Text>
-                <Animated.Text key={`${ev?.done}-${ev?.total}`} entering={ROAD_TEXT_IN} style={s.pgSub}>
-                  {pgEmpty
-                    ? 'Ancora da compilare'
-                    : pgComplete
-                      ? `${ev!.total} ${ev!.total === 1 ? 'voce' : 'voci'} · completo`
-                      : `${ev!.done} ${ev!.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev!.total}`}
-                </Animated.Text>
+                {pgLine == null ? (
+                  <View style={s.pgSkel} testID="road-summary-pagellino-loading" />
+                ) : ev?.status === 'error' ? (
+                  <Pressable
+                    onPress={() => {
+                      setEv({ status: 'loading' });
+                      setEvTry((n) => n + 1);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Stato del pagellino non disponibile, riprova"
+                    testID="road-summary-pagellino-retry"
+                  >
+                    <Animated.Text entering={ROAD_TEXT_IN} style={s.pgSub}>
+                      {pgLine} · <Text style={s.pgRetry}>Riprova</Text>
+                    </Animated.Text>
+                  </Pressable>
+                ) : (
+                  <Animated.Text key={pgLine} entering={ROAD_TEXT_IN} style={s.pgSub}>
+                    {pgLine}
+                  </Animated.Text>
+                )}
               </View>
               <ClayButton
                 compact
@@ -229,6 +272,9 @@ const s = StyleSheet.create({
   pg: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 18, paddingRight: 12 },
   pgTitle: { fontSize: 15.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
   pgSub: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 2 },
+  pgRetry: { color: CLAY.ink, fontWeight: '600', textDecorationLine: 'underline' },
+  // Stessa altezza della riga di testo: la card non cambia misura quando arrivano i numeri.
+  pgSkel: { width: 120, height: 12, borderRadius: 6, backgroundColor: 'rgba(17,17,17,0.08)', marginTop: 5, marginBottom: 1 },
   pgBtn: { alignSelf: 'center', paddingHorizontal: 18, height: 40, borderRadius: 20 },
   // CTA secondaria a capsula: ultima cosa del foglio.
   closeBtn: { marginTop: 14 },
