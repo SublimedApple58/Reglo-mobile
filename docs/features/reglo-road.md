@@ -105,8 +105,9 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
 - Via: `reverseGeocodeAsync` dell'ultimo punto al massimo ogni ~20 s, campo `street`.
 - **REG-697 — notte e suoni**: `src/road/night.ts` calcola alba e tramonto dal fix (NOAA,
   fallback Torino) ed è «notte» da 15 min prima del tramonto a 15 min dopo l'alba
-  (`useRoadNight`, ogni minuto). Di notte: MapKit `userInterfaceStyle="dark"` (iOS), stile in
-  grigi `ANDROID_NIGHT_STYLE` (Android), linea del giro chiara col bordo scuro, traccia chiara,
+  (`useRoadNight`, ogni minuto). Di notte: su iOS la mappa scura di Apple è blu e non si ricolora,
+  quindi resta quella chiara in grigi sotto un velo nero al 70%; su Android stile in grigi
+  `ANDROID_NIGHT_STYLE` con linea del giro chiara col bordo scuro e traccia chiara;
   pannello / controlli / card in `NIGHT` (grigi `#1C1C1E`/`#2C2C2E`, testo `#F2F2F2`, mai blu),
   `ClayButton night` (primario chiaro, secondario grigio scuro, solo ombra esterna). Suoni
   (`src/road/sounds.ts`, `expo-av` già nel binario 2.4.0): `alert` (due note che scendono) al
@@ -119,10 +120,7 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   minuti alla fine («Alla fine» / «Oltre la fine»). La stima parte col lotto di punti (`eta`) per
   «Dal vivo». A 5 minuti dalla fine e a fine orario un avviso in alto per 8 s con vibrazione
   (`useEndAlert`), una volta per soglia.
-- **REG-698 — batteria e fluidità**: una sola fonte GPS. Il task consegna i fix a ~1 Hz
-  (`distanceInterval: 0`, `timeInterval: 1000`) e la schermata live li ascolta con `onRoadFix`
-  (via il secondo `watchPositionAsync`); in coda e nei km vanno solo i punti a ≥ 8 m o ≥ 10 s
-  dal precedente. La camera non manda `setCamera` se la posa non cambia (2 cm, 0,05°, 0,2 m) e,
+- **REG-698 — batteria e fluidità**: provata una sola fonte GPS (solo il task di tracking), scartata: su iOS il task consegna i fix in ritardo e a gruppi (anche 20 s), la mappa resta sull'ascolto a 1 Hz della schermata. La camera non manda `setCamera` se la posa non cambia (2 cm, 0,05°, 0,2 m) e,
   dopo ~1 s ferma o a mappa libera, il loop scende a 10 Hz. Android: l'auto-marker ruota con
   `rotation` nativa e rifà la bitmap solo ~1 s dopo un cambio di colore. La dissolvenza della
   linea è a 4 passi agganciati ai fotogrammi (via il `setInterval` a 40 ms). La mappa si

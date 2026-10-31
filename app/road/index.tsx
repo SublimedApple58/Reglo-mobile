@@ -59,7 +59,6 @@ import { RoadNavCard } from '../../src/components/road/RoadNavCard';
 import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
-import { onRoadFix } from '../../src/road/tracking';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
 import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '../../src/road/returnEta';
 import { fixHistory } from '../../src/road/fixHistory';
@@ -325,6 +324,8 @@ const LiveMap = React.memo(function LiveMap({
   onRegionDone: () => void;
 }) {
   const where = useMemo(() => ({ lat: center.lat, lng: center.lng }), [center]);
+  // Linee chiare solo sulla mappa davvero scura (Android); su iOS il velo scurisce quelle del giorno.
+  const darkMap = night && Platform.OS === 'android';
   const initialCamera = useMemo(() => {
     const t = cameraTarget(0, null);
     return {
@@ -359,13 +360,13 @@ const LiveMap = React.memo(function LiveMap({
       pitchEnabled
       zoomEnabled
       scrollEnabled
-      userInterfaceStyle={night ? 'dark' : 'light'}
+      userInterfaceStyle="light"
       onPanDrag={onPanDrag}
       onRegionChangeComplete={onRegionDone}
     >
       {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
-      <LiveGuide center={where} night={night} />
-      <LiveTrack center={where} night={night} />
+      <LiveGuide center={where} night={darkMap} />
+      <LiveTrack center={where} night={darkMap} />
       <LivePins />
       <LiveCarMarker following={following} color={carColor} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
     </MapView>
@@ -411,6 +412,8 @@ const WATCH_STALE_MS = 3000;
 const FIX_MAX_AGE_MS = 3000;
 /** Il loop non chiede la camera più spesso di così (schermi a 120 Hz). */
 const MIN_FRAME_MS = 15;
+/** REG-696: quanto resta il toast della segnalazione. */
+const TOAST_MS = 8_000;
 /** REG-699: quanto resta l'avviso di fine guida. */
 const END_ALERT_SHOW_MS = 8_000;
 /** REG-698: dopo ~1 s di camera ferma il loop rallenta (auto ferma al semaforo). */
@@ -553,11 +556,15 @@ export default function RoadScreen() {
     return () => liveStatus.stop();
   }, []);
 
-  // REG-698: i fix a 1 Hz arrivano dal task di tracking (una sola fonte GPS):
-  // sono la fonte del movimento, dello stato del segnale e della «storia».
-  useEffect(
-    () =>
-      onRoadFix((l) => {
+  // L'ascolto della schermata: un punto al secondo, la fonte del movimento.
+  // REG-698: provato a usare solo il task di tracking, ma su iOS consegna i fix
+  // in ritardo e a gruppi (anche 20 s): per la mappa serve l'ascolto diretto.
+  useEffect(() => {
+    let sub: Location.LocationSubscription | null = null;
+    let alive = true;
+    Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 0, timeInterval: 1000 },
+      (l) => {
         const c = l.coords;
         // REG-693: anche i fix scartati dicono qualcosa (GPS debole).
         liveStatus.reportFix({ accuracy: c.accuracy ?? null, speed: c.speed != null && c.speed >= 0 ? c.speed : null });
@@ -574,9 +581,18 @@ export default function RoadScreen() {
           },
           l.timestamp,
         );
-      }),
-    [feed],
-  );
+      },
+    )
+      .then((s) => {
+        if (alive) sub = s;
+        else s.remove();
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+      sub?.remove();
+    };
+  }, [feed]);
 
   // REG-689: l'auto si aggancia alla linea del giro (anche dopo un riaggancio).
   useEffect(() => {
@@ -836,6 +852,9 @@ export default function RoadScreen() {
           onRegionDone={onRegionDone}
           night={night}
         />
+        {/* REG-697: la mappa scura di Apple è blu (non si ricolora): di notte su
+            iOS resta quella chiara in grigi, abbassata da un velo nero. */}
+        {night && Platform.OS === 'ios' ? <View style={ns.veil} pointerEvents="none" /> : null}
       </View>
 
       {carPt ? (
@@ -1024,13 +1043,14 @@ function LiveTop({
   // Con la card in alto l'avviso «tra 300 m» è un doppione: resta solo «raggiunta».
   const showPlan = planAlert && (planAlert.reached || !hasNav) && !alert;
 
-  // Il toast «… segnato» resta 5 secondi.
+  // Il toast «… segnato» resta 8 secondi.
   const toastId = toast?.clientId;
-  // REG-696: ogni «Qui / N s fa» lascia altri 5 s per ripensarci.
+  // REG-696: ogni «Qui / N s fa» lascia altri 8 s per ripensarci.
   const toastRev = toast?.rev ?? 0;
   useEffect(() => {
     if (!toastId) return;
-    const t = setTimeout(() => roadStore.dismissToast(toastId), 5000);
+    // REG-696: 8 s (prima 5): chi guida deve fare in tempo a scegliere «Qui» o «Annulla».
+    const t = setTimeout(() => roadStore.dismissToast(toastId), TOAST_MS);
     return () => clearTimeout(t);
   }, [toastId, toastRev]);
   const onPlace = (want: 'retro' | 'here') => {
@@ -1535,6 +1555,7 @@ const s = StyleSheet.create({
 /** REG-697: le stesse superfici di notte (solo grigi e nero, testo chiaro non pieno). */
 const ns = StyleSheet.create({
   root: { backgroundColor: '#000000' },
+  veil: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
   surface: { backgroundColor: NIGHT.surface },
   surface2: { backgroundColor: NIGHT.surface2 },
   inkBg: { backgroundColor: NIGHT.ink },

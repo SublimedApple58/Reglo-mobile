@@ -51,8 +51,10 @@ function compute(now: number): LiveStatus {
   const age = lastFixAt ? now - lastFixAt : Infinity;
   const moving = (lastSpeed ?? 0) >= MOVING_MS;
   const lostAfter = moving ? LOST_AGE_MS : LOST_STILL_MS;
+  // Appena entrati (o ripresi dopo un kill) con l'auto ferma il primo fix può
+  // non arrivare subito: «Ricerca del GPS…», «perso» solo dopo 2 minuti.
   const gps: GpsQuality = !lastFixAt
-    ? now - startedAt > LOST_AGE_MS
+    ? now - startedAt > LOST_STILL_MS
       ? 'lost'
       : 'waiting'
     : age > lostAfter
