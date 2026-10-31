@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExpandableText } from './ExpandableText';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,8 +64,9 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
             {top}
           </Animated.Text>
           <Text style={s.t2} numberOfLines={1}>{h.label}</Text>
-          <Text style={s.t3} numberOfLines={2}>{hotspotLine(h)}</Text>
-          {status ? <Text style={s.t4} numberOfLines={1}>{status}</Text> : null}
+          {/* Note e stato lunghi: toccandoli si leggono per intero (Tiziano 31/10). */}
+          <ExpandableText text={hotspotLine(h)} numberOfLines={2} style={s.t3} testID="road-hotspot-note" />
+          {status ? <ExpandableText text={status} numberOfLines={1} style={s.t4} testID="road-hotspot-status" /> : null}
         </View>
       </Pressable>
 

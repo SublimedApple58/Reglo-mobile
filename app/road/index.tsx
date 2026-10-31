@@ -57,6 +57,7 @@ import { RoadMarkerPin } from '../../src/components/road/RoadMapParts';
 import { RoadGuideOverlay } from '../../src/components/road/RoadGuideOverlay';
 import { CAR_DISC, RoadLiveCar, RoadLiveCarMarker } from '../../src/components/road/RoadLiveCar';
 import { RoadNavCard } from '../../src/components/road/RoadNavCard';
+import { ExpandableText } from '../../src/components/road/ExpandableText';
 import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
@@ -1133,7 +1134,7 @@ function LiveTop({
                 {planAlert.reached ? `Tappa ${planAlert.n} raggiunta` : `Tra ${planAlert.meters} m · tappa ${planAlert.n}`}
               </Text>
               <Text style={[s.cardT2, night && ns.ink]} numberOfLines={1}>{planAlert.title}</Text>
-              <Text style={[s.cardT3, night && ns.ink2]} numberOfLines={1}>{planAlert.reason}</Text>
+              <ExpandableText text={planAlert.reason} numberOfLines={1} style={[s.cardT3, night && ns.ink2]} testID="road-plan-reason" />
             </View>
           </Pressable>
         </RoadToastFrame>
@@ -1301,7 +1302,8 @@ const LiveControls = React.memo(function LiveControls({
 const LiveStatusRow = React.memo(function LiveStatusRow({ range, minutes, night }: { range: string; minutes: string; night: boolean }) {
   const st = useLiveStatus();
   const line = liveStatusLine(st);
-  const text = line ?? `${range} · ${minutes} min`;
+  // Corta: con Note, Pagellino e Riduci accanto, «10:34 – 11:04 · 12 min» si troncava.
+  const text = line ?? `${minutes} min · fine ${range}`;
   return (
     <View style={s.liveRow} testID="road-live-status" accessibilityLiveRegion="polite">
       <View style={line ? [s.liveRing, night && ns.ring] : s.liveDot} />
@@ -1310,7 +1312,7 @@ const LiveStatusRow = React.memo(function LiveStatusRow({ range, minutes, night 
         entering={ROAD_TEXT_IN}
         style={[s.liveTx, night && ns.ink3, line ? (night ? ns.ink : s.liveWarn) : null]}
         numberOfLines={1}
-        accessibilityLabel={line ?? `In corso, ${range}`}
+        accessibilityLabel={line ?? `In corso da ${minutes} minuti, fine alle ${range}`}
       >
         {text}
       </Animated.Text>
@@ -1366,7 +1368,7 @@ const LivePanel = React.memo(function LivePanel({
         <Avatar userId={lesson.student?.id} name={lessonName} size={42} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[s.name, night && ns.ink]} numberOfLines={1}>{lessonName}</Text>
-          <LiveStatusRow range={formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} night={night} />
+          <LiveStatusRow range={lesson.endsAt ? formatHm(lesson.endsAt) : formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} night={night} />
         </View>
         {/* Giro Road (Tiziano 28/10): le note si prendono anche durante la guida. */}
         <Pressable
@@ -1394,13 +1396,13 @@ const LivePanel = React.memo(function LivePanel({
         {/* REG-700: Road ridotta, la guida continua e si usa il resto dell'app. */}
         <Pressable
           onPress={minimizeRoad}
-          style={({ pressed }) => [s.iconBtn, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
+          style={({ pressed }) => [s.iconBtn, night && ns.surface2, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
           accessibilityRole="button"
           accessibilityLabel="Riduci Road e usa l'app"
           hitSlop={4}
           testID="road-minimize"
         >
-          <Ionicons name="chevron-down" size={20} color={CLAY.ink} />
+          <Ionicons name="chevron-down" size={20} color={night ? NIGHT.ink : CLAY.ink} />
         </Pressable>
       </View>
 

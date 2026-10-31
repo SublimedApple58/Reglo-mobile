@@ -118,6 +118,14 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400
   (guida chiusa da troppo, tipo sconosciuto) le scarta.
 - Via: `reverseGeocodeAsync` dell'ultimo punto al massimo ogni ~20 s, campo `street`.
+- **Testi interi al tocco (31/10)**: `src/components/road/ExpandableText.tsx`. Un testo troncato
+  si apre toccandolo (altezza animata 240 ms, senza rimbalzi) e si richiude con un altro tocco;
+  se ci sta tutto non è toccabile. Usato in: card del punto critico (nota e stato), card della
+  tappa, banner della svolta, nota della guida (`RoadNotesCard`), briefing «Parti con», motivi
+  delle tappe nel foglio «Il giro», elenco segnalazioni non toccabile (allievo). Nel riepilogo
+  la nota intera è nel menu della segnalazione. Gotcha iOS: il testo aperto va in posizione
+  assoluta ancorata ai due lati (con larghezza «auto» restava su una riga) e i margini stanno
+  sul contenitore. La riga sotto il nome è corta («12 min · fine 11:04») per i tre tasti.
 - **REG-697 — notte e suoni**: `src/road/night.ts` calcola alba e tramonto dal fix (NOAA,
   fallback Torino) ed è «notte» da 15 min prima del tramonto a 15 min dopo l'alba
   (`useRoadNight`, ogni minuto). Di notte: su iOS la mappa scura di Apple è blu e non si ricolora,

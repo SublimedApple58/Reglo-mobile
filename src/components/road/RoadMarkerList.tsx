@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { markerArt } from '../../road/markerArt';
 import { formatHm } from '../../road/format';
 import { SentimentBadge, type Sentiment } from './RoadSentiment';
+import { ExpandableText } from './ExpandableText';
 
 type Item = {
   key: string;
@@ -39,9 +40,14 @@ export function RoadMarkerList({ items, onPressItem }: { items: Item[]; onPressI
           <View style={s.tx}>
             <Text style={s.title} numberOfLines={1}>{m.label}</Text>
             {m.street || m.note ? (
-              <Text style={s.sub} numberOfLines={1}>
-                {[m.street, m.note].filter(Boolean).join(' · ')}
-              </Text>
+              onPressItem ? (
+                // Riga che si tocca per correggere: la nota intera è nel menu.
+                <Text style={s.sub} numberOfLines={1}>
+                  {[m.street, m.note].filter(Boolean).join(' · ')}
+                </Text>
+              ) : (
+                <ExpandableText text={[m.street, m.note].filter(Boolean).join(' · ')} numberOfLines={1} style={s.sub} />
+              )
             ) : null}
           </View>
           <Text style={s.time}>{formatHm(m.recordedAt)}</Text>

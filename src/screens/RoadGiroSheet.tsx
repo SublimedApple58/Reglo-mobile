@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { ExpandableText } from '../components/road/ExpandableText';
 import { ActivityIndicator, Animated as RNAnimated, InteractionManager, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -325,7 +326,7 @@ export default function RoadGiroSheet() {
                 <Icon3D source={markerArt(c.kind ?? 'altro')} size={36} />
                 <View style={s.stopText}>
                   <Text style={s.stopTitle} numberOfLines={1}>{planStopLabel(c)}</Text>
-                  <Text style={s.reason} numberOfLines={2}>{c.reason}</Text>
+                  <ExpandableText text={c.reason} numberOfLines={2} style={s.reason} />
                 </View>
                 <Ionicons name="add-circle-outline" size={22} color={CLAY.ink} />
               </Pressable>
@@ -409,7 +410,7 @@ const StopRow = React.memo(function StopRow({
       </View>
       <View style={s.stopText}>
         <Text style={s.stopTitle} numberOfLines={1}>{planStopLabel(stop)}</Text>
-        <Text style={s.reason} numberOfLines={1}>{stop.reason}</Text>
+        <ExpandableText text={stop.reason} numberOfLines={1} style={s.reason} />
       </View>
       {count > 1 ? (
         <View {...pan.panHandlers} style={s.handle} accessibilityRole="adjustable" accessibilityLabel="Sposta: trascina, o tocca per salire di un posto" testID="giro-stop-handle">

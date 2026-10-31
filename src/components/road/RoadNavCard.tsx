@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExpandableText } from './ExpandableText';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -47,7 +48,7 @@ export const RoadNavCard = React.memo(function RoadNavCard({
               {d.value}
               <Text style={s.unit}> {d.unit}</Text>
             </Text>
-            <Text style={s.what} numberOfLines={2}>{step.text}</Text>
+            <ExpandableText text={step.text} numberOfLines={2} style={s.what} testID="road-nav-text" />
           </View>
         </View>
       ) : null}

@@ -8,7 +8,7 @@ import { correctRoadMarker } from './roadActions';
  */
 export function openRoadMarkerMenu(
   sessionId: string,
-  marker: { id: string; label: string; sentiment?: 'good' | 'bad' | null },
+  marker: { id: string; label: string; sentiment?: 'good' | 'bad' | null; note?: string | null; street?: string | null },
   onDone: () => void,
 ) {
   const toGood = marker.sentiment !== 'good';
@@ -32,6 +32,8 @@ export function openRoadMarkerMenu(
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: marker.label,
+        // la nota intera (nella riga è troncata)
+        message: [marker.street, marker.note].filter(Boolean).join(' · ') || undefined,
         options: [flipLabel, 'Elimina segnalazione', 'Annulla'],
         destructiveButtonIndex: 1,
         cancelButtonIndex: 2,
@@ -44,7 +46,7 @@ export function openRoadMarkerMenu(
     );
     return;
   }
-  Alert.alert(marker.label, undefined, [
+  Alert.alert(marker.label, [marker.street, marker.note].filter(Boolean).join(' · ') || undefined, [
     { text: flipLabel, onPress: () => void flip() },
     { text: 'Elimina segnalazione', style: 'destructive', onPress: remove },
     { text: 'Annulla', style: 'cancel' },

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { ExpandableText } from './ExpandableText';
 import { Image, Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,7 +61,7 @@ export function BriefingRows({ lines }: { lines: Line[] }) {
           <Icon3D source={markerArt(l.kind)} size={36} />
           <View style={{ flex: 1 }}>
             <Text style={s.rowTitle} numberOfLines={1}>{l.label}</Text>
-            {l.detail ? <Text style={s.rowDetail} numberOfLines={1}>{capitalize(l.detail)}</Text> : null}
+            {l.detail ? <ExpandableText text={capitalize(l.detail)} numberOfLines={1} style={s.rowDetail} /> : null}
           </View>
           {toneGlyph(l.tone)}
         </View>

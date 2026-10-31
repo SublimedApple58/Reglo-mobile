@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExpandableText } from './ExpandableText';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { Router } from 'expo-router';
@@ -30,9 +31,16 @@ export function RoadNotesCard({
     <ClaySurface radius={24} style={[s.card, style]}>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={s.title}>Note sulla guida</Text>
-        <Animated.Text key={note ?? '-'} entering={ROAD_TEXT_IN} style={[s.sub, has && s.subNote]} numberOfLines={2}>
-          {note === undefined ? ' ' : has ? note : 'Cosa ricordare di questa guida'}
-        </Animated.Text>
+        {has ? (
+          // Nota lunga: toccandola si legge tutta (Tiziano 31/10).
+          <Animated.View key={note} entering={ROAD_TEXT_IN}>
+            <ExpandableText text={note} numberOfLines={2} style={[s.sub, s.subNote]} testID="road-notes-text" />
+          </Animated.View>
+        ) : (
+          <Animated.Text key={note ?? '-'} entering={ROAD_TEXT_IN} style={s.sub} numberOfLines={2}>
+            {note === undefined ? ' ' : 'Cosa ricordare di questa guida'}
+          </Animated.Text>
+        )}
       </View>
       <ClayButton
         compact
