@@ -136,6 +136,7 @@ import {
   RoadPoint,
   RoadPointsResult,
   AddRoadMarkerInput,
+  UpdateRoadMarkerInput,
 } from '../types/regloApi';
 
 export const createRegloApi = (baseUrl?: string) => {
@@ -1106,6 +1107,12 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<{ removed: boolean }>(
         `/api/autoscuole/road/sessions/${sessionId}/hotspot-checks/${encodeURIComponent(checkIdOrClientId)}`,
         { method: 'DELETE' },
+      ),
+    /** REG-696: corregge giudizio, posizione o nota di una segnalazione. */
+    updateRoadMarker: async (sessionId: string, markerIdOrClientId: string, input: UpdateRoadMarkerInput) =>
+      client.request<RoadMarker>(
+        `/api/autoscuole/road/sessions/${sessionId}/markers/${encodeURIComponent(markerIdOrClientId)}`,
+        { method: 'PATCH', body: input },
       ),
     removeRoadMarker: async (sessionId: string, markerIdOrClientId: string) =>
       client.request<{ removed: boolean }>(

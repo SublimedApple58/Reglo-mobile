@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import type { AddRoadHotspotCheckInput, AddRoadMarkerInput, RoadPoint } from '../types/regloApi';
+import type { AddRoadHotspotCheckInput, AddRoadMarkerInput, RoadPoint, UpdateRoadMarkerInput } from '../types/regloApi';
 
 /**
  * REG-638 Reglo Road — code persistenti su file (sopravvivono a kill/crash).
@@ -27,6 +27,7 @@ import type { AddRoadHotspotCheckInput, AddRoadMarkerInput, RoadPoint } from '..
 export type MarkerOp = (
   | { op: 'add'; sessionId: string; input: AddRoadMarkerInput }
   | { op: 'remove'; sessionId: string; clientId: string }
+  | { op: 'update'; sessionId: string; clientId: string; patch: UpdateRoadMarkerInput }
   | { op: 'check-add'; sessionId: string; input: AddRoadHotspotCheckInput }
   | { op: 'check-remove'; sessionId: string; clientId: string }
 ) & { ownerId?: string | null };
@@ -223,6 +224,15 @@ export const roadQueue = {
 
   async pushMarkerOp(op: MarkerOp) {
     await loadQueue();
+    if (op.op === 'update') {
+      // REG-696: correzione prima che l'add sia partito: si corregge l'add.
+      const add = state.markerOps.find((m) => m.op === 'add' && m.input.clientId === op.clientId);
+      if (add && add.op === 'add') {
+        add.input = { ...add.input, ...op.patch } as AddRoadMarkerInput;
+        await persist();
+        return;
+      }
+    }
     if (op.op === 'remove' || op.op === 'check-remove') {
       // «Annulla» prima che l'add sia partito: basta togliere l'add.
       const addOp = op.op === 'remove' ? 'add' : 'check-add';

@@ -21,7 +21,7 @@ import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
 import { lessonStudentName, roadStore, useRoadSelector } from '../../src/road/roadStore';
-import { endRoad, recordHotspotCheck, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
+import { endRoad, recordHotspotCheck, swapRoadMarkerPlace, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { ROAD_EXIT, ROAD_TEXT_IN } from '../../src/road/motion';
 import { PLAN_ALERT_MS, PLAN_REACHED_MS } from '../../src/road/planAlerts';
@@ -60,6 +60,7 @@ import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
+import { fixHistory } from '../../src/road/fixHistory';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
 /**
@@ -533,6 +534,7 @@ export default function RoadScreen() {
         liveStatus.reportFix({ accuracy: c.accuracy ?? null, speed: c.speed != null && c.speed >= 0 ? c.speed : null });
         if (c.accuracy != null && c.accuracy > 50) return;
         lastWatchAt.current = Date.now();
+        fixHistory.push(c.latitude, c.longitude, l.timestamp);
         feed(
           {
             lat: c.latitude,
@@ -935,11 +937,18 @@ function LiveTop({
 
   // Il toast «… segnato» resta 5 secondi.
   const toastId = toast?.clientId;
+  // REG-696: ogni «Qui / N s fa» lascia altri 5 s per ripensarci.
+  const toastRev = toast?.rev ?? 0;
   useEffect(() => {
     if (!toastId) return;
     const t = setTimeout(() => roadStore.dismissToast(toastId), 5000);
     return () => clearTimeout(t);
-  }, [toastId]);
+  }, [toastId, toastRev]);
+  const onPlace = (want: 'retro' | 'here') => {
+    if (!toast || toast.placed === want) return;
+    Haptics.selectionAsync().catch(() => undefined);
+    void swapRoadMarkerPlace(toast.clientId);
+  };
   const onUndo = () => {
     if (!toast) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
@@ -1029,9 +1038,36 @@ function LiveTop({
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.toastT1} numberOfLines={1}>{toast.label} segnato</Text>
-            <Text style={s.toastT2} numberOfLines={1}>
-              {[toast.street, formatHm(toast.at)].filter(Boolean).join(' · ')}
-            </Text>
+            {toast.retroSec != null ? (
+              // REG-696: la segnalazione va dov'era l'auto poco prima; «Qui» la rimette dove si è ora.
+              <View style={s.placeRow} accessibilityRole="radiogroup">
+                <Pressable
+                  onPress={() => onPlace('retro')}
+                  hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: toast.placed === 'retro' }}
+                  accessibilityLabel={`Dov'eri ${toast.retroSec} secondi fa`}
+                  testID="road-place-retro"
+                >
+                  <Text style={[s.placeTx, toast.placed === 'retro' && s.placeOn]}>{toast.retroSec} s fa</Text>
+                </Pressable>
+                <Text style={s.placeSep}>·</Text>
+                <Pressable
+                  onPress={() => onPlace('here')}
+                  hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: toast.placed === 'here' }}
+                  accessibilityLabel="Dove sei adesso"
+                  testID="road-place-here"
+                >
+                  <Text style={[s.placeTx, toast.placed === 'here' && s.placeOn]}>Qui</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={s.toastT2} numberOfLines={1}>
+                {[toast.street, formatHm(toast.at)].filter(Boolean).join(' · ')}
+              </Text>
+            )}
           </View>
           <Pressable onPress={onUndo} style={({ pressed }) => [s.undo, pressed && { opacity: 0.7 }]} testID="road-undo">
             <Text style={s.undoTx}>Annulla</Text>
@@ -1290,8 +1326,12 @@ const s = StyleSheet.create({
   toastSg: { position: 'absolute', right: -4, bottom: -4 },
   toastT1: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
   toastT2: { fontSize: 13, fontWeight: '400', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
-  undo: { height: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  undo: { height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   undoTx: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  placeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
+  placeTx: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.5)' },
+  placeOn: { color: '#FFFFFF', fontWeight: '600', textDecorationLine: 'underline' },
+  placeSep: { fontSize: 14, color: 'rgba(255,255,255,0.35)' },
   freeBanner: { paddingVertical: 8, paddingLeft: 18 },
 
   speed: {

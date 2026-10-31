@@ -15,7 +15,8 @@ import { roadQueue } from './queue';
 import { roadStore, lessonStudentName } from './roadStore';
 import { roadUploader } from './uploader';
 import { isRoadTrackingActive, startRoadTracking, stopRoadTracking } from './tracking';
-import { formatRange, makeClientId } from './format';
+import { formatRange, haversineMeters, makeClientId } from './format';
+import { fixHistory } from './fixHistory';
 import { ROAD_UNDO_SECONDS, roadFreeStarted } from './freeStartStore';
 
 /**
@@ -135,6 +136,7 @@ async function hydrate(sessionId: string) {
 }
 
 async function attachAndTrack(session: RoadSessionWithLesson) {
+  if (roadQueue.sessionId !== session.id) fixHistory.clear();
   await roadQueue.attach(session.id, session.lastSeq ?? -1);
   roadStore.startSession(session);
   roadUploader.onSessionClosed(handleRemoteClose);
@@ -321,12 +323,22 @@ async function currentPosition(): Promise<{ lat: number; lng: number } | null> {
   return fix ? { lat: fix.lat, lng: fix.lng } : null;
 }
 
-/** Segna una segnalazione sul punto in cui si è ora. */
+/** REG-696: quanto prima dell'apertura di «Segnala» si guarda (l'errore viene prima del tocco). */
+const RETRO_LEAD_MS = 3_000;
+/** Sotto questa distanza «qui» e «N s fa» sono lo stesso posto: niente scelta. */
+const RETRO_MIN_M = 15;
+
+/**
+ * Segna una segnalazione. REG-696: va dove era l'auto poco prima di aprire
+ * «Segnala» (`openedAt`), non 50–150 m dopo; il toast lascia scegliere «Qui».
+ * Se l'auto era ferma o la storia non copre quel momento: posizione attuale.
+ */
 export async function recordRoadMarker(input: {
   kind: string;
   label: string;
   note?: string | null;
   sentiment: 'good' | 'bad';
+  openedAt?: number;
 }) {
   const { session } = roadStore.get();
   if (!session) return null;
@@ -335,9 +347,16 @@ export async function recordRoadMarker(input: {
     Alert.alert('Posizione non trovata', 'Aspetta qualche secondo che il GPS trovi la posizione e riprova.');
     return null;
   }
+  const now = Date.now();
+  const back = input.openedAt ? fixHistory.at(input.openedAt - RETRO_LEAD_MS) : null;
+  const useBack = !!back && haversineMeters(back.lat, back.lng, pos.lat, pos.lng) >= RETRO_MIN_M;
+  const hereAt = new Date(now).toISOString();
+  const place = useBack ? { lat: back!.lat, lng: back!.lng, recordedAt: new Date(back!.t).toISOString() } : { ...pos, recordedAt: hereAt };
+  const alt = useBack ? { lat: pos.lat, lng: pos.lng, recordedAt: hereAt } : null;
+  const retroSec = useBack ? Math.max(1, Math.round((now - back!.t) / 1000)) : null;
+
   const clientId = makeClientId();
   const street = roadStore.get().street ?? roadUploader.street;
-  const recordedAt = new Date().toISOString();
   const note = input.note?.trim() ? input.note.trim().slice(0, 500) : null;
   await roadQueue.pushMarkerOp({
     op: 'add',
@@ -348,11 +367,11 @@ export async function recordRoadMarker(input: {
       // la copia dell'etichetta serve se la voce custom sparisce nel frattempo
       label: input.label,
       note,
-      lat: pos.lat,
-      lng: pos.lng,
+      lat: place.lat,
+      lng: place.lng,
       street,
       sentiment: input.sentiment,
-      recordedAt,
+      recordedAt: place.recordedAt,
     },
   });
   roadStore.addMarker({
@@ -360,14 +379,54 @@ export async function recordRoadMarker(input: {
     kind: input.kind,
     label: input.label,
     note,
-    lat: pos.lat,
-    lng: pos.lng,
+    lat: place.lat,
+    lng: place.lng,
     street,
     sentiment: input.sentiment,
-    recordedAt,
+    recordedAt: place.recordedAt,
+    alt,
+    retroSec,
+    placed: useBack ? 'retro' : 'here',
   });
+  // REG-696: «Fatto bene» vale per una segnalazione sola, poi si torna a «da migliorare».
+  if (input.sentiment === 'good') roadStore.setSentimentMode('bad');
   void roadUploader.flush(true);
   return clientId;
+}
+
+/** REG-696: dal toast, «Qui» ↔ «N s fa». */
+export async function swapRoadMarkerPlace(clientId: string) {
+  const { session } = roadStore.get();
+  if (!session) return;
+  const next = roadStore.swapMarkerPlace(clientId);
+  if (!next) return;
+  await roadQueue.pushMarkerOp({
+    op: 'update',
+    sessionId: session.id,
+    clientId,
+    patch: { lat: next.lat, lng: next.lng, recordedAt: next.recordedAt },
+  });
+  void roadUploader.flush(true);
+}
+
+/**
+ * REG-696: correggere una segnalazione dopo i 5 s (riepilogo, percorso):
+ * giudizio o cancellazione. Va al server subito (niente aggiornamento
+ * ottimistico): l'interfaccia si aggiorna con la risposta.
+ */
+export async function correctRoadMarker(
+  sessionId: string,
+  markerIdOrClientId: string,
+  change: { sentiment: 'good' | 'bad' } | { remove: true },
+): Promise<boolean> {
+  try {
+    if ('remove' in change) await regloApi.removeRoadMarker(sessionId, markerIdOrClientId);
+    else await regloApi.updateRoadMarker(sessionId, markerIdOrClientId, { sentiment: change.sentiment });
+    return true;
+  } catch (err) {
+    Alert.alert('Segnalazione non modificata', messageOf(err, 'Controlla la connessione e riprova.'));
+    return false;
+  }
 }
 
 /**

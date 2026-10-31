@@ -50,6 +50,14 @@ export type RoadLocalMarker = {
   street: string | null;
   sentiment: 'good' | 'bad' | null;
   recordedAt: string;
+  /**
+   * REG-696: l'altra posizione possibile («qui» se la segnalazione è stata
+   * rimessa dov'era l'auto qualche secondo prima, e viceversa).
+   */
+  alt?: { lat: number; lng: number; recordedAt: string } | null;
+  /** Secondi tra il punto retrodatato e il tocco (null = nessuna differenza utile). */
+  retroSec?: number | null;
+  placed?: 'retro' | 'here';
 };
 
 export type RoadSentiment = 'good' | 'bad';
@@ -61,6 +69,11 @@ export type RoadToast = {
   street: string | null;
   sentiment: RoadSentiment | null;
   at: string;
+  /** REG-696: «N s fa / Qui» (null = posizione unica). */
+  retroSec: number | null;
+  placed: 'retro' | 'here';
+  /** Cambia a ogni spostamento: il toast resta altri 5 s. */
+  rev: number;
 };
 
 export type RoadPhase = 'idle' | 'active' | 'ending' | 'summary';
@@ -431,8 +444,33 @@ export const roadStore = {
         street: marker.street,
         sentiment: marker.sentiment,
         at: marker.recordedAt,
+        retroSec: marker.retroSec ?? null,
+        placed: marker.placed ?? 'here',
+        rev: 0,
       },
     });
+  },
+
+  /** REG-696: «qui / N s fa» — la segnalazione passa all'altra posizione. */
+  swapMarkerPlace(clientId: string) {
+    const m = state.markers.find((x) => x.clientId === clientId);
+    if (!m?.alt) return null;
+    const next: RoadLocalMarker = {
+      ...m,
+      lat: m.alt.lat,
+      lng: m.alt.lng,
+      recordedAt: m.alt.recordedAt,
+      alt: { lat: m.lat, lng: m.lng, recordedAt: m.recordedAt },
+      placed: m.placed === 'retro' ? 'here' : 'retro',
+    };
+    set({
+      markers: state.markers.map((x) => (x.clientId === clientId ? next : x)),
+      toast:
+        state.toast?.clientId === clientId
+          ? { ...state.toast, placed: next.placed ?? 'here', at: next.recordedAt, rev: state.toast.rev + 1 }
+          : state.toast,
+    });
+    return next;
   },
 
   removeMarker(clientId: string) {

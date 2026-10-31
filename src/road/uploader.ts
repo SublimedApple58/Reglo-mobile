@@ -83,6 +83,8 @@ async function flushMarkers() {
         await regloApi.addRoadMarker(op.sessionId, op.input);
       } else if (op.op === 'remove') {
         await regloApi.removeRoadMarker(op.sessionId, op.clientId);
+      } else if (op.op === 'update') {
+        await regloApi.updateRoadMarker(op.sessionId, op.clientId, op.patch);
       } else if (op.op === 'check-add') {
         await regloApi.addRoadHotspotCheck(op.sessionId, op.input);
       } else {
@@ -100,7 +102,8 @@ async function flushMarkers() {
       // rimandarla non cambierebbe niente → si scarta. Rete: si ritenta.
       // Un ripasso verso un backend che non lo conosce ancora (404) non deve
       // bloccare per sempre la coda delle segnalazioni dietro di lui.
-      const unknownRoute = (op.op === 'check-add' || op.op === 'check-remove') && err instanceof RegloApiError && err.status === 404;
+      const unknownRoute =
+        (op.op === 'check-add' || op.op === 'check-remove' || op.op === 'update') && err instanceof RegloApiError && err.status === 404;
       if (isRejection(err) || unknownRoute) {
         await roadQueue.shiftMarkerOp(op);
         continue;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { markerArt } from '../../road/markerArt';
 import { formatHm } from '../../road/format';
 import { SentimentBadge, type Sentiment } from './RoadSentiment';
@@ -14,13 +14,24 @@ type Item = {
   recordedAt: string;
 };
 
-/** Elenco segnalazioni: simbolo, etichetta, via (o nota), ora. */
-export function RoadMarkerList({ items }: { items: Item[] }) {
+/**
+ * Elenco segnalazioni: simbolo, etichetta, via (o nota), ora. Con
+ * `onPressItem` (REG-696) ogni riga si tocca per correggerla.
+ */
+export function RoadMarkerList({ items, onPressItem }: { items: Item[]; onPressItem?: (key: string) => void }) {
   if (!items.length) return null;
   return (
     <View>
       {items.map((m, i) => (
-        <View key={m.key} style={[s.row, i > 0 && s.sep]}>
+        <Pressable
+          key={m.key}
+          disabled={!onPressItem}
+          onPress={onPressItem ? () => onPressItem(m.key) : undefined}
+          style={({ pressed }) => [s.row, i > 0 && s.sep, pressed && s.pressed]}
+          accessibilityRole={onPressItem ? 'button' : undefined}
+          accessibilityHint={onPressItem ? 'Correggi o elimina la segnalazione' : undefined}
+          testID={onPressItem ? `road-marker-row-${i}` : undefined}
+        >
           <View style={s.sy}>
             <Image source={markerArt(m.kind)} style={s.img} resizeMode="contain" />
             {m.sentiment ? <SentimentBadge sentiment={m.sentiment} size={19} style={s.sg} /> : null}
@@ -34,7 +45,7 @@ export function RoadMarkerList({ items }: { items: Item[] }) {
             ) : null}
           </View>
           <Text style={s.time}>{formatHm(m.recordedAt)}</Text>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
@@ -42,6 +53,7 @@ export function RoadMarkerList({ items }: { items: Item[] }) {
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 58 },
+  pressed: { opacity: 0.6 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(60,60,67,0.18)' },
   // Clay v2: l'icona 3D sta sul bianco, niente riquadro grigio.
   sy: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

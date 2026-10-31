@@ -1720,6 +1720,15 @@ export type RoadPlanRouteResponse = {
 
 export type RoadSessionWithLesson = RoadSession & { lesson: RoadLesson };
 
+/** REG-696: correzione di una segnalazione (PATCH). */
+export type UpdateRoadMarkerInput = {
+  sentiment?: 'good' | 'bad' | null;
+  lat?: number;
+  lng?: number;
+  recordedAt?: string;
+  note?: string | null;
+};
+
 export type RoadMarker = {
   id: Uuid;
   clientId: string;

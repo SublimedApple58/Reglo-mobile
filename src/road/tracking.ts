@@ -4,6 +4,7 @@ import type { RoadPoint } from '../types/regloApi';
 import { roadQueue } from './queue';
 import { roadStore } from './roadStore';
 import { roadUploader } from './uploader';
+import { fixHistory } from './fixHistory';
 
 /**
  * REG-638 Reglo Road — tracking GPS.
@@ -44,6 +45,8 @@ if (!TaskManager.isTaskDefined(ROAD_LOCATION_TASK)) {
       // la coda su file non deve mai far cadere il task
     }
     roadStore.ingestPoints(points);
+    // REG-696: anche a schermo spento si sa dov'era l'auto qualche secondo fa.
+    for (const p of points) if (p[5] == null || p[5] <= 50) fixHistory.push(p[1], p[2], p[0]);
     roadUploader.maybeFlush();
   });
 }

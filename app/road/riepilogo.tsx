@@ -11,6 +11,7 @@ import { lessonStudentName, useRoadSelector } from '../../src/road/roadStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { exitRoad, refreshRoadSummary } from '../../src/road/roadActions';
 import { openRoadPagellino } from '../../src/road/pagellino';
+import { openRoadMarkerMenu } from '../../src/road/markerMenu';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../src/road/format';
 import { regloApi } from '../../src/services/regloApi';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
@@ -197,6 +198,11 @@ export default function RiepilogoScreen() {
               sentiment: m.sentiment ?? null,
               recordedAt: m.recordedAt,
             }))}
+            // REG-696: si corregge anche dopo i 5 s dell'«Annulla».
+            onPressItem={(id) => {
+              const m = shown.find((x) => x.id === id);
+              if (m) openRoadMarkerMenu(summary.id, m, () => void refreshRoadSummary());
+            }}
           />
           {more > 0 ? (
             <Text style={s.more}>

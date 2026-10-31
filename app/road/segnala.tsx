@@ -44,7 +44,13 @@ export default function SegnalaSheet() {
   const commit = (item: Item, withNote?: string | null) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    void recordRoadMarker({ kind: item.kind, label: item.label, note: withNote ?? null, sentiment: sentimentMode });
+    void recordRoadMarker({
+      kind: item.kind,
+      label: item.label,
+      note: withNote ?? null,
+      sentiment: sentimentMode,
+      openedAt: Date.parse(openedAt),
+    });
     router.back();
   };
 
@@ -56,7 +62,7 @@ export default function SegnalaSheet() {
         'Aggiungi una nota alla segnalazione.',
         [
           { text: 'Annulla', style: 'cancel' },
-          { text: 'Segna', isPreferred: true, onPress: (text?: string) => commit(item, text ?? null) },
+          { text: 'Segna', onPress: (text?: string) => commit(item, text ?? null) },
         ],
         'plain-text',
       );

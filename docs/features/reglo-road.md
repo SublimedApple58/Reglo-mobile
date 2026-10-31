@@ -103,6 +103,14 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400
   (guida chiusa da troppo, tipo sconosciuto) le scarta.
 - Via: `reverseGeocodeAsync` dell'ultimo punto al massimo ogni ~20 s, campo `street`.
+- **REG-696 — segnalazioni affidabili**: `src/road/fixHistory.ts` tiene gli ultimi 2 min di
+  posizioni (ascolto + tracking). La segnalazione va dov'era l'auto 3 s prima dell'apertura di
+  «Segnala» (`openedAt`), se dista almeno 15 m da qui; il toast mostra «N s fa · Qui» e il
+  cambio manda un `update` in coda (`PATCH …/markers/<clientId>`, o corregge l'add non ancora
+  partito) e tiene il toast altri 5 s. «Fatto bene» vale per una segnalazione sola (poi torna
+  «da migliorare»). Nel riepilogo ogni riga si tocca (`openRoadMarkerMenu`, ActionSheet
+  nativo): giudizio opposto o «Elimina» con conferma, al server subito e poi ricarica.
+  «Annulla» del toast alto 44 pt; niente `isPreferred` nell'Alert della nota (era blu).
 - **REG-693 — «sto registrando?»** (`src/road/liveStatus.ts`): sotto il nome dell'allievo la
   riga `LiveStatusRow` mostra pallino rosso + orario quando va tutto bene; altrimenti anello
   vuoto e una frase corta: «Ricerca del GPS…», «Segnale GPS debole» (precisione > 25 m o, in
