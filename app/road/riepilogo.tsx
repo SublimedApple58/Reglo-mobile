@@ -35,6 +35,7 @@ const MAX_MARKERS = 4;
 export default function RiepilogoScreen() {
   const router = useRouter();
   const summary = useRoadSelector((s) => s.summary);
+  const syncing = useRoadSelector((s) => s.summarySyncing);
   const [ev, setEv] = useState<EvalState>(null);
 
   const appointmentId = summary?.appointmentId;
@@ -152,6 +153,13 @@ export default function RiepilogoScreen() {
         <ClayStat value={summary.markers.length} label="Segnalazioni" />
       </View>
 
+      {/* REG-691: gli ultimi punti partono dopo la chiusura; i km si aggiornano da soli. */}
+      {syncing ? (
+        <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={s.syncTx} testID="road-summary-syncing">
+          Ultimi metri del percorso in invio: i km si aggiornano da soli.
+        </Animated.Text>
+      ) : null}
+
       <SentimentCounts {...countSentiments(summary.markers)} style={{ marginTop: 14 }} />
 
       {/* REG-650: l'esito del giro, dal server (tappa entro 40 m, percorso d'esame al 60%). */}
@@ -207,6 +215,7 @@ const s = StyleSheet.create({
   mini: { height: 172, borderRadius: 24, overflow: 'hidden' },
   agendaLine: { marginTop: 14 },
   planTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  syncTx: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 10, lineHeight: 18 },
   agendaTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, lineHeight: 19 },
   more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
   foot: {},

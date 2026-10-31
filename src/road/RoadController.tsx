@@ -30,7 +30,7 @@ const RECHECK_MS = 60_000;
 export function RoadController() {
   const router = useRouter();
   const segments = useSegments() as string[];
-  const { status, autoscuolaRole } = useSession();
+  const { status, autoscuolaRole, user } = useSession();
   const { enabled } = useRoadEnabled();
   const phase = useRoadSelector((s) => s.phase);
   const allowed = status === 'ready' && isInstructor(autoscuolaRole) && enabled;
@@ -105,15 +105,20 @@ export function RoadController() {
     };
   }, [allowed, check]);
 
-  // Logout / cambio autoscuola con Road aperto: si spegne tutto.
+  // REG-691: la coda spedisce solo per l'utente che l'ha registrata. Logout o
+  // login scaduto (401) con Road aperto: GPS spento, ma punti e segnalazioni
+  // NON si buttano: ripartono al prossimo login dello stesso utente.
+  const userId = user?.id ?? null;
   useEffect(() => {
+    roadQueue.setOwner(status === 'ready' ? userId : null);
+    if (status === 'ready' && userId) void roadUploader.resumeAfterLogin();
     if (status === 'unauthenticated' && roadStore.get().phase !== 'idle') {
       void stopRoadTracking();
       roadUploader.stop();
-      void roadQueue.clearAll();
+      void roadQueue.detach();
       roadStore.reset();
     }
-  }, [status]);
+  }, [status, userId]);
 
   // Instradamento: Road a tutto schermo finché c'è una sessione.
   useEffect(() => {

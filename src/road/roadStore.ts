@@ -86,6 +86,8 @@ type State = {
   markers: RoadLocalMarker[];
   toast: RoadToast | null;
   summary: RoadDetail | null;
+  /** REG-691: ultimi punti della guida chiusa ancora in invio (i km si aggiornano dopo). */
+  summarySyncing: boolean;
   /** Il pagellino è acceso per l'autoscuola (bottone nell'header). */
   evaluationEnabled: boolean;
   /** Guida su cui si può entrare in Road adesso (da `/road/state`). */
@@ -133,6 +135,7 @@ const INITIAL: State = {
   markers: [],
   toast: null,
   summary: null,
+  summarySyncing: false,
   evaluationEnabled: false,
   eligible: null,
   roadEnabled: false,
@@ -431,12 +434,12 @@ export const roadStore = {
     set({ phase });
   },
 
-  showSummary(summary: RoadDetail) {
-    set({ phase: 'summary', summary, toast: null, planAlert: null, hotspotWatch: EMPTY_HOTSPOT_WATCH });
+  showSummary(summary: RoadDetail, syncing = false) {
+    set({ phase: 'summary', summary, summarySyncing: syncing, toast: null, planAlert: null, hotspotWatch: EMPTY_HOTSPOT_WATCH });
   },
 
-  updateSummary(summary: RoadDetail) {
-    if (state.summary?.id === summary.id) set({ summary });
+  updateSummary(summary: RoadDetail, syncing?: boolean) {
+    if (state.summary?.id === summary.id) set({ summary, ...(syncing === undefined ? {} : { summarySyncing: syncing }) });
   },
 
   reset() {

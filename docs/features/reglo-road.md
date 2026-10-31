@@ -86,7 +86,18 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
 - Uploader: ogni ~10 s o a ≥ 40 punti. Il lotto si **congela** (`inflight`, `seq`
   persistito) finché il server non lo conferma: si rimanda identico, `duplicate: true` = ok.
   Backoff 2 s → 60 s, ripartenza immediata al ritorno online (NetInfo).
-  `accepted:false` / `SESSION_CLOSED` → GPS spento, coda scartata, Alert «Guida chiusa».
+  `accepted:false` / `SESSION_CLOSED` / `NOT_FOUND` → il server non prenderà più punti di
+  quella guida: si buttano solo quelli; se era la guida in corso GPS spento e Alert «Guida chiusa».
+- **REG-691 — mai più dati persi**: la coda è **per guida** (`sessions[]`, `current` = quella in
+  corso) e ogni guida/segnalazione ricorda l'utente (`ownerId`). Logout, login scaduto (401) e
+  `FORBIDDEN` non buttano niente: si spedisce solo con lo stesso utente loggato
+  (`roadQueue.setOwner` dal `RoadController`, `roadUploader.resumeAfterLogin`). «Termina»
+  ritenta l'invio prima di chiudere; i punti rimasti partono dopo (il server li accetta fino a
+  2 h dalla chiusura e ricalcola km, punti e tappe raggiunte, `appendLatePoints` in
+  `reglo/lib/autoscuole/road/service.ts`). Il riepilogo mostra «Ultimi metri del percorso in
+  invio…» e si ricarica da solo quando arrivano (`onSessionSynced`). Fuori da Road il timer
+  dell'uploader resta acceso solo finché ci sono code da spedire. Code ferme da oltre 6 h si
+  buttano. L'annullamento della guida libera (guida cancellata) usa `discardSession`.
 - Segnalazioni: coda separata con `clientId` generato in app (idempotente); «Annulla» prima
   dell'invio toglie l'add dalla coda, dopo manda `DELETE …/markers/<clientId>`. Restano in
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400

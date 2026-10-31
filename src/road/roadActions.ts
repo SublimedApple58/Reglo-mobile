@@ -267,7 +267,8 @@ export async function undoRoadFree(): Promise<boolean> {
   roadUploader.stop();
   roadUploader.onSessionClosed(null);
   roadUploader.resetStreet();
-  await roadQueue.detach();
+  // guida cancellata dal server: i suoi punti non servono più
+  await roadQueue.discardSession(info.sessionId);
   roadStore.reset();
   return true;
 }
@@ -417,6 +418,11 @@ export async function undoRoadMarker(clientId: string) {
 /**
  * «Termina guida»: svuota le code, spegne il GPS, chiude la sessione (la
  * guida diventa completata) e mostra il riepilogo coi numeri del server.
+ *
+ * REG-691: i punti che non sono riusciti a partire (rete ballerina) NON si
+ * buttano più: restano in coda e si spediscono dopo la chiusura (il server li
+ * accetta fino a 2 h e ricalcola km e giro). Il riepilogo lo dice e si
+ * aggiorna da solo quando arrivano.
  */
 export async function endRoad(): Promise<boolean> {
   const { session } = roadStore.get();
@@ -426,14 +432,18 @@ export async function endRoad(): Promise<boolean> {
   await roadUploader.flush(true);
   await stopRoadTracking();
   await roadUploader.flush(true);
+  // un secondo tentativo prima di chiudere: spesso basta (lotto in volo scaduto)
+  if (roadQueue.pendingFor(session.id) > 0) await roadUploader.flush(true);
   try {
     const detail = await regloApi.endRoadSession(session.id);
-    roadUploader.stop();
     roadUploader.onSessionClosed(null);
     roadUploader.resetStreet();
     await roadQueue.detach();
-    roadStore.showSummary(detail);
-    // segnalazioni ancora in coda (offline): il server le accetta fino a 2 h
+    const late = roadQueue.pendingFor(session.id) > 0;
+    roadStore.showSummary(detail, late);
+    if (late) watchLateSync(session.id);
+    // punti e segnalazioni ancora in coda (offline): partono quando torna la rete
+    roadUploader.stop();
     void roadUploader.flush(true);
     return true;
   } catch (err) {
@@ -452,6 +462,20 @@ export async function endRoad(): Promise<boolean> {
     );
     return false;
   }
+}
+
+/** Quando gli ultimi punti della guida chiusa arrivano, il riepilogo si ricarica coi km giusti. */
+function watchLateSync(sessionId: string) {
+  const off = roadUploader.onSessionSynced((id) => {
+    if (id !== sessionId) return;
+    off();
+    const { summary } = roadStore.get();
+    if (summary?.id !== sessionId) return;
+    regloApi
+      .getRoadSession(sessionId)
+      .then((d) => roadStore.updateSummary(d, false))
+      .catch(() => roadStore.updateSummary(summary, false));
+  });
 }
 
 /** Ricarica il riepilogo (dopo aver salvato il pagellino). */
