@@ -51,7 +51,13 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
    «Partenza da …» compare solo se il seed porta un luogo (oggi `/road/state` non lo dà).
 2. **Primo ingresso** (una volta per dispositivo, `reglo.road.privacySeen.v1`): «Prima di
    partire» → «Continua» → permesso **«Mentre usi l'app»** (mai «Sempre»). Negato → Alert con
-   «Apri Impostazioni», niente Road.
+   «Apri Impostazioni», niente Road. **Posizione approssimativa** (REG-692) → Alert «Serve la
+   posizione esatta» con «Apri Impostazioni», niente Road: i fix approssimativi sono tutti
+   scartati (soglia 50 m) e la guida finirebbe a 0 km. Android lo legge dal permesso
+   (`android.accuracy === 'coarse'`); iOS non lo espone a expo-location, quindi
+   `isApproximateLocation` guarda il fix (ultimo noto ≤ 60 s, se no uno nuovo entro 2,5 s):
+   incertezza ≥ 1 km = approssimativa. Fix che non arriva in tempo → si parte (niente blocchi per
+   un dubbio). Vale per «Entra in Road» e Road libero; la ripresa di una sessione già aperta no.
 3. **Entra**: `POST /road/sessions` (la guida diventa `checked_in`), coda agganciata alla
    sessione (`seq` riparte da `lastSeq + 1`), GPS acceso, `router.replace('/road')`.
 4. **Road**: tutta l'app è lo stack `app/road` (l'AuthGate lascia stare il gruppo `road`;
