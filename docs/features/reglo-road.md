@@ -51,11 +51,26 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
    «Partenza da …» compare solo se il seed porta un luogo (oggi `/road/state` non lo dà).
 2. **Primo ingresso** (una volta per dispositivo, `reglo.road.privacySeen.v1`): «Prima di
    partire» → «Continua» → permesso **«Mentre usi l'app»** (mai «Sempre»). Negato → Alert con
-   «Apri Impostazioni», niente Road.
+   «Apri Impostazioni», niente Road. **Posizione approssimativa** (REG-692) → Alert «Serve la
+   posizione esatta» con «Apri Impostazioni», niente Road: i fix approssimativi sono tutti
+   scartati (soglia 50 m) e la guida finirebbe a 0 km. Android lo legge dal permesso
+   (`android.accuracy === 'coarse'`); iOS non lo espone a expo-location, quindi
+   `isApproximateLocation` guarda il fix (ultimo noto ≤ 60 s, se no uno nuovo entro 2,5 s):
+   incertezza ≥ 1 km = approssimativa. Fix che non arriva in tempo → si parte (niente blocchi per
+   un dubbio). Vale per «Entra in Road» e Road libero; la ripresa di una sessione già aperta no.
 3. **Entra**: `POST /road/sessions` (la guida diventa `checked_in`), coda agganciata alla
    sessione (`seq` riparte da `lastSeq + 1`), GPS acceso, `router.replace('/road')`.
 4. **Road**: tutta l'app è lo stack `app/road` (l'AuthGate lascia stare il gruppo `road`;
-   `RoadController` instrada lì finché `phase !== 'idle'`). Schermo sempre acceso
+   `RoadController` instrada lì finché `phase !== 'idle'`, salvo Road ridotta). **Road ridotta
+   (REG-700)**: il tasto «Riduci» (chevron giù, riga del pannello dopo Note/Pagellino,
+   `testID road-minimize`) → `minimizeRoad()` (`src/road/miniStore.ts`) → `RoadController`
+   porta all'Agenda e la guida continua (GPS e coda non dipendono dalla schermata). Sopra le voci
+   della tab bar (`AppTabBar`, solo app istruttore) `RoadMiniBar`: «Guida con <Nome>» · «N min» · «Torna in Road» (tutta la barra si tocca → `returnToRoad()`); la
+   tab bar la misura, quindi le schermate si tengono lo spazio da sole. Anche «Torna in Road»
+   della tab Road usa `returnToRoad()`. Vale solo con `phase === 'active'`: chiusura e
+   riepilogo tornano a tutto schermo e ogni fase ≠ active spegne il ridotto; dopo un kill si
+   riparte a tutto schermo. Da ridotta non ci sono gli avvisi a schermo del pannello live (svolte,
+   punti critici): si segnala tornando in Road. Schermo sempre acceso
    (`useKeepAwake`). Camera che segue l'auto (heading, pitch 40°, auto un po' sotto metà
    schermo via `mapPadding`); se l'utente trascina la mappa smette di seguire, «ricentra» la
    riaggancia. Rotazione mappa disattivata: la camera la governa l'app, l'auto ruota di
@@ -204,6 +219,7 @@ percorso» fra orario e righe istruttore/veicolo: minimappa non interattiva con 
 - **Segno**: `RoadMarker.sentiment`; in «Segnala» l'interruttore «Fatto bene / Da migliorare» (`roadStore.sentimentMode`, resta per la sessione, default «da migliorare»). `src/components/road/RoadSentiment.tsx` (`SentimentBadge`, `SentimentCounts`, `countSentiments`); bordo colorato su `RoadMarkerPin`, badge in `RoadMarkerList` e nel toast; conteggi in riepilogo, vista allievo, percorso.
 - **Pagellino** (`manage-lesson-details`, condiviso home/note/Road): tutte le voci subito con le stelline, le non toccate restano «non valutate»; niente più «Aggiungi voci» né ×.
 - **Percorso nella guida (istruttore)**: `RoadLessonCard` nel dettaglio guida (`manage-lesson`), `RoadHistoryChip` nello storico di `StudentNotesDetailScreen` (`getRoadForStudent`). Entrambi aprono `road-percorso` (home + notes), form sheet che abbraccia il contenuto; dalla mappa si va a `road-map`.
+- **Errori ≠ vuoto ≠ caricamento (REG-694)**: `openRoadPercorso` (sincrono) apre il foglio al tocco; se il dettaglio non è già in mano (`preloaded` o cache dei 20 percorsi aperti) lo carica dopo, con `roadRouteMapStore.pending` = `loading` (scheletro della stessa forma: mappa, tre numeri, due righe; titolo dall'`hint` orario se chi apre lo sa) → `error` («Percorso non caricato» + «Riprova» = `retryRoadPercorso`) o `empty` (risposta `null`: «Questa guida non ha un percorso registrato.»). `set(detail)` chiude il pending. Dati Road dell'allievo (`avvioFlow`): un errore NON va in cache come `null` («nessuna storia») ma in `failed` → `useRoadStudentState` dà `{ data, failed }`, `retryRoadStudent` riprova; lo usano «<Nome> su Road» («Guide di X non caricate» + Riprova, «Continua» resta attivo) e «Road di <Nome>». Giro (`planStore`): errore = `usePlanFailed` → `RoadPlanRow` mostra «Giro non caricato · tocca per riprovare» (`retryPlan`) invece di sparire; si parte comunque senza giro. Tab Road: errore di `/road/free` = sottotitolo «Guide di oggi non caricate», «Avvia guida» attivo e «Riprova» (durante il nuovo tentativo lo scheletro); il messaggio grezzo del server non va più a schermo.
 - **Fogli**: riepilogo e pagellino da Road sono form sheet `fitToContents` (`TALL_SHEET`); il pagellino usa `SheetScaffold hugScroll` (abbraccia il contenuto, scorre solo se supera lo schermo, «Salva» sempre visibile).
 
 ## Road libero — tab «Road» e «Avvia guida» (piano A, 28/10)
@@ -370,13 +386,13 @@ Piano `../reglo/plans/road/005-road-mobile-redesign.md`. La tab Road (`app/(tabs
 ## Avvio guida in tre fogli (REG-662, piano 005, 30/10)
 Fogli nativi (`FORM_SHEET` + `<FormSheet>`) spinti uno sopra l'altro nello stack `drive`: trascinando giù si torna al passo prima, la X (`onClose` → `router.dismissAll()`) chiude tutto. La scelta passa da un foglio all'altro in `src/road/avvioFlow.ts` (`avvioStore`); parti comuni (righe, auto adatte, chi è l'allievo) in `src/road/avvioParts.tsx`.
 1. `drive/avvia.tsx` «Con chi guidi?»: ricerca, «Suggeriti» (i tre di `/road/free › suggestions` col motivo; senza suggerimenti «Le tue ultime guide»), «Tutti gli allievi» per lettera (`FormSheet list`). La Road dei suggeriti si scalda all'apertura (`warmRoadStudents`): se un allievo non ha niente su Road (già saputo) si salta il foglio 2.
-2. `drive/avvia-allievo.tsx` «<Nome> su Road»: briefing (`GET /road/students/[id]`, cache `useRoadStudent`), «Ultima guida» (→ `road-percorso`), `RoadPlanCard` con «Segui il giro», «Continua». Dati non ancora in cache = skeleton della stessa forma, poi dissolvenza; nessun dato = «Prima guida in Road con <Nome>.». Con la guida in agenda (home «Entra in Road», `avvioStore.lesson`) la CTA è «Entra in Road»: chiude i fogli e chiama `beginRoadEntry` (come l'invito).
+2. `drive/avvia-allievo.tsx` «<Nome> su Road»: briefing (`GET /road/students/[id]`, cache `useRoadStudent`), «Ultima guida» (→ `road-percorso`), `RoadPlanCard` con «Segui il giro», «Continua». Dati non ancora in cache = skeleton della stessa forma, poi dissolvenza; nessun dato = «Prima guida in Road con <Nome>.»; errore = «Guide di <Nome> non caricate» + Riprova (REG-694). Con la guida in agenda (home «Entra in Road», `avvioStore.lesson`) la CTA è «Entra in Road»: chiude i fogli e chiama `beginRoadEntry` (come l'invito).
 3. `drive/avvia-parti.tsx` «Parti con <Nome>»: durata (+ `RoadPlanLine` del giro per quella durata), «Auto» (scelta con ricerca nello stesso foglio), «Fino alle … · poi sei libero / alle … hai …», CTA «Parti con <Nome> · N min» (`enterRoadFree`, conferme come prima; informativa al primo ingresso dopo `dismissAll`).
 Invito (`home/road-invite`) e foglio della guida (`manage-lesson`, «Avvia con Road») restano come prima: mostrano già la card del giro.
 
 ## Road dell'allievo nel dettaglio allievo (REG-663, piano 005, 30/10)
 - **Riga «Road»** nel foglio dell'allievo (`StudentNotesDetailScreen`, lista con Pagamenti e Impostazioni, solo con Road acceso): «N guide · N punti da migliorare» (o «Ancora nessuna guida in Road»), icona 3D Road. I dati arrivano da `prefetchRoadStudent` (`src/road/avvioFlow.ts`, `GET /road/students/[id]`), la stessa cache dei fogli di avvio: la cache dell'allievo si svuota a ogni apertura del dettaglio, così i numeri sono freschi; i chip «Percorso» dello storico leggono la stessa risposta.
-- **Foglio «Road di <Nome>»** (`src/screens/StudentRoadSheet.tsx`, rotte `notes/road-allievo` e `home/road-allievo`, `FORM_SHEET`): sottotitolo «N guide da <mese>», tre numeri (km, ore o minuti, segnalazioni), una mappa coi suoi errori ripetuti (`hotspots` di REG-660: aloni `HeatHalo` + simbolo; montata dopo l'animazione su un segnaposto della stessa misura), «Da migliorare» (briefing delle ultime guide), «Le sue guide» (miniatura salvata, giorno, km · min · pagellino N su M / fatto / da fare → `road-percorso`), le prime 5 poi «Tutte le guide». Lista del foglio (`FormSheet list`), nessuna chiamata al tocco. Senza guide: `ClayEmpty` «Ancora nessuna guida in Road con <Nome>».
+- **Foglio «Road di <Nome>»** (`src/screens/StudentRoadSheet.tsx`, rotte `notes/road-allievo` e `home/road-allievo`, `FORM_SHEET`): sottotitolo «N guide da <mese>», tre numeri (km, ore o minuti, segnalazioni), una mappa coi suoi errori ripetuti (`hotspots` di REG-660: aloni `HeatHalo` + simbolo; montata dopo l'animazione su un segnaposto della stessa misura), «Da migliorare» (briefing delle ultime guide), «Le sue guide» (miniatura salvata, giorno, km · min · pagellino N su M / fatto / da fare → `road-percorso`), le prime 5 poi «Tutte le guide». Lista del foglio (`FormSheet list`), nessuna chiamata al tocco. Senza guide: `ClayEmpty` «Ancora nessuna guida in Road con <Nome>»; errore: «Non riesco a caricare le guide in Road» + Riprova (REG-694).
 
 ## Punti critici con la copertina elastica (REG-659, piano 005, 30/10)
 - `RoadHotspotsScreen`: mappa nella `StretchyCover` dietro la lista (`parallax: 1`: la copertina sale col foglio, mai ai lati trasparenti delle righe), intestazione bianca (titolo, riga, periodo) e righe nella `FlatList`, nota in fondo («Un punto compare dove almeno 2 allievi sbagliano 3 volte…» + percorso d'esame).

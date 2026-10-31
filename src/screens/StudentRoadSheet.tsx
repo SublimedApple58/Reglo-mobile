@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import Animated from 'react-native-reanimated';
 
 import { FormSheet } from '../components/SheetScaffold';
-import { ClayEmpty, ClayList, ClayListRow, ClayStat, ClaySurface } from '../components/clay';
+import { ClayButton, ClayEmpty, ClayList, ClayListRow, ClayStat, ClaySurface } from '../components/clay';
 import { BriefingRows, RouteThumb } from '../components/road/RoadTabParts';
 import { HeatHalo, RoadMarkerPin } from '../components/road/RoadMapParts';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -13,7 +13,7 @@ import { ROAD_FADE_IN } from '../road/motion';
 import { openRoadPercorso } from '../road/openRoadPercorso';
 import { formatKm } from '../road/format';
 import { markerArt } from '../road/markerArt';
-import { useRoadStudent } from '../road/avvioFlow';
+import { retryRoadStudent, useRoadStudentState } from '../road/avvioFlow';
 import type { RoadStudentHotspot, RoadStudentItem } from '../types/regloApi';
 import { CLAY, CLAY_SHADOW } from '../theme';
 import { MORALE_ART } from '../theme/moraleArt';
@@ -51,7 +51,8 @@ export function StudentRoadSheet() {
   const segments = useSegments() as string[];
   const stack = segments[1] === 'notes' ? 'notes' : 'home';
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name?: string }>();
-  const data = useRoadStudent(studentId ? String(studentId) : null);
+  const sid = studentId ? String(studentId) : null;
+  const { data, failed } = useRoadStudentState(sid);
   const first = firstName(String(name ?? 'Allievo'));
   const [all, setAll] = useState(false);
 
@@ -69,7 +70,7 @@ export function StudentRoadSheet() {
     ? new Date(oldest).toLocaleDateString('it-IT', { month: 'long' })
     : null;
   const subtitle =
-    data === undefined ? ' ' : items.length ? `${items.length === 1 ? '1 guida' : `${items.length} guide`}${since ? ` da ${since}` : ''}` : 'Ancora nessuna guida';
+    data === undefined ? (failed ? 'Guide non caricate' : ' ') : items.length ? `${items.length === 1 ? '1 guida' : `${items.length} guide`}${since ? ` da ${since}` : ''}` : 'Ancora nessuna guida';
 
   const rows: Row[] = useMemo(() => {
     const shown = all ? items : items.slice(0, FIRST_GUIDES);
@@ -78,10 +79,17 @@ export function StudentRoadSheet() {
     return out;
   }, [items, all]);
 
-  const open = useCallback((id: string) => void openRoadPercorso(router, stack, id), [router, stack]);
+  const open = useCallback((id: string) => openRoadPercorso(router, stack, id), [router, stack]);
 
   const header =
-    data === undefined ? (
+    data === undefined && failed && sid ? (
+      // REG-694: errore ≠ «Ancora nessuna guida».
+      <Animated.View entering={ROAD_FADE_IN} testID="student-road-error">
+        <Text style={s.errTitle}>Non riesco a caricare le guide in Road</Text>
+        <Text style={s.errTx}>Controlla la connessione e riprova.</Text>
+        <ClayButton title="Riprova" variant="secondary" onPress={() => retryRoadStudent(sid)} style={s.errBtn} testID="student-road-retry" />
+      </Animated.View>
+    ) : data === undefined ? (
       <View testID="student-road-skeleton">
         <View style={s.stats}>
           {[0, 1, 2].map((i) => (
@@ -276,6 +284,9 @@ const HotspotsMap = React.memo(function HotspotsMap({ hotspots }: { hotspots: Ro
 });
 
 const s = StyleSheet.create({
+  errTitle: { fontSize: 16, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  errTx: { fontSize: 15, lineHeight: 21, color: CLAY.ink3, marginTop: 2 },
+  errBtn: { marginTop: 16 },
   stats: { flexDirection: 'row', gap: 10 },
   hsImg: { width: 36, height: 36 },
   mapWrap: { marginTop: 14, borderRadius: 24, backgroundColor: CLAY.surface },

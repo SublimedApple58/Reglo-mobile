@@ -15,7 +15,7 @@ import { HeatHalo, HotspotPin, RoadCarMarker } from '../../../src/components/roa
 import { RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
 import { headquartersPrompt } from '../../../src/road/headquartersPrompt';
-import { ROAD_ROUTE } from '../../../src/road/entryFlow';
+import { returnToRoad } from '../../../src/road/miniStore';
 import { AVVIO_ALLIEVO_ROUTE, avvioStore } from '../../../src/road/avvioFlow';
 import { prefetchRoadFaces, ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadSelector } from '../../../src/road/roadStore';
@@ -118,7 +118,10 @@ export default function RoadTab() {
       }),
     [],
   );
-  const [error, setError] = useState<string | null>(null);
+  // REG-694: errore = solo un flag. Il messaggio grezzo del server non va a
+  // schermo: la riga dice cosa succede, «Riprova» e «Avvia guida» restano.
+  const [error, setError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -128,11 +131,18 @@ export default function RoadTab() {
         prefetchRoadFaces(next);
       }
       setOptions(next);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : 'Road non risponde. Riprova tra poco.');
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setRetrying(false);
     }
   }, [setOptions]);
+  const retry = useCallback(() => {
+    Haptics.selectionAsync().catch(() => undefined);
+    setRetrying(true);
+    void load();
+  }, [load]);
 
   useFocusEffect(
     useCallback(() => {
@@ -235,7 +245,7 @@ export default function RoadTab() {
 
   if (!armed) return <View style={s.root} />;
 
-  const panelKey = !options && !inRoad ? (error ? 'err' : 'load') : inRoad ? 'inroad' : current ? 'agenda' : 'free';
+  const panelKey = !options && !inRoad ? (error && !retrying ? 'err' : 'load') : inRoad ? 'inroad' : current ? 'agenda' : 'free';
 
   return (
     <View style={s.root}>
@@ -266,14 +276,22 @@ export default function RoadTab() {
         <View style={[stretchyPanel, s.panel]} onLayout={stretch.onPanelLayout} testID="road-tab-panel">
           <Text style={s.title}>Road</Text>
           <Text style={s.sub} numberOfLines={1}>
-            {inRoad ? 'Guida in corso' : error && !options ? error : dayLine(options, current)}
+            {inRoad ? 'Guida in corso' : panelKey === 'err' ? 'Guide di oggi non caricate' : dayLine(options, current)}
           </Text>
 
           {panelKey === 'load' ? (
             <Animated.View key="load" exiting={ROAD_FADE_OUT} testID="road-tab-skeleton">
               <SkeletonBlock height={54} radius={27} style={s.cta} />
             </Animated.View>
-          ) : panelKey === 'err' ? null : panelKey === 'inroad' ? (
+          ) : panelKey === 'err' ? (
+            // Si parte lo stesso: il foglio «Avvia guida» carica da sé allievi e auto.
+            <Animated.View key="err" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT} testID="road-tab-error">
+              <ClayButton title="Avvia guida" leading={<PlayGlyph />} onPress={openStart} style={s.cta} testID="road-tab-start" />
+              <Pressable onPress={retry} hitSlop={10} style={s.secondary} accessibilityRole="button" testID="road-tab-retry">
+                <Text style={s.secondaryTx}>Riprova</Text>
+              </Pressable>
+            </Animated.View>
+          ) : panelKey === 'inroad' ? (
             <Animated.View key="inroad" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT}>
               <ClayList style={s.lessonCard}>
                 <ClayListRow
@@ -282,7 +300,7 @@ export default function RoadTab() {
                   subtitle="Guida in corso"
                 />
               </ClayList>
-              <ClayButton title="Torna in Road" onPress={() => router.push(ROAD_ROUTE)} style={s.ctaGap} testID="road-tab-back" />
+              <ClayButton title="Torna in Road" onPress={returnToRoad} style={s.ctaGap} testID="road-tab-back" />
             </Animated.View>
           ) : panelKey === 'agenda' && current ? (
             <Animated.View key="agenda" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT} testID="road-tab-agenda">
@@ -431,7 +449,7 @@ const RecentSection = React.memo(function RecentSection({
             onPress={() =>
               r.id === toCloseId
                 ? openRoadPagellino(router, r.lesson, { showStayChip: false }, '/(tabs)/drive/pagellino')
-                : void openRoadPercorso(router, 'drive', r.appointmentId)
+                : openRoadPercorso(router, 'drive', r.appointmentId, null, { startedAt: r.startedAt, endedAt: r.endedAt })
             }
             divider={i > 0}
             testID="road-tab-recent"

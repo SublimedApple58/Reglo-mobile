@@ -579,7 +579,7 @@ export const StudentNotesDetailScreen = () => {
 
   const stackName = segments[1] === 'notes' ? 'notes' : 'home';
   const openRoad = useCallback(
-    (appointmentId: string) => void openRoadPercorso(router, stackName, appointmentId),
+    (appointmentId: string) => openRoadPercorso(router, stackName, appointmentId),
     [router, stackName],
   );
 

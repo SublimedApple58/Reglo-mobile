@@ -1,4 +1,4 @@
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { regloApi } from '../services/regloApi';
@@ -84,6 +84,56 @@ function alertPermissionDenied() {
   );
 }
 
+/**
+ * REG-692: con la posizione approssimativa i fix arrivano con un'incertezza di
+ * chilometri, il tracking li scarta tutti (soglia 50 m) e la guida si chiude a
+ * 0 km. Meglio fermarsi prima e dire cosa fare.
+ */
+const APPROX_ACCURACY_M = 1000;
+const APPROX_PROBE_MS = 2500;
+
+function alertApproximateLocation() {
+  Alert.alert(
+    'Serve la posizione esatta',
+    Platform.OS === 'ios'
+      ? 'Con la posizione approssimativa Road non registra il percorso. Attiva Impostazioni › Reglo › Posizione › «Posizione esatta».'
+      : 'Con la posizione approssimativa Road non registra il percorso. Attiva Impostazioni › App › Reglo › Autorizzazioni › Posizione › «Usa posizione esatta».',
+    [
+      { text: 'Annulla', style: 'cancel' },
+      { text: 'Apri Impostazioni', onPress: () => Linking.openSettings().catch(() => undefined) },
+    ],
+  );
+}
+
+/**
+ * Android lo dice il permesso (coarse). iOS non lo espone a expo-location: un
+ * fix approssimativo arriva subito con un'incertezza ≥ 1 km, quello esatto
+ * no. Se il fix non arriva in tempo (garage, galleria) si lascia partire:
+ * meglio non bloccare per un dubbio.
+ */
+async function isApproximateLocation(perm: Location.LocationPermissionResponse): Promise<boolean> {
+  if (Platform.OS === 'android') return perm.android?.accuracy === 'coarse';
+  try {
+    // l'ultimo fix recente risponde subito: niente attesa al tocco
+    const fix =
+      (await Location.getLastKnownPositionAsync({ maxAge: 60_000 })) ??
+      (await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), APPROX_PROBE_MS)),
+      ]));
+    const acc = fix?.coords.accuracy;
+    return typeof acc === 'number' && acc >= APPROX_ACCURACY_M;
+  } catch {
+    return false;
+  }
+}
+
+async function ensurePreciseLocation(perm: Location.LocationPermissionResponse): Promise<boolean> {
+  if (!(await isApproximateLocation(perm))) return true;
+  alertApproximateLocation();
+  return false;
+}
+
 /** Solo «Mentre usi l'app»: il permesso "Sempre" non serve. */
 export async function ensureRoadLocationPermission(): Promise<boolean> {
   try {
@@ -100,13 +150,13 @@ export async function ensureRoadLocationPermission(): Promise<boolean> {
       return false;
     }
     const current = await Location.getForegroundPermissionsAsync();
-    if (current.granted) return true;
+    if (current.granted) return ensurePreciseLocation(current);
     if (!current.canAskAgain) {
       alertPermissionDenied();
       return false;
     }
     const asked = await Location.requestForegroundPermissionsAsync();
-    if (asked.granted) return true;
+    if (asked.granted) return ensurePreciseLocation(asked);
     alertPermissionDenied();
     return false;
   } catch {

@@ -13,6 +13,7 @@ import { isRoadTrackingActive, stopRoadTracking } from './tracking';
 import { roadUploader } from './uploader';
 import { roadQueue } from './queue';
 import { onRoadCheckRequest, ROAD_INVITE_ROUTE, ROAD_ROUTE, roadEntryStore, roadInviteOpen } from './entryFlow';
+import { roadMiniStore, useRoadMinimized } from './miniStore';
 
 /** Mentre l'app resta aperta: l'invito deve comparire quando si apre la finestra (15 min prima). */
 const RECHECK_MS = 60_000;
@@ -26,6 +27,8 @@ const RECHECK_MS = 60_000;
  *   · guida idonea, invito non silenziato → apre il foglio «Entri in Road?».
  * - Instrada: con una sessione Road (attiva / in chiusura / riepilogo) l'app
  *   intera è `/road` (niente tab bar); senza, `/road` rimanda alla home.
+ *   REG-700: con la guida in corso ridotta (`miniStore`) si resta nelle tab,
+ *   con la barra «Torna in Road» sopra la tab bar.
  */
 export function RoadController() {
   const router = useRouter();
@@ -33,6 +36,7 @@ export function RoadController() {
   const { status, autoscuolaRole, user } = useSession();
   const { enabled } = useRoadEnabled();
   const phase = useRoadSelector((s) => s.phase);
+  const minimized = useRoadMinimized();
   const allowed = status === 'ready' && isInstructor(autoscuolaRole) && enabled;
   const root = segments[0];
   const rootRef = useRef(root);
@@ -120,18 +124,25 @@ export function RoadController() {
     }
   }, [status, userId]);
 
-  // Instradamento: Road a tutto schermo finché c'è una sessione.
+  // Road ridotta solo a guida in corso: chiusura, riepilogo e fine la spengono.
+  useEffect(() => {
+    if (phase !== 'active') roadMiniStore.set(false);
+  }, [phase]);
+
+  // Instradamento: Road a tutto schermo finché c'è una sessione, salvo Road
+  // ridotta (REG-700): allora si sta nelle tab e «Torna in Road» riporta qui.
   useEffect(() => {
     if (status !== 'ready') return;
     const inRoad = root === 'road';
-    if (phase !== 'idle' && !inRoad) {
+    const reduced = phase === 'active' && minimized;
+    if (phase !== 'idle' && !reduced && !inRoad) {
       setVeil((v) => ({ n: v.n + 1, color: ROAD_VEIL_IN }));
       router.replace(ROAD_ROUTE);
-    } else if (phase === 'idle' && inRoad) {
+    } else if ((phase === 'idle' || reduced) && inRoad) {
       setVeil((v) => ({ n: v.n + 1, color: ROAD_VEIL_OUT }));
       router.replace('/(tabs)/home');
     }
-  }, [phase, root, router, status]);
+  }, [phase, minimized, root, router, status]);
 
   return <RouteVeil trigger={veil.n} color={veil.color} />;
 }
