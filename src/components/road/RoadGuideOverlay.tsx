@@ -38,6 +38,9 @@ type Shown = { ahead: Pt[]; done: Pt[]; cut: number } | null;
  * due posti mentre la nuova compare: `p` va da 0 a 1, la nuova vale `p`, la
  * vecchia `1 - p`. Non dipende da «Riduci movimento».
  */
+/** Passi della dissolvenza (uno ogni ~60 ms su 240 ms). */
+const FADE_STEPS = 4;
+
 function useLineFade(pts: Pt[] | null, shown: Shown) {
   const [p, setP] = useState(1);
   const [prev, setPrev] = useState<Shown>(null);
@@ -51,16 +54,27 @@ function useLineFade(pts: Pt[] | null, shown: Shown) {
     }
     setPrev(last.current);
     setP(0);
+    // REG-698: niente setInterval a 40 ms (6 render delle 4 linee). Pochi passi
+    // agganciati ai fotogrammi: si ridisegna solo quando cambia il passo.
     const t0 = Date.now();
-    const id = setInterval(() => {
+    let step = 0;
+    let raf = 0;
+    const frame = () => {
       const x = Math.min(1, (Date.now() - t0) / FADE_MS);
-      setP(1 - (1 - x) * (1 - x));
-      if (x >= 1) {
-        clearInterval(id);
-        setPrev(null);
+      const next = Math.ceil(x * FADE_STEPS);
+      if (next !== step) {
+        step = next;
+        const k = step / FADE_STEPS;
+        setP(1 - (1 - k) * (1 - k));
       }
-    }, 40);
-    return () => clearInterval(id);
+      if (x >= 1) {
+        setPrev(null);
+        return;
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
   }, [pts]);
   // Dopo l'effetto qui sopra: per il prossimo cambio, la linea che si vede adesso.
   useEffect(() => {

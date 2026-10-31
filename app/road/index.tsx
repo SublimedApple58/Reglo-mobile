@@ -59,6 +59,7 @@ import { RoadNavCard } from '../../src/components/road/RoadNavCard';
 import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
+import { onRoadFix } from '../../src/road/tracking';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
 import { fixHistory } from '../../src/road/fixHistory';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
@@ -401,6 +402,20 @@ const WATCH_STALE_MS = 3000;
 const FIX_MAX_AGE_MS = 3000;
 /** Il loop non chiede la camera più spesso di così (schermi a 120 Hz). */
 const MIN_FRAME_MS = 15;
+/** REG-698: dopo ~1 s di camera ferma il loop rallenta (auto ferma al semaforo). */
+const IDLE_AFTER_FRAMES = 60;
+const IDLE_FRAME_MS = 100;
+
+/** Due pose che a schermo non si distinguono (meno di 2 cm, 0,05°, 0,2 m). */
+function samePose(a: CamPose, b: CamPose) {
+  return (
+    Math.abs(a.lat - b.lat) < 2e-7 &&
+    Math.abs(a.lng - b.lng) < 2e-7 &&
+    Math.abs(headingDelta(a.heading, b.heading)) < 0.05 &&
+    Math.abs(a.pitch - b.pitch) < 0.05 &&
+    Math.abs(a.altitude - b.altitude) < 0.2
+  );
+}
 
 const altitudeForZoom = (zoom: number) => 900 * Math.pow(2, 16.4 - zoom);
 
@@ -412,7 +427,9 @@ export default function RoadScreen() {
   const lesson = session?.lesson ?? null;
   const mapRef = useRef<MapView>(null);
   const [following, setFollowing] = useState(true);
-  const [panelH, setPanelH] = useState(220);
+  const [panelH, setPanelHRaw] = useState(220);
+  // REG-698: la mappa si risposta solo per cambi veri del pannello (non per mezzo punto di layout).
+  const setPanelH = useCallback((h: number) => setPanelHRaw((cur) => (Math.abs(cur - h) > 4 ? h : cur)), []);
   const [topH, setTopH] = useState(0);
   const [mapHeading, setMapHeading] = useState(0);
   const [ending, setEnding] = useState(false);
@@ -522,13 +539,11 @@ export default function RoadScreen() {
     return () => liveStatus.stop();
   }, []);
 
-  // L'ascolto della schermata: un punto al secondo, la fonte del movimento.
-  useEffect(() => {
-    let sub: Location.LocationSubscription | null = null;
-    let alive = true;
-    Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 0, timeInterval: 1000 },
-      (l) => {
+  // REG-698: i fix a 1 Hz arrivano dal task di tracking (una sola fonte GPS):
+  // sono la fonte del movimento, dello stato del segnale e della «storia».
+  useEffect(
+    () =>
+      onRoadFix((l) => {
         const c = l.coords;
         // REG-693: anche i fix scartati dicono qualcosa (GPS debole).
         liveStatus.reportFix({ accuracy: c.accuracy ?? null, speed: c.speed != null && c.speed >= 0 ? c.speed : null });
@@ -545,18 +560,9 @@ export default function RoadScreen() {
           },
           l.timestamp,
         );
-      },
-    )
-      .then((s) => {
-        if (alive) sub = s;
-        else s.remove();
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-      sub?.remove();
-    };
-  }, [feed]);
+      }),
+    [feed],
+  );
 
   // REG-689: l'auto si aggancia alla linea del giro (anche dopo un riaggancio).
   useEffect(() => {
@@ -579,9 +585,18 @@ export default function RoadScreen() {
   // con l'auto a 60: la strada «tremava» sotto l'auto).
   useEffect(() => {
     let raf = 0;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
     let lastCam = 0;
+    // REG-698: ultima posa mandata alla mappa e fotogrammi «uguali» di fila.
+    let sent: CamPose | null = null;
+    let still = 0;
+    const schedule = () => {
+      // Auto ferma e camera assestata da 1 s: 10 controlli al secondo invece di 60.
+      if (still > IDLE_AFTER_FRAMES) idleTimer = setTimeout(tick, IDLE_FRAME_MS);
+      else raf = requestAnimationFrame(tick);
+    };
     const tick = () => {
-      raf = requestAnimationFrame(tick);
+      schedule();
       const now = Date.now();
       const smp = motion.sample(now);
       if (!smp) return;
@@ -589,12 +604,17 @@ export default function RoadScreen() {
       const frame = liveCam.step(now, smp.speed, turnRef.current);
       if (mode.current === 'free') {
         // REG-685: 10 s senza toccare la mappa → si torna da soli sull'auto.
+        // REG-698: a mappa libera la camera è dell'utente: basta controllare a 10 Hz.
+        still = IDLE_AFTER_FRAMES + 1;
+        sent = null;
         if (now - lastTouch.current >= AUTO_RETURN_MS) startReturn();
         return;
       }
-      carRot.value = headingDelta(smp.camHeading, smp.heading);
+      const rot = headingDelta(smp.camHeading, smp.heading);
+      if (Math.abs(rot - carRot.value) > 0.05) carRot.value = rot;
       const acc = smp.accuracy ?? 10;
-      carHalo.value = Math.max(CAR_DISC, Math.min(120, acc * 3.2));
+      const halo = Math.max(CAR_DISC, Math.min(120, acc * 3.2));
+      if (Math.abs(halo - carHalo.value) > 0.5) carHalo.value = halo;
       if (now - lastCam < MIN_FRAME_MS) return;
       const to: CamPose = {
         lat: smp.lat,
@@ -617,6 +637,13 @@ export default function RoadScreen() {
           setMapHeading(0);
         }
       }
+      // REG-698: da fermi la posa non cambia: niente comandi inutili alla mappa.
+      if (mode.current === 'follow' && sent && samePose(sent, pose)) {
+        still++;
+        return;
+      }
+      still = 0;
+      sent = pose;
       lastCam = now;
       mapHeadRef.current = pose.heading;
       mapRef.current?.setCamera({
@@ -628,7 +655,10 @@ export default function RoadScreen() {
       });
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (idleTimer) clearTimeout(idleTimer);
+    };
   }, [motion, liveCam, carRot, carHalo, startReturn]);
 
   // L'auto ferma sullo schermo c'è solo mentre si segue; a mappa libera e

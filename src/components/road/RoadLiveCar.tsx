@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -113,12 +113,31 @@ export function RoadLiveCarMarker({
   color?: string | null;
   opacity: number;
 }) {
+  // REG-698: su Android la bitmap del marker si rifà solo per ~1 s dopo un
+  // cambio di colore (prima a ciclo continuo per tutta la guida); la rotazione
+  // la fa la mappa (`rotation`), senza ridisegnare la vista.
+  const android = Platform.OS === 'android';
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    if (!android) return;
+    setTracks(true);
+    const t = setTimeout(() => setTracks(false), 900);
+    return () => clearTimeout(t);
+  }, [android, color]);
+  const turn = android ? undefined : { transform: [{ rotate: `${rotation}deg` }] };
   return (
-    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} opacity={opacity} zIndex={10} tracksViewChanges={Platform.OS === 'android'}>
+    <Marker
+      coordinate={coordinate}
+      anchor={{ x: 0.5, y: 0.5 }}
+      opacity={opacity}
+      zIndex={10}
+      rotation={android ? rotation : undefined}
+      tracksViewChanges={android ? tracks : undefined}
+    >
       <View style={s.markerBox} pointerEvents="none">
         <View style={s.markerShadow}>
-          {Platform.OS === 'android' ? <View style={[s.androidShadow, s.androidShadowStatic, { transform: [{ rotate: `${rotation}deg` }] }]} /> : null}
-          <Image source={carTopArt(color)} style={[s.car, { transform: [{ rotate: `${rotation}deg` }] }]} resizeMode="contain" />
+          {android ? <View style={[s.androidShadow, s.androidShadowStatic]} /> : null}
+          <Image source={carTopArt(color)} style={[s.car, turn]} resizeMode="contain" />
         </View>
       </View>
     </Marker>

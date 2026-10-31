@@ -103,6 +103,14 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400
   (guida chiusa da troppo, tipo sconosciuto) le scarta.
 - Via: `reverseGeocodeAsync` dell'ultimo punto al massimo ogni ~20 s, campo `street`.
+- **REG-698 — batteria e fluidità**: una sola fonte GPS. Il task consegna i fix a ~1 Hz
+  (`distanceInterval: 0`, `timeInterval: 1000`) e la schermata live li ascolta con `onRoadFix`
+  (via il secondo `watchPositionAsync`); in coda e nei km vanno solo i punti a ≥ 8 m o ≥ 10 s
+  dal precedente. La camera non manda `setCamera` se la posa non cambia (2 cm, 0,05°, 0,2 m) e,
+  dopo ~1 s ferma o a mappa libera, il loop scende a 10 Hz. Android: l'auto-marker ruota con
+  `rotation` nativa e rifà la bitmap solo ~1 s dopo un cambio di colore. La dissolvenza della
+  linea è a 4 passi agganciati ai fotogrammi (via il `setInterval` a 40 ms). La mappa si
+  risposta solo per cambi del pannello oltre 4 pt.
 - **REG-696 — segnalazioni affidabili**: `src/road/fixHistory.ts` tiene gli ultimi 2 min di
   posizioni (ascolto + tracking). La segnalazione va dov'era l'auto 3 s prima dell'apertura di
   «Segnala» (`openedAt`), se dista almeno 15 m da qui; il toast mostra «N s fa · Qui» e il
