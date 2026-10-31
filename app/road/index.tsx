@@ -20,6 +20,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing, ReduceM
 import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
+import { minimizeRoad } from '../../src/road/miniStore';
 import { lessonStudentName, roadStore, useRoadSelector } from '../../src/road/roadStore';
 import { endRoad, recordHotspotCheck, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
@@ -1175,6 +1176,17 @@ const LivePanel = React.memo(function LivePanel({
             <Ionicons name="star-outline" size={20} color={CLAY.ink} />
           </Pressable>
         ) : null}
+        {/* REG-700: Road ridotta, la guida continua e si usa il resto dell'app. */}
+        <Pressable
+          onPress={minimizeRoad}
+          style={({ pressed }) => [s.iconBtn, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
+          accessibilityRole="button"
+          accessibilityLabel="Riduci Road e usa l'app"
+          hitSlop={4}
+          testID="road-minimize"
+        >
+          <Ionicons name="chevron-down" size={20} color={CLAY.ink} />
+        </Pressable>
       </View>
 
       <View style={s.stats}>

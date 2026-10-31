@@ -61,7 +61,17 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
 3. **Entra**: `POST /road/sessions` (la guida diventa `checked_in`), coda agganciata alla
    sessione (`seq` riparte da `lastSeq + 1`), GPS acceso, `router.replace('/road')`.
 4. **Road**: tutta l'app è lo stack `app/road` (l'AuthGate lascia stare il gruppo `road`;
-   `RoadController` instrada lì finché `phase !== 'idle'`). Schermo sempre acceso
+   `RoadController` instrada lì finché `phase !== 'idle'`, salvo Road ridotta). **Road ridotta
+   (REG-700)**: il tasto «Riduci» (chevron giù, riga del pannello dopo Note/Pagellino,
+   `testID road-minimize`) → `minimizeRoad()` (`src/road/miniStore.ts`) → `RoadController`
+   porta all'Agenda e la guida continua (GPS e coda non dipendono dalla schermata). Sopra le voci
+   della tab bar (`AppTabBar`, solo app istruttore) `RoadMiniBar`: «Guida con <Nome>» · «N min ·
+   il percorso si registra» · «Torna in Road» (tutta la barra si tocca → `returnToRoad()`); la
+   tab bar la misura, quindi le schermate si tengono lo spazio da sole. Anche «Torna in Road»
+   della tab Road usa `returnToRoad()`. Vale solo con `phase === 'active'`: chiusura e
+   riepilogo tornano a tutto schermo e ogni fase ≠ active spegne il ridotto; dopo un kill si
+   riparte a tutto schermo. Da ridotta non ci sono gli avvisi a schermo del pannello live (svolte,
+   punti critici): si segnala tornando in Road. Schermo sempre acceso
    (`useKeepAwake`). Camera che segue l'auto (heading, pitch 40°, auto un po' sotto metà
    schermo via `mapPadding`); se l'utente trascina la mappa smette di seguire, «ricentra» la
    riaggancia. Rotazione mappa disattivata: la camera la governa l'app, l'auto ruota di

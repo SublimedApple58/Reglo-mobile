@@ -17,6 +17,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { setTabBarBodyHeight } from './tabBarSpace';
+import { RoadMiniBar } from './road/RoadMiniBar';
 
 /* ── Icon map: outline (inactive) → filled (active) ── */
 
@@ -179,6 +180,8 @@ export const AppTabBar = ({
       ) : null}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, Platform.OS === 'ios' ? st.veilIos : st.veilAndroid]} />
       <View pointerEvents="none" style={st.edge} />
+      {/* REG-700: guida in corso con Road ridotta → «Torna in Road» sopra le voci. */}
+      {instructorApp ? <RoadMiniBar /> : null}
       <View style={st.row}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];

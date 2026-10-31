@@ -15,7 +15,7 @@ import { HeatHalo, HotspotPin, RoadCarMarker } from '../../../src/components/roa
 import { RoadAvatar, RouteThumb, SessionNumbers } from '../../../src/components/road/RoadTabParts';
 import { pagellinoPrompt } from '../../../src/road/pagellinoPrompt';
 import { headquartersPrompt } from '../../../src/road/headquartersPrompt';
-import { ROAD_ROUTE } from '../../../src/road/entryFlow';
+import { returnToRoad } from '../../../src/road/miniStore';
 import { AVVIO_ALLIEVO_ROUTE, avvioStore } from '../../../src/road/avvioFlow';
 import { prefetchRoadFaces, ROAD_FREE_SHEET_ROUTE, roadFreePreselect, roadFreeStore } from '../../../src/road/freeStartStore';
 import { lessonStudentName, useRoadSelector } from '../../../src/road/roadStore';
@@ -300,7 +300,7 @@ export default function RoadTab() {
                   subtitle="Guida in corso"
                 />
               </ClayList>
-              <ClayButton title="Torna in Road" onPress={() => router.push(ROAD_ROUTE)} style={s.ctaGap} testID="road-tab-back" />
+              <ClayButton title="Torna in Road" onPress={returnToRoad} style={s.ctaGap} testID="road-tab-back" />
             </Animated.View>
           ) : panelKey === 'agenda' && current ? (
             <Animated.View key="agenda" entering={ROAD_FADE_IN} exiting={ROAD_FADE_OUT} testID="road-tab-agenda">
