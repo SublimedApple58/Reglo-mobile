@@ -103,6 +103,12 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400
   (guida chiusa da troppo, tipo sconosciuto) le scarta.
 - Via: `reverseGeocodeAsync` dell'ultimo punto al massimo ogni ~20 s, campo `street`.
+- **REG-699 — rientro e fine guida** (`src/road/returnEta.ts`): la terza cifra del pannello,
+  col giro, è l'orario di rientro (distanza che manca sulla linea / velocità media della guida,
+  15–50 km/h; 25 km/h nel primo km) con «in orario / N min oltre / N min prima»; senza giro i
+  minuti alla fine («Alla fine» / «Oltre la fine»). La stima parte col lotto di punti (`eta`) per
+  «Dal vivo». A 5 minuti dalla fine e a fine orario un avviso in alto per 8 s con vibrazione
+  (`useEndAlert`), una volta per soglia.
 - **REG-698 — batteria e fluidità**: una sola fonte GPS. Il task consegna i fix a ~1 Hz
   (`distanceInterval: 0`, `timeInterval: 1000`) e la schermata live li ascolta con `onRoadFix`
   (via il secondo `watchPositionAsync`); in coda e nei km vanno solo i punti a ≥ 8 m o ≥ 10 s

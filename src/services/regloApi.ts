@@ -1084,7 +1084,7 @@ export const createRegloApi = (baseUrl?: string) => {
     /** Lotto di punti idempotente su `seq`: rimandarlo dà `duplicate: true`. */
     sendRoadPoints: async (
       sessionId: string,
-      input: { seq: number; points: RoadPoint[]; street?: string | null },
+      input: { seq: number; points: RoadPoint[]; street?: string | null; eta?: number | null },
     ) =>
       client.request<RoadPointsResult>(`/api/autoscuole/road/sessions/${sessionId}/points`, {
         method: 'POST',

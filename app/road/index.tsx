@@ -61,6 +61,7 @@ import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
 import { onRoadFix } from '../../src/road/tracking';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
+import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '../../src/road/returnEta';
 import { fixHistory } from '../../src/road/fixHistory';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
@@ -402,6 +403,8 @@ const WATCH_STALE_MS = 3000;
 const FIX_MAX_AGE_MS = 3000;
 /** Il loop non chiede la camera più spesso di così (schermi a 120 Hz). */
 const MIN_FRAME_MS = 15;
+/** REG-699: quanto resta l'avviso di fine guida. */
+const END_ALERT_SHOW_MS = 8_000;
 /** REG-698: dopo ~1 s di camera ferma il loop rallenta (auto ferma al semaforo). */
 const IDLE_AFTER_FRAMES = 60;
 const IDLE_FRAME_MS = 100;
@@ -872,6 +875,36 @@ export default function RoadScreen() {
 
 // ─── In alto: svolta, punto critico, tappa, toast ───────────────────────────
 
+/**
+ * REG-699: avviso a 5 minuti dalla fine e a fine orario, una volta sola per
+ * soglia, visibile 8 s (vibrazione di avviso). Se si entra in Road già oltre
+ * una soglia, quella non si ripete.
+ */
+function useEndAlert(endsAt: string | null) {
+  const [shown, setShown] = useState<{ key: string; title: string; sub: string } | null>(null);
+  useEffect(() => {
+    if (!endsAt) return;
+    const end = new Date(endsAt).getTime();
+    const hm = formatHm(end);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const at = (when: number, key: string, title: string, sub: string) => {
+      const wait = when - Date.now();
+      if (wait < 0) return;
+      timers.push(
+        setTimeout(() => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+          setShown({ key, title, sub });
+          timers.push(setTimeout(() => setShown((cur) => (cur?.key === key ? null : cur)), END_ALERT_SHOW_MS));
+        }, wait),
+      );
+    };
+    at(end - END_WARN_MS, `warn-${end}`, 'Mancano 5 minuti', `La guida finisce alle ${hm}`);
+    at(end, `end-${end}`, 'Orario della guida finito', `Era fino alle ${hm}: quando sei in sede, «Termina guida»`);
+    return () => timers.forEach(clearTimeout);
+  }, [endsAt]);
+  return shown;
+}
+
 function LiveTop({
   top,
   topH,
@@ -896,6 +929,7 @@ function LiveTop({
   const alert = watch.alert;
   const hasNav = !!(nav.step || nav.stop || nav.offLine);
   const below = hasNav ? top + topH + 10 : top;
+  const endAlert = useEndAlert(session?.lesson?.endsAt ?? null);
 
   // ── Punto critico (REG-681) ──
   const [decision, setDecision] = useState<{ key: string; clientId: string; outcome: RoadHotspotOutcome } | null>(null);
@@ -1120,6 +1154,16 @@ function LiveTop({
           </Pressable>
         </RoadToastFrame>
       ) : null}
+
+      {/* REG-699: «mancano 5 minuti» e «orario finito», 8 s, sotto le card in alto. */}
+      {endAlert && !toast && !alert && !(freeOpen && freeStarted) ? (
+        <RoadToastFrame key={endAlert.key} style={[s.stack, s.toast, s.freeBanner, { top: below + (showPlan ? 104 : 0) }]}>
+          <View style={{ flex: 1, minWidth: 0 }} testID="road-end-alert">
+            <Text style={s.toastT1} numberOfLines={1}>{endAlert.title}</Text>
+            <Text style={s.toastT2} numberOfLines={1}>{endAlert.sub}</Text>
+          </View>
+        </RoadToastFrame>
+      ) : null}
     </>
   );
 }
@@ -1241,6 +1285,11 @@ const LivePanel = React.memo(function LivePanel({
   if (!session || !lesson) return null;
   const elapsedSec = Math.max(0, (now - new Date(session.startedAt).getTime()) / 1000);
   const left = nav.left;
+  const endsAtMs = lesson.endsAt ? new Date(lesson.endsAt).getTime() : null;
+  const eta = estimateReturn({ now, leftMeters: left, doneMeters: distance, startedAt: new Date(session.startedAt).getTime() });
+  const ret = returnView({ now, endsAt: endsAtMs, eta });
+  // L'uploader la manda col prossimo lotto (vista «Dal vivo» del titolare).
+  roadEta.set(eta != null ? Math.round(eta) : null);
 
   return (
     <View
@@ -1290,14 +1339,24 @@ const LivePanel = React.memo(function LivePanel({
           <Text style={s.statNum}>{markersN}</Text>
           <Text style={s.statLabel}>Segnalazioni</Text>
         </View>
-        <View style={s.stat}>
-          {left != null ? (
+        <View style={s.stat} testID="road-return">
+          {/* REG-699: col giro l'orario di rientro rispetto alla fine; senza, i minuti alla fine. */}
+          {ret?.kind === 'eta' ? (
+            <>
+              <Text style={s.statNum}>{formatHm(ret.eta)}</Text>
+              <Text style={[s.statLabel, ret.deltaMin > 1 && s.statLabelOn]} numberOfLines={1}>
+                Rientro · {deltaLabel(ret.deltaMin)}
+              </Text>
+            </>
+          ) : ret?.kind === 'end' ? (
             <>
               <Text style={s.statNum}>
-                {formatKm(left)}
-                <Text style={s.statUnit}> km</Text>
+                {ret.minutesLeft >= 0 ? ret.minutesLeft : `+${-ret.minutesLeft}`}
+                <Text style={s.statUnit}> min</Text>
               </Text>
-              <Text style={s.statLabel}>Restano</Text>
+              <Text style={[s.statLabel, ret.minutesLeft < 0 && s.statLabelOn]} numberOfLines={1}>
+                {ret.minutesLeft >= 0 ? 'Alla fine' : 'Oltre la fine'}
+              </Text>
             </>
           ) : (
             <>
@@ -1413,6 +1472,7 @@ const s = StyleSheet.create({
   statNum: { fontSize: 23, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, fontVariant: ['tabular-nums'] },
   statUnit: { fontSize: 14, fontWeight: '500', color: CLAY.ink3, letterSpacing: 0 },
   statLabel: { fontSize: 12.5, fontWeight: '400', color: CLAY.ink3, marginTop: 2 },
+  statLabelOn: { color: CLAY.ink, fontWeight: '500' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 14 },
   // CTA da guida: più alte (60) delle CTA normali, stessa capsula clay.
   btn: { height: 60, borderRadius: 30 },

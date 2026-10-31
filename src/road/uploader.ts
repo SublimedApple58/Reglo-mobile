@@ -4,6 +4,7 @@ import { regloApi } from '../services/regloApi';
 import { RegloApiError } from '../services/apiClient';
 import { loadQueue, roadQueue } from './queue';
 import { roadStore } from './roadStore';
+import { roadEta } from './returnEta';
 
 /**
  * REG-638 Reglo Road — uploader delle code.
@@ -130,6 +131,8 @@ async function flushPoints() {
         seq: batch.seq,
         points: batch.points,
         street: batch.sessionId === roadQueue.sessionId ? street : null,
+        // REG-699: rientro stimato (solo per la guida in corso), per «Dal vivo».
+        eta: batch.sessionId === roadQueue.sessionId ? roadEta.get() : null,
       });
     } catch (err) {
       const code = errorCode(err);
