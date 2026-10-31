@@ -103,6 +103,16 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400
   (guida chiusa da troppo, tipo sconosciuto) le scarta.
 - Via: `reverseGeocodeAsync` dell'ultimo punto al massimo ogni ~20 s, campo `street`.
+- **REG-697 — notte e suoni**: `src/road/night.ts` calcola alba e tramonto dal fix (NOAA,
+  fallback Torino) ed è «notte» da 15 min prima del tramonto a 15 min dopo l'alba
+  (`useRoadNight`, ogni minuto). Di notte: MapKit `userInterfaceStyle="dark"` (iOS), stile in
+  grigi `ANDROID_NIGHT_STYLE` (Android), linea del giro chiara col bordo scuro, traccia chiara,
+  pannello / controlli / card in `NIGHT` (grigi `#1C1C1E`/`#2C2C2E`, testo `#F2F2F2`, mai blu),
+  `ClayButton night` (primario chiaro, secondario grigio scuro, solo ombra esterna). Suoni
+  (`src/road/sounds.ts`, `expo-av` già nel binario 2.4.0): `alert` (due note che scendono) al
+  punto critico in arrivo, `chime` (due note che salgono) a tappa e fine guida; ducking della
+  musica, suonano anche col silenzioso; tasto altoparlante in cima ai controlli a destra, scelta
+  salvata (`reglo-road-sound-muted`). File in `assets/sounds/`.
 - **REG-699 — rientro e fine guida** (`src/road/returnEta.ts`): la terza cifra del pannello,
   col giro, è l'orario di rientro (distanza che manca sulla linea / velocità media della guida,
   15–50 km/h; 25 km/h nel primo km) con «in orario / N min oltre / N min prima»; senza giro i

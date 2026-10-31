@@ -7,7 +7,8 @@ import { formatDistance, hotspotLine, hotspotStatusLine, HOTSPOT_AHEAD_M, type H
 import { markerArt } from '../../road/markerArt';
 import { ROAD_TEXT_IN } from '../../road/motion';
 import type { RoadHotspotOutcome } from '../../types/regloApi';
-import { CLAY, CLAY_CTA, CLAY_SHADOW } from '../../theme';
+import { CLAY_CTA, CLAY_SHADOW } from '../../theme';
+import { DAY, NIGHT, roadPalette, type RoadPalette } from '../../road/night';
 
 /**
  * REG-681 Reglo Road — il punto critico dell'allievo che si avvicina.
@@ -26,7 +27,10 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
   onUndo,
   onClose,
   style,
+  night = false,
 }: {
+  /** REG-697: card scura di notte. */
+  night?: boolean;
   alert: HotspotAlert;
   decided: RoadHotspotOutcome | null;
   onDecide: (outcome: RoadHotspotOutcome) => void;
@@ -34,6 +38,8 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
   onClose: () => void;
   style?: object;
 }) {
+  const s = night ? NIGHT_S : DAY_S;
+  const P = roadPalette(night);
   const h = alert.hotspot;
   const d = formatDistance(alert.meters);
   const top =
@@ -66,13 +72,13 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
         <Animated.View entering={ROAD_TEXT_IN} style={s.btns}>
           <Pressable
             onPress={() => onDecide('better')}
-            style={({ pressed }) => [s.btn, s.btnInk, pressed ? CLAY_CTA.primaryPressed : CLAY_CTA.primary]}
+            style={({ pressed }) => [s.btn, s.btnInk, pressed ? CLAY_CTA.primaryPressed : CLAY_CTA.primary, night && s.btnInk]}
             accessibilityRole="button"
             accessibilityLabel={`${h.label}: questa volta meglio`}
             hitSlop={6}
             testID="road-hotspot-better"
           >
-            <Ionicons name="checkmark" size={22} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={22} color={P.onInk} />
             <Text style={s.btnInkTx}>Meglio</Text>
           </Pressable>
           <Pressable
@@ -83,7 +89,7 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
             hitSlop={6}
             testID="road-hotspot-worse"
           >
-            <Ionicons name="close" size={22} color={CLAY.ink} />
+            <Ionicons name="close" size={22} color={P.ink} />
             <Text style={s.btnWhiteTx}>Ancora no</Text>
           </Pressable>
         </Animated.View>
@@ -91,7 +97,7 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
 
       {decided ? (
         <Animated.View entering={ROAD_TEXT_IN} style={s.done}>
-          <Ionicons name={decided === 'better' ? 'checkmark-circle' : 'close-circle'} size={22} color={CLAY.ink} />
+          <Ionicons name={decided === 'better' ? 'checkmark-circle' : 'close-circle'} size={22} color={P.ink} />
           <Text style={s.doneTx}>{decided === 'better' ? 'Segnato: meglio' : 'Segnato: ancora no'}</Text>
           <Pressable onPress={onUndo} hitSlop={10} style={({ pressed }) => [s.undo, pressed && { opacity: 0.6 }]} testID="road-hotspot-undo">
             <Text style={s.undoTx}>Annulla</Text>
@@ -108,13 +114,15 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
   );
 });
 
-const s = StyleSheet.create({
+/** REG-697: stessi stili di giorno e di notte, cambia solo la palette. */
+const makeStyles = (P: RoadPalette, night: boolean) =>
+  StyleSheet.create({
   card: {
     position: 'absolute',
     left: 12,
     right: 12,
     borderRadius: 28,
-    backgroundColor: CLAY.surface,
+    backgroundColor: P.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 14,
@@ -124,20 +132,22 @@ const s = StyleSheet.create({
   icon: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
   img: { width: 48, height: 48 },
   texts: { flex: 1, minWidth: 0 },
-  t1: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3 },
-  t2: { fontSize: 18, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, marginTop: 1 },
-  t3: { fontSize: 15, color: CLAY.ink2, lineHeight: 19, marginTop: 2 },
-  t4: { fontSize: 13.5, color: CLAY.ink3, marginTop: 3 },
+  t1: { fontSize: 13.5, fontWeight: '500', color: P.ink3 },
+  t2: { fontSize: 18, fontWeight: '600', color: P.ink, letterSpacing: -0.3, marginTop: 1 },
+  t3: { fontSize: 15, color: P.ink2, lineHeight: 19, marginTop: 2 },
+  t4: { fontSize: 13.5, color: P.ink3, marginTop: 3 },
   btns: { flexDirection: 'row', gap: 10, marginTop: 14 },
   btn: { flex: 1, height: 58, borderRadius: 29, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  btnInk: { backgroundColor: '#1E1E1E' },
-  btnInkTx: { fontSize: 17, fontWeight: '600', color: '#FFFFFF' },
-  btnWhite: { backgroundColor: CLAY.surface },
-  btnWhiteTx: { fontSize: 17, fontWeight: '600', color: CLAY.ink },
-  done: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.14)' },
-  doneTx: { flex: 1, fontSize: 16, fontWeight: '600', color: CLAY.ink },
+  btnInk: { backgroundColor: night ? P.ink : '#1E1E1E' },
+  btnInkTx: { fontSize: 17, fontWeight: '600', color: P.onInk },
+  btnWhite: { backgroundColor: P.surface2 },
+  btnWhiteTx: { fontSize: 17, fontWeight: '600', color: P.ink },
+  done: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: P.hair },
+  doneTx: { flex: 1, fontSize: 16, fontWeight: '600', color: P.ink },
   undo: { paddingHorizontal: 6, paddingVertical: 4 },
-  undoTx: { fontSize: 16, fontWeight: '600', color: CLAY.ink3 },
-  track: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, backgroundColor: 'rgba(17,17,17,0.06)' },
-  bar: { height: 3, backgroundColor: CLAY.ink },
-});
+  undoTx: { fontSize: 16, fontWeight: '600', color: P.ink3 },
+  track: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, backgroundColor: P.soft },
+  bar: { height: 3, backgroundColor: P.ink },
+  });
+const DAY_S = makeStyles(DAY, false);
+const NIGHT_S = makeStyles(NIGHT, true);

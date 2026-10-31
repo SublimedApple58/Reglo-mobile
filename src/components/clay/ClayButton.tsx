@@ -25,7 +25,10 @@ export function ClayButton({
   children,
   testID,
   accessibilityLabel,
+  night,
 }: {
+  /** REG-697 (guida Road di notte): primario chiaro, secondario grigio scuro. */
+  night?: boolean;
   title?: string;
   onPress?: () => void;
   variant?: 'primary' | 'secondary';
@@ -53,7 +56,9 @@ export function ClayButton({
       : pressed
         ? CLAY_CTA.secondaryPressed
         : CLAY_SHADOW.raise;
-  const fg = off ? CLAY.ink4 : primary ? '#FFFFFF' : CLAY.ink;
+  const fg = off ? CLAY.ink4 : night ? (primary ? '#111111' : '#F2F2F2') : primary ? '#FFFFFF' : CLAY.ink;
+  // Di notte il volume clay (ombre interne scure) sporcherebbe il bottone chiaro: solo l'ombra esterna.
+  const nightLook = night && !off ? { backgroundColor: primary ? '#F2F2F2' : '#2C2C2E', ...CLAY_SHADOW.raise } : null;
 
   return (
     <ClayPressable
@@ -70,12 +75,12 @@ export function ClayButton({
         s.base,
         { height, borderRadius: compact ? height / 2 : CTA_RADIUS },
         { backgroundColor: off ? '#F1F1F1' : primary ? CLAY.ink : CLAY.surface },
-        volume,
+        nightLook ?? volume,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={primary ? '#FFFFFF' : CLAY.ink} />
+        <ActivityIndicator color={fg} />
       ) : (
         <View style={s.row}>
           {leading}

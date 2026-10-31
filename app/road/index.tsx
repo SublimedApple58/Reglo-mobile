@@ -63,6 +63,8 @@ import { onRoadFix } from '../../src/road/tracking';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
 import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '../../src/road/returnEta';
 import { fixHistory } from '../../src/road/fixHistory';
+import { ANDROID_NIGHT_STYLE, NIGHT, useRoadNight } from '../../src/road/night';
+import { roadSounds, useRoadSoundMuted } from '../../src/road/sounds';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
 /**
@@ -178,12 +180,13 @@ function useTrackChunks(track: TrackPt[]) {
 }
 
 const TRACK_INK = 'rgba(17,17,17,0.30)';
-const TrackPiece = React.memo(function TrackPiece({ pts, still }: { pts: TrackPt[] | null; still: TrackPt[] }) {
+const TRACK_INK_NIGHT = 'rgba(242,242,242,0.32)';
+const TrackPiece = React.memo(function TrackPiece({ pts, still, night }: { pts: TrackPt[] | null; still: TrackPt[]; night: boolean }) {
   const on = !!pts && pts.length >= 2;
   return (
     <Polyline
       coordinates={on ? pts : still}
-      strokeColor={on ? TRACK_INK : 'rgba(17,17,17,0)'}
+      strokeColor={on ? (night ? TRACK_INK_NIGHT : TRACK_INK) : 'rgba(17,17,17,0)'}
       strokeWidth={5}
       lineCap="round"
       lineJoin="round"
@@ -192,21 +195,21 @@ const TrackPiece = React.memo(function TrackPiece({ pts, still }: { pts: TrackPt
   );
 });
 
-const LiveTrack = React.memo(function LiveTrack({ center }: { center: { lat: number; lng: number } }) {
+const LiveTrack = React.memo(function LiveTrack({ center, night }: { center: { lat: number; lng: number }; night: boolean }) {
   const track = useRoadSelector((s) => s.track);
   const still = useMemo(() => STILL(center), [center]);
   const { chunks, tail } = useTrackChunks(track);
   return (
     <>
       {Array.from({ length: TRACK_SLOTS }, (_, i) => (
-        <TrackPiece key={i} pts={chunks[i] ?? null} still={still} />
+        <TrackPiece key={i} pts={chunks[i] ?? null} still={still} night={night} />
       ))}
-      <TrackPiece pts={tail} still={still} />
+      <TrackPiece pts={tail} still={still} night={night} />
     </>
   );
 });
 
-const LiveGuide = React.memo(function LiveGuide({ center }: { center: { lat: number; lng: number } }) {
+const LiveGuide = React.memo(function LiveGuide({ center, night }: { center: { lat: number; lng: number }; night: boolean }) {
   const guide = useRoadSelector((s) => s.guide);
   const passed = useRoadSelector((s) => s.guidePassed);
   const reached = useRoadSelector((s) => s.planProgress.reached);
@@ -221,6 +224,7 @@ const LiveGuide = React.memo(function LiveGuide({ center }: { center: { lat: num
       end={guide?.end ?? null}
       hotspots={guide?.hotspots ?? EMPTY_HOTSPOTS}
       center={center}
+      night={night}
     />
   );
 });
@@ -305,7 +309,10 @@ const LiveMap = React.memo(function LiveMap({
   mapHeadRef,
   onPanDrag,
   onRegionDone,
+  night,
 }: {
+  /** REG-697: mappa notte (MapKit scura su iOS, stile in grigi su Android). */
+  night: boolean;
   mapRef: React.RefObject<MapView | null>;
   center: { lat: number; lng: number; heading: number };
   panelH: number;
@@ -338,6 +345,7 @@ const LiveMap = React.memo(function LiveMap({
       mapPadding={padding}
       legalLabelInsets={legal}
       mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+      customMapStyle={night ? ANDROID_NIGHT_STYLE : undefined}
       showsPointsOfInterest={false}
       // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
       showsBuildings={false}
@@ -351,13 +359,13 @@ const LiveMap = React.memo(function LiveMap({
       pitchEnabled
       zoomEnabled
       scrollEnabled
-      userInterfaceStyle="light"
+      userInterfaceStyle={night ? 'dark' : 'light'}
       onPanDrag={onPanDrag}
       onRegionChangeComplete={onRegionDone}
     >
       {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
-      <LiveGuide center={where} />
-      <LiveTrack center={where} />
+      <LiveGuide center={where} night={night} />
+      <LiveTrack center={where} night={night} />
       <LivePins />
       <LiveCarMarker following={following} color={carColor} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
     </MapView>
@@ -424,6 +432,8 @@ const altitudeForZoom = (zoom: number) => 900 * Math.pow(2, 16.4 - zoom);
 
 export default function RoadScreen() {
   useKeepAwake('reglo-road');
+  // REG-697: dal tramonto all'alba mappa e superfici scure (solo grigi e nero).
+  const night = useRoadNight();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const session = useRoadSelector((s) => s.session);
@@ -539,6 +549,7 @@ export default function RoadScreen() {
   // REG-693: stato del segnale e watchdog del tracking finché si è in guida.
   useEffect(() => {
     liveStatus.start();
+    roadSounds.prepare();
     return () => liveStatus.stop();
   }, []);
 
@@ -803,7 +814,7 @@ export default function RoadScreen() {
   const carPt = box ? { x: box.w / 2, y: MAP_PADDING_TOP + (box.h - MAP_PADDING_TOP - (8 + panelH)) / 2 } : null;
 
   return (
-    <View style={s.root} onTouchStart={onAnyTouch}>
+    <View style={[s.root, night && ns.root]} onTouchStart={onAnyTouch}>
       <View
         style={StyleSheet.absoluteFill}
         onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
@@ -823,6 +834,7 @@ export default function RoadScreen() {
           mapHeadRef={mapHeadRef}
           onPanDrag={release}
           onRegionDone={onRegionDone}
+          night={night}
         />
       </View>
 
@@ -830,7 +842,7 @@ export default function RoadScreen() {
         <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
       ) : null}
 
-      <LiveTop top={topStart} onLayoutTop={setTopH} topH={topH} onTurn={onTurn} />
+      <LiveTop top={topStart} onLayoutTop={setTopH} topH={topH} onTurn={onTurn} night={night} />
 
       <LiveControls
         bottom={ctlBottom}
@@ -838,6 +850,7 @@ export default function RoadScreen() {
         mapHeading={mapHeading}
         onRecenter={onRecenter}
         onNorth={onNorth}
+        night={night}
       />
 
       <LivePanel
@@ -868,6 +881,7 @@ export default function RoadScreen() {
         onNotes={() => void openRoadNotes(router, lesson)}
         onPagellino={() => openRoadPagellino(router, lesson, { showStayChip: true })}
         insetsBottom={insets.bottom}
+        night={night}
       />
     </View>
   );
@@ -893,6 +907,7 @@ function useEndAlert(endsAt: string | null) {
       timers.push(
         setTimeout(() => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+          void roadSounds.play('chime');
           setShown({ key, title, sub });
           timers.push(setTimeout(() => setShown((cur) => (cur?.key === key ? null : cur)), END_ALERT_SHOW_MS));
         }, wait),
@@ -910,7 +925,9 @@ function LiveTop({
   topH,
   onLayoutTop,
   onTurn,
+  night,
 }: {
+  night: boolean;
   top: number;
   topH: number;
   onLayoutTop: (h: number) => void;
@@ -939,6 +956,8 @@ function LiveTop({
   useEffect(() => {
     if (!alertKey) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+    // REG-697: col telefono nel supporto la vibrazione non si sente.
+    void roadSounds.play('alert');
   }, [alertKey]);
   useEffect(() => {
     if (phase === 'at') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
@@ -991,9 +1010,15 @@ function LiveTop({
   }, [planAlertId]);
   useEffect(() => {
     if (!planAlertId) return;
-    if (planAlertId.endsWith(':ok')) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    if (planAlertId.endsWith(':ok')) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+      void roadSounds.play('chime');
+    }
     // L'avvicinamento alla tappa lo dice già la card in alto: niente colpo se c'è.
-    else if (!hasNav) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
+    else if (!hasNav) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
+      void roadSounds.play('chime');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planAlertId]);
   // Con la card in alto l'avviso «tra 300 m» è un doppione: resta solo «raggiunta».
@@ -1044,7 +1069,7 @@ function LiveTop({
     <>
       {hasNav ? (
         <View style={[s.navWrap, { top }]} onLayout={(e) => onLayoutTop(e.nativeEvent.layout.height)} pointerEvents="box-none">
-          <RoadNavCard nav={nav} style={s.navCard} />
+          <RoadNavCard nav={nav} style={s.navCard} night={night} />
         </View>
       ) : null}
 
@@ -1057,10 +1082,11 @@ function LiveTop({
             onUndo={onUndoCheck}
             onClose={() => roadStore.closeHotspotAlert(alert.hotspot.key)}
             style={s.inStack}
+            night={night}
           />
         </RoadToastFrame>
       ) : showPlan && planAlert ? (
-        <RoadToastFrame key={planAlertId ?? planAlert.key} style={[s.stack, s.card, CLAY_SHADOW.raise, { top: below }]}>
+        <RoadToastFrame key={planAlertId ?? planAlert.key} style={[s.stack, s.card, night && ns.surface, CLAY_SHADOW.raise, { top: below }]}>
           <Pressable
             onPress={() => roadStore.dismissPlanAlert(planAlert.key)}
             style={s.planRow}
@@ -1072,21 +1098,21 @@ function LiveTop({
             }
             testID="road-plan-alert"
           >
-            <View style={s.planNum}>
+            <View style={[s.planNum, night && ns.inkBg]}>
               {planAlert.reached ? (
                 <Animated.View key="ok" entering={ROAD_TEXT_IN}>
-                  <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+                  <Ionicons name="checkmark" size={24} color={night ? NIGHT.onInk : '#FFFFFF'} />
                 </Animated.View>
               ) : (
-                <Text style={s.planNumTx}>{planAlert.n}</Text>
+                <Text style={[s.planNumTx, night && ns.onInk]}>{planAlert.n}</Text>
               )}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.cardT1} numberOfLines={1}>
+              <Text style={[s.cardT1, night && ns.ink3]} numberOfLines={1}>
                 {planAlert.reached ? `Tappa ${planAlert.n} raggiunta` : `Tra ${planAlert.meters} m · tappa ${planAlert.n}`}
               </Text>
-              <Text style={s.cardT2} numberOfLines={1}>{planAlert.title}</Text>
-              <Text style={s.cardT3} numberOfLines={1}>{planAlert.reason}</Text>
+              <Text style={[s.cardT2, night && ns.ink]} numberOfLines={1}>{planAlert.title}</Text>
+              <Text style={[s.cardT3, night && ns.ink2]} numberOfLines={1}>{planAlert.reason}</Text>
             </View>
           </Pressable>
         </RoadToastFrame>
@@ -1176,7 +1202,9 @@ const LiveControls = React.memo(function LiveControls({
   mapHeading,
   onRecenter,
   onNorth,
+  night,
 }: {
+  night: boolean;
   bottom: number;
   following: boolean;
   mapHeading: number;
@@ -1186,24 +1214,39 @@ const LiveControls = React.memo(function LiveControls({
   // REG-693: velocità dall'ascolto a 1 Hz, a 0 dopo 3 s senza fix (prima restava ferma sull'ultimo valore).
   const { speedKmh } = useLiveStatus();
   const showNorth = !following && Math.abs(headingDelta(0, mapHeading)) > 3;
+  const muted = useRoadSoundMuted();
   return (
     <>
-      <View style={[s.speed, CLAY_SHADOW.raise, { bottom }]} accessibilityLabel={`${speedKmh} chilometri orari`}>
-        <Text style={s.speedNum}>{speedKmh}</Text>
-        <Text style={s.speedUnit}>km/h</Text>
+      <View style={[s.speed, night && ns.surface, CLAY_SHADOW.raise, { bottom }]} accessibilityLabel={`${speedKmh} chilometri orari`}>
+        <Text style={[s.speedNum, night && ns.ink]}>{speedKmh}</Text>
+        <Text style={[s.speedUnit, night && ns.ink3]}>km/h</Text>
       </View>
       <View style={[s.ctl, { bottom }]} pointerEvents="box-none">
+        {/* REG-697: suoni degli avvisi accesi/spenti (la scelta resta). */}
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => undefined);
+            roadSounds.setMuted(!muted);
+          }}
+          style={({ pressed }) => [s.round, night && ns.surface, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.95 }] }]}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: !muted }}
+          accessibilityLabel="Suoni degli avvisi"
+          testID="road-sound"
+        >
+          <Ionicons name={muted ? 'volume-mute-outline' : 'volume-high-outline'} size={22} color={night ? NIGHT.ink : CLAY.ink} />
+        </Pressable>
         {showNorth ? (
           <Animated.View entering={ROAD_TEXT_IN} exiting={ROAD_EXIT}>
             <Pressable
               onPress={onNorth}
-              style={({ pressed }) => [s.round, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.95 }] }]}
+              style={({ pressed }) => [s.round, night && ns.surface, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.95 }] }]}
               accessibilityRole="button"
               accessibilityLabel="Rimetti il nord in alto"
               testID="road-north"
             >
               <View style={{ transform: [{ rotate: `${-mapHeading}deg` }] }}>
-                <MaterialIcons name="navigation" size={22} color={CLAY.ink} />
+                <MaterialIcons name="navigation" size={22} color={night ? NIGHT.ink : CLAY.ink} />
               </View>
             </Pressable>
           </Animated.View>
@@ -1212,13 +1255,13 @@ const LiveControls = React.memo(function LiveControls({
           <Animated.View entering={ROAD_TEXT_IN} exiting={ROAD_EXIT}>
             <Pressable
               onPress={onRecenter}
-              style={({ pressed }) => [s.recenter, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.97 }] }]}
+              style={({ pressed }) => [s.recenter, night && ns.surface, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.97 }] }]}
               accessibilityRole="button"
               accessibilityLabel="Ricentra sull'auto"
               testID="road-recenter"
             >
-              <MaterialIcons name="near-me" size={20} color={CLAY.ink} />
-              <Text style={s.recenterTx}>Ricentra</Text>
+              <MaterialIcons name="near-me" size={20} color={night ? NIGHT.ink : CLAY.ink} />
+              <Text style={[s.recenterTx, night && ns.ink]}>Ricentra</Text>
             </Pressable>
           </Animated.View>
         ) : null}
@@ -1234,17 +1277,17 @@ const LiveControls = React.memo(function LiveControls({
  * (GPS debole o perso, offline, tracking riacceso): anello vuoto e la frase.
  * Stessa altezza in tutti gli stati (il pannello non cambia misura).
  */
-const LiveStatusRow = React.memo(function LiveStatusRow({ range, minutes }: { range: string; minutes: string }) {
+const LiveStatusRow = React.memo(function LiveStatusRow({ range, minutes, night }: { range: string; minutes: string; night: boolean }) {
   const st = useLiveStatus();
   const line = liveStatusLine(st);
   const text = line ?? `${range} · ${minutes} min`;
   return (
     <View style={s.liveRow} testID="road-live-status" accessibilityLiveRegion="polite">
-      <View style={line ? s.liveRing : s.liveDot} />
+      <View style={line ? [s.liveRing, night && ns.ring] : s.liveDot} />
       <Animated.Text
         key={line ?? 'ok'}
         entering={ROAD_TEXT_IN}
-        style={[s.liveTx, line ? s.liveWarn : null]}
+        style={[s.liveTx, night && ns.ink3, line ? (night ? ns.ink : s.liveWarn) : null]}
         numberOfLines={1}
         accessibilityLabel={line ?? `In corso, ${range}`}
       >
@@ -1265,7 +1308,9 @@ const LivePanel = React.memo(function LivePanel({
   onNotes,
   onPagellino,
   insetsBottom,
+  night,
 }: {
+  night: boolean;
   lessonName: string;
   onLayoutH: (h: number) => void;
   ending: boolean;
@@ -1293,78 +1338,78 @@ const LivePanel = React.memo(function LivePanel({
 
   return (
     <View
-      style={[s.panel, CLAY_SHADOW.raise, { paddingBottom: Math.max(14, insetsBottom - 20) }]}
+      style={[s.panel, night && ns.surface, CLAY_SHADOW.raise, { paddingBottom: Math.max(14, insetsBottom - 20) }]}
       onLayout={(e) => onLayoutH(e.nativeEvent.layout.height)}
     >
       <View style={s.who}>
         <Avatar userId={lesson.student?.id} name={lessonName} size={42} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.name} numberOfLines={1}>{lessonName}</Text>
-          <LiveStatusRow range={formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} />
+          <Text style={[s.name, night && ns.ink]} numberOfLines={1}>{lessonName}</Text>
+          <LiveStatusRow range={formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} night={night} />
         </View>
         {/* Giro Road (Tiziano 28/10): le note si prendono anche durante la guida. */}
         <Pressable
           onPress={onNotes}
-          style={({ pressed }) => [s.iconBtn, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
+          style={({ pressed }) => [s.iconBtn, night && ns.surface2, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
           accessibilityRole="button"
           accessibilityLabel="Note sulla guida"
           hitSlop={4}
           testID="road-note"
         >
-          <Ionicons name="create-outline" size={20} color={CLAY.ink} />
+          <Ionicons name="create-outline" size={20} color={night ? NIGHT.ink : CLAY.ink} />
         </Pressable>
         {evaluationEnabled ? (
           <Pressable
             onPress={onPagellino}
-            style={({ pressed }) => [s.iconBtn, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
+            style={({ pressed }) => [s.iconBtn, night && ns.surface2, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
             accessibilityRole="button"
             accessibilityLabel="Pagellino"
             hitSlop={4}
             testID="road-pagellino"
           >
-            <Ionicons name="star-outline" size={20} color={CLAY.ink} />
+            <Ionicons name="star-outline" size={20} color={night ? NIGHT.ink : CLAY.ink} />
           </Pressable>
         ) : null}
       </View>
 
       <View style={s.stats}>
         <View style={s.stat}>
-          <Text style={s.statNum}>
+          <Text style={[s.statNum, night && ns.ink]}>
             {formatKm(distance)}
-            <Text style={s.statUnit}> km</Text>
+            <Text style={[s.statUnit, night && ns.ink3]}> km</Text>
           </Text>
-          <Text style={s.statLabel}>Percorsi</Text>
+          <Text style={[s.statLabel, night && ns.ink3]}>Percorsi</Text>
         </View>
         <View style={s.stat}>
-          <Text style={s.statNum}>{markersN}</Text>
-          <Text style={s.statLabel}>Segnalazioni</Text>
+          <Text style={[s.statNum, night && ns.ink]}>{markersN}</Text>
+          <Text style={[s.statLabel, night && ns.ink3]}>Segnalazioni</Text>
         </View>
         <View style={s.stat} testID="road-return">
           {/* REG-699: col giro l'orario di rientro rispetto alla fine; senza, i minuti alla fine. */}
           {ret?.kind === 'eta' ? (
             <>
-              <Text style={s.statNum}>{formatHm(ret.eta)}</Text>
-              <Text style={[s.statLabel, ret.deltaMin > 1 && s.statLabelOn]} numberOfLines={1}>
+              <Text style={[s.statNum, night && ns.ink]}>{formatHm(ret.eta)}</Text>
+              <Text style={[s.statLabel, night && ns.ink3, ret.deltaMin > 1 && (night ? ns.ink : s.statLabelOn)]} numberOfLines={1}>
                 Rientro · {deltaLabel(ret.deltaMin)}
               </Text>
             </>
           ) : ret?.kind === 'end' ? (
             <>
-              <Text style={s.statNum}>
+              <Text style={[s.statNum, night && ns.ink]}>
                 {ret.minutesLeft >= 0 ? ret.minutesLeft : `+${-ret.minutesLeft}`}
-                <Text style={s.statUnit}> min</Text>
+                <Text style={[s.statUnit, night && ns.ink3]}> min</Text>
               </Text>
-              <Text style={[s.statLabel, ret.minutesLeft < 0 && s.statLabelOn]} numberOfLines={1}>
+              <Text style={[s.statLabel, night && ns.ink3, ret.minutesLeft < 0 && (night ? ns.ink : s.statLabelOn)]} numberOfLines={1}>
                 {ret.minutesLeft >= 0 ? 'Alla fine' : 'Oltre la fine'}
               </Text>
             </>
           ) : (
             <>
-              <Text style={s.statNum}>
+              <Text style={[s.statNum, night && ns.ink]}>
                 {formatMinutes(elapsedSec)}
-                <Text style={s.statUnit}> min</Text>
+                <Text style={[s.statUnit, night && ns.ink3]}> min</Text>
               </Text>
-              <Text style={s.statLabel}>Di guida</Text>
+              <Text style={[s.statLabel, night && ns.ink3]}>Di guida</Text>
             </>
           )}
         </View>
@@ -1373,13 +1418,22 @@ const LivePanel = React.memo(function LivePanel({
       <View style={s.actions}>
         <ClayButton
           title="Segnala"
-          leading={<Ionicons name="add" size={24} color="#FFFFFF" />}
+          leading={<Ionicons name="add" size={24} color={night ? '#111111' : '#FFFFFF'} />}
           onPress={onSegnala}
           disabled={ending}
           style={[s.btn, { flex: 1 }]}
+          night={night}
           testID="road-segnala"
         />
-        <ClayButton variant="secondary" title="Termina guida" onPress={onTermina} loading={ending} style={[s.btn, { flex: 1 }]} testID="road-termina" />
+        <ClayButton
+          variant="secondary"
+          title="Termina guida"
+          onPress={onTermina}
+          loading={ending}
+          style={[s.btn, { flex: 1 }]}
+          night={night}
+          testID="road-termina"
+        />
       </View>
     </View>
   );
@@ -1476,4 +1530,17 @@ const s = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8, marginTop: 14 },
   // CTA da guida: più alte (60) delle CTA normali, stessa capsula clay.
   btn: { height: 60, borderRadius: 30 },
+});
+
+/** REG-697: le stesse superfici di notte (solo grigi e nero, testo chiaro non pieno). */
+const ns = StyleSheet.create({
+  root: { backgroundColor: '#000000' },
+  surface: { backgroundColor: NIGHT.surface },
+  surface2: { backgroundColor: NIGHT.surface2 },
+  inkBg: { backgroundColor: NIGHT.ink },
+  onInk: { color: NIGHT.onInk },
+  ink: { color: NIGHT.ink },
+  ink2: { color: NIGHT.ink2 },
+  ink3: { color: NIGHT.ink3 },
+  ring: { borderColor: NIGHT.ink },
 });

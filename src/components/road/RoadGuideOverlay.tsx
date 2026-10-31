@@ -24,6 +24,9 @@ import { RoadMarkerPin } from './RoadMapParts';
 const STOP_SLOTS = 3;
 const LINE_AHEAD = 'rgba(17,17,17,0.92)';
 const LINE_CASE = 'rgba(255,255,255,1)';
+// REG-697: di notte la linea si inverte (chiara col bordo scuro) sulla mappa scura.
+const LINE_AHEAD_NIGHT = 'rgba(242,242,242,0.95)';
+const LINE_CASE_NIGHT = 'rgba(10,10,10,1)';
 const LINE_W = 10; // REG-690: più spessa (prima 8/14)
 const CASE_W = 16;
 const FADE_MS = 240;
@@ -95,7 +98,10 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
   end,
   hotspots,
   center,
+  night = false,
 }: {
+  /** REG-697: mappa notte. */
+  night?: boolean;
   line: LatLngTuple[] | null;
   passed: number;
   stops: RoadPlanStop[];
@@ -125,6 +131,8 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
   const done = useMemo(() => (pts && cut > 0 ? pts.slice(0, cut + 1) : still), [pts, cut, still]);
   // `done` resta per la dissolvenza del riaggancio (forma di `Shown`), non si disegna più.
   const { k, prev, kPrev } = useLineFade(pts, pts ? { ahead, done, cut } : null);
+  const LA = night ? LINE_AHEAD_NIGHT : LINE_AHEAD;
+  const LC = night ? LINE_CASE_NIGHT : LINE_CASE;
 
   return (
     <>
@@ -132,10 +140,10 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
           traccia grigia e dalle strade); il tratto già fatto sparisce, lì resta
           la traccia vera. Stessi 4 posti fissi di prima: bordo + linea per la
           linea vecchia che sfuma al riaggancio, bordo + linea per la nuova. */}
-      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LINE_CASE, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={CASE_W} lineCap="round" lineJoin="round" zIndex={0} />
-      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LINE_AHEAD, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={LINE_W} lineCap="round" lineJoin="round" zIndex={0} />
-      <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LINE_CASE, ahead.length >= 2 ? k : 0)} strokeWidth={CASE_W} lineCap="round" lineJoin="round" zIndex={0} />
-      <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LINE_AHEAD, ahead.length >= 2 ? k : 0)} strokeWidth={LINE_W} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LC, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={CASE_W} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={prev && prev.ahead.length >= 2 ? prev.ahead : still} strokeColor={withAlpha(LA, prev && prev.ahead.length >= 2 ? kPrev : 0)} strokeWidth={LINE_W} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LC, ahead.length >= 2 ? k : 0)} strokeWidth={CASE_W} lineCap="round" lineJoin="round" zIndex={0} />
+      <Polyline coordinates={ahead.length >= 2 ? ahead : still} strokeColor={withAlpha(LA, ahead.length >= 2 ? k : 0)} strokeWidth={LINE_W} lineCap="round" lineJoin="round" zIndex={0} />
       {Array.from({ length: GUIDE_HOTSPOT_SLOTS }, (_, i) => (
         <HotspotSlot key={`h${i}`} hotspot={hotspots[i] ?? null} center={still[0]} />
       ))}
