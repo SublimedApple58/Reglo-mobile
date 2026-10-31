@@ -61,7 +61,7 @@ function Bar({ startedAt, name }: { startedAt: string; name: string }) {
             Guida con {first}
           </Text>
           <Text style={st.meta} numberOfLines={1}>
-            {formatMinutes(elapsedSec)} min · il percorso si registra
+            {formatMinutes(elapsedSec)} min
           </Text>
         </View>
         <ClayButton title="Torna in Road" compact onPress={back} testID="road-mini-back" />
