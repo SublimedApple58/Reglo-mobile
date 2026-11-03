@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { lessonDetailsStore } from '../stores/lessonDetailsStore';
 import { optionsPickerStore, LONG_PICKER_THRESHOLD } from '../stores/optionsPickerStore';
+import { studentLocationsStore } from '../stores/studentLocationsStore';
 import { studentSettingsStore } from '../stores/studentSettingsStore';
 import { lessonHistoryStore } from '../stores/lessonHistoryStore';
 import { studentPaymentsStore, StudentPaymentsSettings } from '../stores/studentPaymentsStore';
@@ -154,7 +155,10 @@ export const StudentNotesDetailScreen = () => {
   const [examReady, setExamReady] = useState(false);
   const [examReadySaving, setExamReadySaving] = useState(false);
   // Luogo di default (REG-392)
-  const [locations, setLocations] = useState<Array<{ id: string; name: string; isDefault: boolean; isPrecise: boolean }>>([]);
+  const [locations, setLocations] = useState<Array<{ id: string; name: string; isDefault: boolean; isPrecise: boolean; address: string | null }>>([]);
+  // REG-705: luoghi dove fa guida (vuoto = tutti) + interruttore dell'autoscuola.
+  const [locationIds, setLocationIds] = useState<string[]>([]);
+  const [availabilityByLocation, setAvailabilityByLocation] = useState(false);
   const [defaultLocationId, setDefaultLocationId] = useState<string | null>(null);
   const [defaultLocationName, setDefaultLocationName] = useState<string | null>(null);
   const [locSaving, setLocSaving] = useState(false);
@@ -201,8 +205,10 @@ export const StudentNotesDetailScreen = () => {
           name: l.name,
           isDefault: Boolean(l.isDefault),
           isPrecise: Boolean(l.isPrecise),
+          address: l.address ?? null,
         })),
       );
+      setAvailabilityByLocation(settings?.availabilityByLocation === true);
       const me = students.find((stu) => stu.id === studentId);
       if (me) {
         setLicense({ category: me.licenseCategory ?? null, transmission: me.transmission ?? null });
@@ -213,6 +219,7 @@ export const StudentNotesDetailScreen = () => {
         setExamReady(me.examReady ?? false);
         setDefaultLocationId(me.defaultLocationId ?? null);
         setDefaultLocationName(me.defaultLocationName ?? null);
+        setLocationIds(me.locationIds ?? []);
       }
     } catch {
       showError('Errore nel caricamento');
@@ -336,6 +343,7 @@ export const StudentNotesDetailScreen = () => {
         const res = await regloApi.setStudentDefaultLocation(String(studentId), locId);
         setDefaultLocationId(res.defaultLocation?.id ?? null);
         setDefaultLocationName(res.defaultLocation?.name ?? null);
+        if (res.locationIds) setLocationIds(res.locationIds);
       } catch (e) {
         showError(e instanceof Error ? e.message : 'Errore.');
       } finally {
@@ -367,6 +375,44 @@ export const StudentNotesDetailScreen = () => {
     const long = custom.length + 1 > LONG_PICKER_THRESHOLD;
     router.push(`/(tabs)/${stack}/select-options${long ? '-long' : ''}`);
   }, [locations, defaultLocationId, applyDefaultLocation, router, segments]);
+
+  // REG-705: con «Disponibilità per luogo» accesa (≥ 2 luoghi) la riga apre il
+  // foglio «Luoghi» a scelta multipla. Salva sul backend e aggiorna la scheda
+  // con la risposta (niente optimistic update).
+  const locationsMode = availabilityByLocation && locations.length >= 2;
+  const openLocationsSheet = useCallback(() => {
+    studentLocationsStore.set({
+      studentName: typeof name === 'string' ? name : null,
+      locations: locations.map((l) => ({ id: l.id, name: l.name, address: l.address, isPrecise: l.isPrecise })),
+      selectedIds: locationIds,
+      primaryId: defaultLocationId,
+      onSave: async ({ locationIds: nextIds, primaryId }) => {
+        try {
+          const res = await regloApi.setStudentLocations(String(studentId), nextIds);
+          let ids = res.locationIds;
+          let primaryNow = res.defaultLocationId;
+          if (primaryId && primaryId !== primaryNow && ids.includes(primaryId)) {
+            const r2 = await regloApi.setStudentDefaultLocation(String(studentId), primaryId);
+            primaryNow = r2.defaultLocation?.id ?? null;
+            if (r2.locationIds) ids = r2.locationIds;
+          }
+          setLocationIds(ids);
+          setDefaultLocationId(primaryNow);
+          setDefaultLocationName(locations.find((l) => l.id === primaryNow)?.name ?? null);
+        } catch (e) {
+          showError(e instanceof Error ? e.message : 'Errore.');
+          throw e;
+        }
+      },
+    });
+    const stack = segments[1] === 'notes' ? 'notes' : 'home';
+    router.push(`/(tabs)/${stack}/student-locations`);
+  }, [name, locations, locationIds, defaultLocationId, studentId, router, segments, showError]);
+
+  const locationsLabel = useMemo(() => {
+    if (!locationIds.length) return 'Tutti i luoghi';
+    return locations.filter((l) => locationIds.includes(l.id)).map((l) => l.name).join(', ');
+  }, [locations, locationIds]);
 
   /** Semina e apre il foglio "Impostazioni allievo". Gli handler restano qui:
    *  il foglio disegna, la scheda conserva stato e chiamate. */
@@ -410,15 +456,18 @@ export const StudentNotesDetailScreen = () => {
             },
           }
         : null,
-      location: locations.length
-        ? { label: defaultLocationName ?? 'Sede dell\u2019autoscuola', onPress: openLocationPicker }
-        : null,
+      location: locationsMode
+        ? { title: 'Luoghi', label: locationsLabel, onPress: openLocationsSheet }
+        : locations.length
+          ? { label: defaultLocationName ?? 'Sede dell\u2019autoscuola', onPress: openLocationPicker }
+          : null,
     });
     const stack = segments[1] === 'notes' ? 'notes' : 'home';
     router.push(`/(tabs)/${stack}/student-settings`);
   }, [
     name, groupEnabled, groupOptIn, groupSaving, studentPhase, examReady, examReadySaving,
     locations.length, defaultLocationName, openLocationPicker, studentId, router, segments, showError,
+    locationsMode, locationsLabel, openLocationsSheet,
   ]);
 
   // ── Pagamenti guide (REG-450) ───────────────────────────────────────────

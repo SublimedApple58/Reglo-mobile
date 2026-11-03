@@ -215,6 +215,9 @@ export type AutoscuolaStudent = {
   // campo Luogo nel form di prenotazione alla selezione dell'allievo.
   defaultLocationId?: Uuid | null;
   defaultLocationName?: string | null;
+  // REG-705: luoghi dove fa guida (vuoto = tutti). Il principale è
+  // `defaultLocationId` ed è sempre tra questi quando ce ne sono.
+  locationIds?: Uuid[];
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -1035,6 +1038,10 @@ export type AutoscuolaSettings = {
   // category additionally reserves a follow car.
   followCarRules?: Partial<Record<'AM' | 'A1' | 'A2' | 'A', { enabled: boolean }>>;
   groupLessonsEnabled?: boolean;
+  // REG-705: «Disponibilità per luogo» (valore salvato: vale solo con ≥ 2 luoghi).
+  availabilityByLocation?: boolean;
+  locationChangeBufferEnabled?: boolean;
+  locationChangeBufferMinutes?: number;
   quizEnabled?: boolean;
   // ── Aspetto: colore dei blocchi guida in agenda (setting company). ──
   // Replica lato mobile del pannello web "Aspetto". Vedi

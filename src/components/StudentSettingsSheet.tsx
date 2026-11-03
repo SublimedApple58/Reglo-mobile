@@ -80,7 +80,7 @@ export function StudentSettingsSheet() {
         >
           <Image source={ART_EDIFICIO} style={s.icon} />
           <View style={s.body}>
-            <Text style={s.rowTitle}>Luogo di default</Text>
+            <Text style={s.rowTitle}>{data.location.title ?? 'Luogo di default'}</Text>
             <Text style={s.rowSub} numberOfLines={1}>{data.location.label}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#C4C4C4" />

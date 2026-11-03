@@ -494,9 +494,17 @@ export const createRegloApi = (baseUrl?: string) => {
     // Luogo di default dell'allievo (REG-392) — impostabile da istruttore/titolare.
     // null = nessun default (il form riparte dalla sede).
     setStudentDefaultLocation: async (studentId: string, locationId: string | null) =>
-      client.request<{ defaultLocation: { id: string; name: string } | null }>(
+      client.request<{ defaultLocation: { id: string; name: string } | null; locationIds?: string[] }>(
         `/api/autoscuole/students/${studentId}/default-location`,
         { method: 'PATCH', body: { locationId } },
+      ),
+
+    // Luoghi dell'allievo (REG-705): sostituisce la lista; vuota = tutti i luoghi.
+    // Il server riallinea il principale e lo restituisce.
+    setStudentLocations: async (studentId: string, locationIds: string[]) =>
+      client.request<{ locationIds: string[]; defaultLocationId: string | null }>(
+        `/api/autoscuole/students/${studentId}/locations`,
+        { method: 'PUT', body: { locationIds } },
       ),
 
     declareWeeklyAbsence: async (input: { weekStart: string }) =>

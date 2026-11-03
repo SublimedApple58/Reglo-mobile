@@ -37,6 +37,7 @@ export default function HomeLayout() {
       <Stack.Screen name="select-exam-students" options={FORM_SHEET} />
       <Stack.Screen name="out-of-availability" options={FORM_SHEET} />
       <Stack.Screen name="select-options" options={FORM_SHEET} />
+      <Stack.Screen name="student-locations" options={FORM_SHEET} />
       {/* Impostazioni allievo: lista corta e statica → hug del contenuto. */}
       <Stack.Screen name="student-settings" options={HUG_SHEET} />
       {/* Pagamenti guide (REG-450): registro a lunghezza libera (lo storico di un

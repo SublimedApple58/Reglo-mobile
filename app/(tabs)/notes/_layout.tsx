@@ -12,6 +12,7 @@ export default function NotesLayout() {
       <Stack.Screen name="cluster-settings" />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
       <Stack.Screen name="select-options" options={FORM_SHEET} />
+      <Stack.Screen name="student-locations" options={FORM_SHEET} />
       {/* Impostazioni allievo: lista corta e statica → hug del contenuto. */}
       <Stack.Screen name="student-settings" options={HUG_SHEET} />
       {/* Pagamenti guide (REG-450): form sheet alto quanto il contenuto, scorre da sé (REG-639). */}
