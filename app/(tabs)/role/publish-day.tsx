@@ -8,6 +8,7 @@ import { ClayButton, ClayList, ClayListRow, ClaySection, ClayToggle } from '../.
 import { publishDayStore } from '../../../src/stores/publishDayStore';
 import { TimeRange } from '../../../src/types/regloApi';
 import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../../../src/utils/motion';
+import { useRangeLocations } from '../../../src/hooks/useRangeLocations';
 
 const DEFAULT_RANGES: TimeRange[] = [{ startMinutes: 540, endMinutes: 1080 }];
 
@@ -25,6 +26,8 @@ const minutesToDate = (m: number): Date => {
 export default function PublishDayScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(publishDayStore.subscribe, publishDayStore.get);
+  // REG-705c: luogo della fascia (solo con la disponibilità per luogo accesa).
+  const rangeLocations = useRangeLocations();
 
   const [available, setAvailable] = useState<boolean>(data?.available ?? false);
   const [ranges, setRanges] = useState<TimeRange[]>(
@@ -72,6 +75,21 @@ export default function PublishDayScreen() {
               onChange={setRanges}
               onPickTime={handlePickTime}
               onAddRange={() => setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }])}
+              {...(rangeLocations.enabled
+                ? {
+                    locationLabel: rangeLocations.nameFor,
+                    onPickLocation: (index: number) => {
+                      const range = ranges[index];
+                      if (!range) return;
+                      rangeLocations.pickLocation({
+                        range,
+                        dayLabel: data.dayLabel,
+                        onPick: (locationId) =>
+                          setRanges((prev) => prev.map((r, i) => (i === index ? { ...r, locationId } : r))),
+                      });
+                    },
+                  }
+                : {})}
             />
           </ClaySection>
         </Animated.View>

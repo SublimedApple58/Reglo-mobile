@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ScrollableMonthsCalendar, CALENDAR_WEEKDAYS } from '../../../src/components/ScrollableMonthsCalendar';
 import RangesEditor from '../../../src/components/RangesEditor';
+import { useRangeLocations } from '../../../src/hooks/useRangeLocations';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import {
   ClayButton,
@@ -57,6 +58,8 @@ const minutesToDate = (m: number): Date => {
 export default function AvailabilityExceptionScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(availabilityExceptionStore.subscribe, availabilityExceptionStore.get);
+  // REG-705c: luogo della fascia (solo con la disponibilità per luogo accesa).
+  const rangeLocations = useRangeLocations();
 
   const editing = !!data?.editDate;
 
@@ -305,6 +308,20 @@ export default function AvailabilityExceptionScreen() {
               onPickTime={handlePickTime}
               onAddRange={() => setRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }])}
               disabled={saving}
+              {...(rangeLocations.enabled
+                ? {
+                    locationLabel: rangeLocations.nameFor,
+                    onPickLocation: (index: number) => {
+                      const range = ranges[index];
+                      if (!range) return;
+                      rangeLocations.pickLocation({
+                        range,
+                        onPick: (locationId) =>
+                          setRanges((prev) => prev.map((r, i) => (i === index ? { ...r, locationId } : r))),
+                      });
+                    },
+                  }
+                : {})}
             />
           </Animated.View>
         ) : (

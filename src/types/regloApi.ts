@@ -823,6 +823,8 @@ export type UpdateVehicleInput = {
 export type TimeRange = {
   startMinutes: number;
   endMinutes: number;
+  /** REG-705c: luogo della fascia; assente = tutti i luoghi. */
+  locationId?: string | null;
 };
 
 export type DailyAvailabilityOverride = {
