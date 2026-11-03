@@ -44,6 +44,15 @@ is the only live path.
   temporaneamente sospese. Contatta la segreteria." e non apre il foglio.
   Backward-compatible: campo assente (backend vecchio) = non bloccato.
 
+## Luogo dello slot (REG-705e, dati)
+Con «Disponibilità per luogo» accesa `AvailableSlot` porta `locationId` + `locationName`
+e alla stessa ora possono esserci più slot (uno per luogo). L'identità di uno slot è
+`slotKey` / `isSameSlot` (`src/utils/slotLocation.ts`: ora + luogo), non più solo
+`startsAt`; ogni `createBookingRequest` (booking-slots, scelta libera, foglio
+«Orari disponibili» di `NotificationOverlay`) aggiunge `slotLocationParam(slot)`.
+Spenta la funzione la richiesta è identica a prima. La UI con il nome del luogo
+aspetta l'ok sulle anteprime 705-e.
+
 ## API functions used
 `getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
 

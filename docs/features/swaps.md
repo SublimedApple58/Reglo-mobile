@@ -30,6 +30,10 @@ There is no longer a `swaps` entry in `app/(tabs)/_layout.tsx`.
 ## API functions used
 `getSwapOffers`, `getMySwapOffers`, `respondSwapOffer`, `cancelSwapOffer`, `createSwapOffer`, `getStudents`
 
+## Luogo (REG-705e, dati)
+`AutoscuolaSwapOfferWithDetails.appointment` ha `locationId` + `locationName` (backend
+nuovo; assenti sui vecchi). UI in attesa dell'ok sulle anteprime 705-e.
+
 ## Components used
 BookingCelebration, ToastNotice (+ native Modal page sheet, BlurView header).
 No longer uses Screen / BottomSheet / Button.

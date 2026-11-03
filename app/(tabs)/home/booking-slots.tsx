@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingFlowStore, type BookingFlowState } from '../../../src/stores/bookingFlowStore';
 import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
 import { formatDay, formatTime } from '../../../src/utils/date';
+import { isSameSlot, slotKey } from '../../../src/utils/slotLocation';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
 import { GlassCloseButton, HAS_GLASS_CLOSE } from '../../../src/components/GlassCloseButton';
@@ -53,10 +54,10 @@ export default function BookingSlotsScreen() {
           showsVerticalScrollIndicator={false}
         >
           {slots.map((slot, idx) => {
-            const active = selectedSlot?.startsAt === slot.startsAt;
+            const active = isSameSlot(selectedSlot, slot);
             const last = idx === slots.length - 1;
             return (
-              <View key={slot.startsAt} style={s.tlRow}>
+              <View key={slotKey(slot)} style={s.tlRow}>
                 <View style={s.tlLeft}>
                   <Text style={s.tlHour}>{formatTime(slot.startsAt)}</Text>
                   {!last && <View style={s.tlLine} />}

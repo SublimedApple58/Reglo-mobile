@@ -61,6 +61,7 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
 import { formatDay, formatTime } from '../utils/date';
+import { slotLocationParam } from '../utils/slotLocation';
 import { EXAM_TIME_TBD, EXAM_TIME_TBD_SHORT, examTimeIsTbd } from '../utils/examTime';
 import { transmissionLabel } from '../utils/license';
 import { lessonArtSource, heroArtSource } from '../utils/lessonArt';
@@ -448,6 +449,7 @@ export const AllievoHomeScreen = () => {
           ...(canSelectLessonType ? { lessonType: s.selectedLessonTypes[0], types: s.selectedLessonTypes } : {}),
           ...(s.selectedInstructorId ? { instructorId: s.selectedInstructorId } : {}),
           selectedStartsAt: slot.startsAt,
+          ...slotLocationParam(slot),
         }).then(async (response) => {
           if (response.matched) {
             await invalidateAllData();
@@ -507,6 +509,7 @@ export const AllievoHomeScreen = () => {
         studentId: selectedStudentId,
         preferredDate: toDateString(preferredDate),
         selectedStartsAt: bookingSelectedSlot.startsAt,
+        ...slotLocationParam(bookingSelectedSlot),
         ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         durationMinutes,
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
@@ -1233,6 +1236,7 @@ export const AllievoHomeScreen = () => {
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0], types: selectedLessonTypes } : {}),
         ...(selectedInstructorId ? { instructorId: selectedInstructorId } : {}),
         selectedStartsAt: slot.startsAt,
+        ...slotLocationParam(slot),
       });
       if (response.matched) {
         await invalidateAllData();

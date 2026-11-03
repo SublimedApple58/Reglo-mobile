@@ -33,6 +33,7 @@ import {
 import { NotificationItem, ConfirmationData, AvailableSlotsData, PersistedNotification } from '../types/notifications';
 import { colors, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
+import { isSameSlot, slotKey, slotLocationParam } from '../utils/slotLocation';
 
 const lessonTypeLabelMap: Record<string, string> = {
   manovre: 'Manovre',
@@ -438,6 +439,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
         preferredDate: availableSlotsDate,
         durationMinutes: availableSlotsDuration,
         selectedStartsAt: availableSlotsSelected.startsAt,
+        ...slotLocationParam(availableSlotsSelected),
       });
       if (response.matched) {
         setToast({ text: 'Guida prenotata', tone: 'success' });
@@ -1255,10 +1257,10 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
           >
             <View style={styles.availableSlotsTimeline}>
               {availableSlotsList.map((slot, index) => {
-                const isActive = availableSlotsSelected?.startsAt === slot.startsAt;
+                const isActive = isSameSlot(availableSlotsSelected, slot);
                 const isLast = index === availableSlotsList.length - 1;
                 return (
-                  <View key={slot.startsAt} style={styles.availableSlotsTimelineRow}>
+                  <View key={slotKey(slot)} style={styles.availableSlotsTimelineRow}>
                     <View style={styles.availableSlotsTimelineLeft}>
                       <Text style={styles.availableSlotsTimelineHour}>{formatTime(slot.startsAt)}</Text>
                       {!isLast ? <View style={styles.availableSlotsTimelineLine} /> : null}

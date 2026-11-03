@@ -593,6 +593,9 @@ export type AutoscuolaWaitlistOffer = {
 
 export type AutoscuolaWaitlistOfferWithSlot = AutoscuolaWaitlistOffer & {
   slot: AutoscuolaAvailabilitySlot;
+  /** REG-705e: luogo della fascia, solo con «Disponibilità per luogo» accesa. */
+  locationId?: Uuid | null;
+  locationName?: string | null;
 };
 
 export type AutoscuolaWaitlistResponse = {
@@ -620,6 +623,9 @@ export type AutoscuolaSwapOfferWithDetails = {
     type: string;
     instructorName: string | null;
     vehicleName: string | null;
+    /** REG-705e: luogo della guida ceduta (backend nuovo; assente sui vecchi). */
+    locationId?: Uuid | null;
+    locationName?: string | null;
   };
 };
 
@@ -892,6 +898,8 @@ export type CreateBookingRequestInput = {
   excludeStartsAt?: IsoDate;
   requestId?: Uuid;
   instructorId?: Uuid;
+  /** REG-705e: luogo dello slot scelto (dall'`AvailableSlot`); assente = come prima. */
+  locationId?: Uuid | null;
 };
 
 export type RespondWaitlistOfferInput = {
@@ -1108,7 +1116,14 @@ export type MobileBookingOptions = {
   bookingBlocked?: boolean;
 };
 
-export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };
+export type AvailableSlot = {
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  /** REG-705d/e: presenti solo con «Disponibilità per luogo» accesa. `null` =
+   *  fascia senza luogo. Due slot alla stessa ora possono differire per luogo. */
+  locationId?: Uuid | null;
+  locationName?: string | null;
+};
 
 export type InstructorBookingMode = 'manual_full' | 'manual_engine';
 
