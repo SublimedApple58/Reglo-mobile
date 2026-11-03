@@ -10,6 +10,9 @@ export default function RoleLayout() {
       <Stack.Screen name="availability-exception" options={FORM_SHEET} />
       <Stack.Screen name="publish-day" options={FORM_SHEET} />
       <Stack.Screen name="time-picker" options={FORM_SHEET} />
+      {/* REG-705c: «Luogo della fascia» dagli editor di disponibilità di questo stack. */}
+      <Stack.Screen name="select-options" options={FORM_SHEET} />
+      <Stack.Screen name="select-options-long" options={FORM_SHEET} />
       <Stack.Screen name="instructor-invite" options={FORM_SHEET} />
       <Stack.Screen name="instructor-availability" options={FORM_SHEET} />
     </Stack>

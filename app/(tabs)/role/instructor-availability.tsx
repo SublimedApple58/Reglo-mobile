@@ -15,6 +15,7 @@ import {
 import RangesEditor from '../../../src/components/RangesEditor';
 import { ScrollableMonthsCalendar } from '../../../src/components/ScrollableMonthsCalendar';
 import { ownerInstructorSheetStore } from '../../../src/stores/ownerInstructorSheetStore';
+import { useRangeLocations } from '../../../src/hooks/useRangeLocations';
 import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { DailyAvailabilityOverride, TimeRange } from '../../../src/types/regloApi';
@@ -92,6 +93,8 @@ export default function InstructorAvailabilitySheet() {
   const data = useSyncExternalStore(ownerInstructorSheetStore.subscribe, ownerInstructorSheetStore.getAvailability);
   const instructorId = data?.instructorId ?? null;
   const availabilityWeeks = data?.availabilityWeeks ?? 4;
+  // REG-705c: luogo delle fasce (solo con «Disponibilità per luogo» accesa).
+  const rangeLocations = useRangeLocations();
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -117,15 +120,20 @@ export default function InstructorAvailabilitySheet() {
       const anchor = new Date();
       anchor.setHours(0, 0, 0, 0);
       const dates = Array.from({ length: 7 }, (_, i) => addDays(anchor, i));
-      const responses = await Promise.all(
-        dates.map((day) =>
-          regloApi.getAvailabilitySlots({
-            ownerType: 'instructor',
-            ownerId: id,
-            date: toDateString(day),
-          }),
+      const [responses, base] = await Promise.all([
+        Promise.all(
+          dates.map((day) =>
+            regloApi.getAvailabilitySlots({
+              ownerType: 'instructor',
+              ownerId: id,
+              date: toDateString(day),
+            }),
+          ),
         ),
-      );
+        // Gli slot non portano il luogo: lo si riprende dalla settimana tipo,
+        // così salvare da qui non cancella i luoghi delle fasce (REG-705c).
+        regloApi.getDefaultAvailability({ ownerType: 'instructor', ownerId: id }).catch(() => null),
+      ]);
 
       const activeDays: number[] = [];
       let mergedRanges: TimeRange[] = [];
@@ -137,7 +145,12 @@ export default function InstructorAvailabilitySheet() {
         activeDays.push(dates[index].getDay());
         // Use the ranges from the first active day as the default template
         if (mergedRanges.length === 0) {
-          mergedRanges = detected;
+          // Con fasce per luogo vale la settimana tipo: dagli slot due fasce
+          // attaccate in luoghi diversi sembrerebbero una sola.
+          const baseRanges = base?.scheduleByDay?.[dates[index].getDay()] ?? [];
+          mergedRanges = baseRanges.some((r) => r.locationId)
+            ? baseRanges.map((r) => ({ ...r }))
+            : detected;
         }
       });
 
@@ -209,6 +222,27 @@ export default function InstructorAvailabilitySheet() {
     });
     router.push(`/(tabs)/${stack}/time-picker` as never);
   };
+
+  // ─── Luogo della fascia (REG-705c) ──────────────────────
+
+  const locationProps = (
+    ranges: TimeRange[],
+    setRanges: React.Dispatch<React.SetStateAction<TimeRange[]>>,
+  ) =>
+    rangeLocations.enabled
+      ? {
+          locationLabel: rangeLocations.nameFor,
+          onPickLocation: (index: number) => {
+            const range = ranges[index];
+            if (!range) return;
+            rangeLocations.pickLocation({
+              range,
+              onPick: (locationId) =>
+                setRanges((prev) => prev.map((r, i) => (i === index ? { ...r, locationId } : r))),
+            });
+          },
+        }
+      : {};
 
   // ─── Calendario ──────────────────────────────────────────
 
@@ -447,6 +481,7 @@ export default function InstructorAvailabilitySheet() {
               setCalRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
             }}
             disabled={calSaving}
+            {...locationProps(calRanges, setCalRanges)}
           />
           {errorLine}
         </>
@@ -490,6 +525,7 @@ export default function InstructorAvailabilitySheet() {
                       setDefaultRanges((prev) => [...prev, { startMinutes: 540, endMinutes: 1080 }]);
                     }}
                     disabled={availSaving}
+                    {...locationProps(defaultRanges, setDefaultRanges)}
                   />
                 </ClaySection>
               </>
