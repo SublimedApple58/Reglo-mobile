@@ -221,7 +221,18 @@ export default function RiepilogoScreen() {
 
       {/* La mappa si ritaglia nel figlio: l'ombra clay sta sul contenitore. */}
       <View style={[s.miniWrap, CLAY_SHADOW.raise]}>
-        <RoadRouteMap track={summary.track} markers={summary.markers} stops={summary.stops} style={s.mini} />
+        {/*
+          REG-714: quando il riepilogo provvisorio diventa quello del server (o
+          arrivano gli ultimi punti) la mappa si rimonta: aggiornata sul posto,
+          su iOS il segnaposto delle segnalazioni non si ridisegnava più.
+        */}
+        <RoadRouteMap
+          key={`${summary.id}:${provisional ? 'p' : 's'}:${summary.track.length}:${summary.markers.length}`}
+          track={summary.track}
+          markers={summary.markers}
+          stops={summary.stops}
+          style={s.mini}
+        />
       </View>
 
       <View style={s.sum}>
