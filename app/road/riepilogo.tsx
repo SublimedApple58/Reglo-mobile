@@ -21,6 +21,9 @@ import Animated from 'react-native-reanimated';
 import { ROAD_EXIT, ROAD_LAYOUT, ROAD_TEXT_IN, roadEnter } from '../../src/road/motion';
 import { RoadNotesCard } from '../../src/components/road/RoadNotesCard';
 import { planOutcomeLine } from '../../src/road/planAlerts';
+import { roadQueue } from '../../src/road/queue';
+import { cachedRoadEvaluation } from '../../src/road/offlineLesson';
+import type { AppointmentEvaluation } from '../../src/types/regloApi';
 
 /**
  * REG-694 (1.7): il pagellino non sparisce più se la lettura fallisce. Se in
@@ -32,6 +35,13 @@ type EvalState =
   | { status: 'error' }
   | { status: 'ok'; enabled: boolean; total: number; done: number }
   | null;
+
+/** Voci attive e voci valutate del pagellino. */
+function evalCounts(data: AppointmentEvaluation): EvalState {
+  const active = (data.items ?? []).filter((it) => !it.archived);
+  const scored = (data.scores ?? []).filter((sc) => sc.score != null || sc.notApplicable).length;
+  return { status: 'ok', enabled: !!data.enabled, total: active.length, done: scored };
+}
 
 /** Oltre, «+N altre»: il foglio abbraccia il contenuto e non deve superare lo schermo. */
 const MAX_MARKERS = 4;
@@ -46,6 +56,7 @@ export default function RiepilogoScreen() {
   const router = useRouter();
   const summary = useRoadSelector((s) => s.summary);
   const syncing = useRoadSelector((s) => s.summarySyncing);
+  const provisional = useRoadSelector((s) => s.summaryProvisional);
   const evaluationOn = useRoadSelector((s) => s.evaluationEnabled);
   const [ev, setEv] = useState<EvalState>(() => (evaluationOn ? { status: 'loading' } : null));
   const [evTry, setEvTry] = useState(0);
@@ -63,18 +74,28 @@ export default function RiepilogoScreen() {
           setEv({ status: 'ok', enabled: false, total: 0, done: 0 });
           return;
         }
-        const active = (data.items ?? []).filter((it) => !it.archived);
-        const scored = (data.scores ?? []).filter((sc) => sc.score != null || sc.notApplicable).length;
-        setEv({ status: 'ok', enabled: !!data.enabled, total: active.length, done: scored });
+        setEv(evalCounts(data));
       })
       .catch(() => {
-        // Errore di rete: la card resta (se il pagellino è acceso) con «Riprova».
-        if (alive) setEv((prev) => (prev || evaluationOn ? { status: 'error' } : null));
+        if (!alive) return;
+        // REG-714: senza rete i numeri del pagellino letto all'ingresso in
+        // Road, con i voti in coda. Mai letto: la card resta con «Riprova».
+        const cached = cachedRoadEvaluation(appointmentId);
+        if (cached) setEv(evalCounts(cached));
+        else setEv((prev) => (prev || evaluationOn ? { status: 'error' } : null));
       });
     return () => {
       alive = false;
     };
   }, [appointmentId, evalStamp, evTry, evaluationOn]);
+
+  // REG-714: note o pagellino salvati senza rete, ancora sul telefono.
+  const lessonQueued = useSyncExternalStore(roadQueue.subscribe, () =>
+    appointmentId
+      ? roadQueue.queuedLesson(appointmentId, 'notes') !== undefined ||
+        roadQueue.queuedLesson(appointmentId, 'evaluations') !== undefined
+      : false,
+  );
 
   // Guida nata da Road libero: in agenda la fine segue l'ora reale.
   const freeStarted = useSyncExternalStore(roadFreeStarted.subscribe, roadFreeStarted.get);
@@ -166,7 +187,13 @@ export default function RiepilogoScreen() {
                 variant={pgEmpty ? 'primary' : 'secondary'}
                 title={pgEmpty ? 'Compila' : 'Modifica'}
                 onPress={() =>
-                  openRoadPagellino(router, lesson, { showStayChip: false, onSaved: () => void refreshRoadSummary() })
+                  openRoadPagellino(router, lesson, {
+                    showStayChip: false,
+                    onSaved: () => {
+                      void refreshRoadSummary();
+                      setEvTry((n) => n + 1);
+                    },
+                  })
                 }
                 style={s.pgBtn}
                 testID="road-summary-pagellino"
@@ -179,6 +206,12 @@ export default function RiepilogoScreen() {
         <Animated.View entering={roadEnter(200)} layout={ROAD_LAYOUT}>
           <RoadNotesCard router={router} lesson={lesson} route="/road/note" style={showPagellino ? s.notesGap : undefined} />
         </Animated.View>
+
+        {lessonQueued ? (
+          <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={s.queuedTx} testID="road-summary-queued">
+            Salvato sul telefono: parte appena torna la rete.
+          </Animated.Text>
+        ) : null}
 
         <ClayButton variant="secondary" title="Chiudi" onPress={close} style={s.closeBtn} testID="road-summary-close" />
       </Animated.View>
@@ -197,8 +230,13 @@ export default function RiepilogoScreen() {
         <ClayStat value={summary.markers.length} label="Segnalazioni" />
       </View>
 
-      {/* REG-691: gli ultimi punti partono dopo la chiusura; i km si aggiornano da soli. */}
-      {syncing ? (
+      {/* REG-714: chiusa senza rete, numeri del telefono finché la chiusura non arriva. */}
+      {provisional ? (
+        <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={s.syncTx} testID="road-summary-offline">
+          Chiusa senza rete. Km e minuti sono quelli del telefono: si confermano appena torna la connessione.
+        </Animated.Text>
+      ) : syncing ? (
+        /* REG-691: gli ultimi punti partono dopo la chiusura; i km si aggiornano da soli. */
         <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={s.syncTx} testID="road-summary-syncing">
           Ultimi metri del percorso in invio: i km si aggiornano da soli.
         </Animated.Text>
@@ -265,6 +303,7 @@ const s = StyleSheet.create({
   agendaLine: { marginTop: 14 },
   planTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   syncTx: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 10, lineHeight: 18 },
+  queuedTx: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 10, lineHeight: 18, textAlign: 'center' },
   agendaTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, lineHeight: 19 },
   more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
   foot: {},

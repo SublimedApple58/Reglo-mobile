@@ -22,6 +22,8 @@ import {
   starSizeForScale,
 } from '../../../src/utils/evaluationSheet';
 import { regloApi } from '../../../src/services/regloApi';
+import { cachedRoadEvaluation } from '../../../src/road/offlineLesson';
+import { roadQueue } from '../../../src/road/queue';
 import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { FormSheet } from '../../../src/components/SheetScaffold';
@@ -122,15 +124,21 @@ export default function ManageLessonDetailsScreen() {
     };
   }, []);
 
+  const fromRoad = !!data?.road;
   useEffect(() => {
     const id = lesson?.id;
     if (!id) return;
     let alive = true;
     (async () => {
       try {
-        const data = await regloApi.getAppointmentEvaluation(id);
+        // REG-714: da Road senza rete si apre il pagellino letto all'ingresso,
+        // con i voti ancora in coda sopra.
+        const data = await regloApi
+          .getAppointmentEvaluation(id)
+          .catch((err) => (fromRoad ? cachedRoadEvaluation(id) : Promise.reject(err)));
         if (!alive || !data) return;
-        const rows = data.scores ?? [];
+        const queued = fromRoad ? roadQueue.queuedLesson(id, 'evaluations')?.evaluations : undefined;
+        const rows = queued ?? data.scores ?? [];
         // Pagellino SPENTO: non si aggiungono voci nuove (l'elenco si riduce a
         // quelle che questa guida ha già votato, quindi "Aggiungi voce" sparisce
         // da solo), ma i voti già dati restano leggibili e rimovibili. Stesso
@@ -171,7 +179,7 @@ export default function ManageLessonDetailsScreen() {
     return () => {
       alive = false;
     };
-  }, [lesson?.id]);
+  }, [lesson?.id, fromRoad]);
 
   useEffect(() => {
     if (!lesson) return;

@@ -1,6 +1,7 @@
 import { Alert, Linking, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { regloApi } from '../services/regloApi';
 import { RegloApiError } from '../services/apiClient';
 import type {
@@ -18,6 +19,7 @@ import { isRoadTrackingActive, startRoadTracking, stopRoadTracking } from './tra
 import { formatRange, haversineMeters, makeClientId } from './format';
 import { fixHistory } from './fixHistory';
 import { ROAD_UNDO_SECONDS, roadFreeStarted } from './freeStartStore';
+import { cacheRoadEvaluation, isOfflineError } from './offlineLesson';
 
 /**
  * REG-638 Reglo Road — azioni (entrata, ripresa, segnalazioni, fine guida).
@@ -170,6 +172,8 @@ export async function ensureRoadLocationPermission(): Promise<boolean> {
 async function loadEvaluationEnabled(appointmentId: string) {
   try {
     const ev = await regloApi.getAppointmentEvaluation(appointmentId);
+    // REG-714: tenuto da parte per aprire il pagellino anche senza rete.
+    cacheRoadEvaluation(appointmentId, ev);
     roadStore.setEvaluationEnabled(!!ev?.enabled);
   } catch {
     roadStore.setEvaluationEnabled(false);
@@ -474,8 +478,29 @@ export async function correctRoadMarker(
     else await regloApi.updateRoadMarker(sessionId, markerIdOrClientId, { sentiment: change.sentiment });
     return true;
   } catch (err) {
-    Alert.alert('Segnalazione non modificata', messageOf(err, 'Controlla la connessione e riprova.'));
-    return false;
+    if (!isOfflineError(err)) {
+      Alert.alert('Segnalazione non modificata', messageOf(err, 'Riprova tra poco.'));
+      return false;
+    }
+    // REG-714: senza rete la correzione va in coda (il server accetta id o
+    // clientId) e il riepilogo si aggiorna subito sul telefono.
+    await roadQueue.pushMarkerOp(
+      'remove' in change
+        ? { op: 'remove', sessionId, clientId: markerIdOrClientId }
+        : { op: 'update', sessionId, clientId: markerIdOrClientId, patch: { sentiment: change.sentiment } },
+    );
+    const { summary } = roadStore.get();
+    if (summary?.id === sessionId) {
+      const markers =
+        'remove' in change
+          ? summary.markers.filter((m) => m.id !== markerIdOrClientId && m.clientId !== markerIdOrClientId)
+          : summary.markers.map((m) =>
+              m.id === markerIdOrClientId || m.clientId === markerIdOrClientId ? { ...m, sentiment: change.sentiment } : m,
+            );
+      roadStore.patchSummary({ markers });
+    }
+    roadUploader.ensureRunning();
+    return true;
   }
 }
 
@@ -532,45 +557,87 @@ export async function undoRoadMarker(clientId: string) {
  * buttano più: restano in coda e si spediscono dopo la chiusura (il server li
  * accetta fino a 2 h e ricalcola km e giro). Il riepilogo lo dice e si
  * aggiorna da solo quando arrivano.
+ *
+ * REG-714: senza rete la guida si chiude lo stesso. L'ora della fine è quella
+ * del tocco (va al server anche online), la chiusura va in coda dopo i punti,
+ * il riepilogo mostra i numeri del telefono e diventa quello del server appena
+ * la chiusura arriva. Solo un rifiuto vero del server (guida non tua,
+ * cancellata) lascia la guida aperta con l'Alert.
  */
 export async function endRoad(): Promise<boolean> {
   const { session } = roadStore.get();
   if (!session) return false;
+  const endedAt = new Date();
   roadStore.setPhase('ending');
-  await roadUploader.refreshStreet(true);
-  await roadUploader.flush(true);
+  const net = await NetInfo.fetch().catch(() => null);
+  const online = net?.isConnected !== false && net?.isInternetReachable !== false;
+  if (online) {
+    await roadUploader.refreshStreet(true);
+    await roadUploader.flush(true);
+  }
   await stopRoadTracking();
-  await roadUploader.flush(true);
-  // un secondo tentativo prima di chiudere: spesso basta (lotto in volo scaduto)
-  if (roadQueue.pendingFor(session.id) > 0) await roadUploader.flush(true);
+  if (online) {
+    await roadUploader.flush(true);
+    // un secondo tentativo prima di chiudere: spesso basta (lotto in volo scaduto)
+    if (roadQueue.pendingFor(session.id) > 0) await roadUploader.flush(true);
+  }
+  let detail;
   try {
-    const detail = await regloApi.endRoadSession(session.id);
-    roadUploader.onSessionClosed(null);
-    roadUploader.resetStreet();
-    await roadQueue.detach();
-    const late = roadQueue.pendingFor(session.id) > 0;
-    roadStore.showSummary(detail, late);
-    if (late) watchLateSync(session.id);
-    // punti e segnalazioni ancora in coda (offline): partono quando torna la rete
-    roadUploader.stop();
-    void roadUploader.flush(true);
-    return true;
+    if (!online) throw new Error('offline');
+    detail = await regloApi.endRoadSession(session.id, endedAt.toISOString());
   } catch (err) {
+    if (isOfflineError(err)) {
+      await closeOffline(session.id, endedAt);
+      return true;
+    }
     roadStore.setPhase('active');
     try {
       await startRoadTracking();
     } catch {
       // resta spento: si riprova a terminare
     }
-    const offline = !(err instanceof RegloApiError) || !err.status;
-    Alert.alert(
-      'Guida non terminata',
-      offline
-        ? 'Serve la connessione per chiudere la guida. Il percorso continua: riprova tra poco.'
-        : messageOf(err, 'Riprova tra poco.'),
-    );
+    Alert.alert('Guida non terminata', messageOf(err, 'Riprova tra poco.'));
     return false;
   }
+  roadUploader.onSessionClosed(null);
+  roadUploader.resetStreet();
+  await roadQueue.detach();
+  const late = roadQueue.pendingFor(session.id) > 0;
+  roadStore.showSummary(detail, late);
+  if (late) watchLateSync(session.id);
+  // punti e segnalazioni ancora in coda (offline): partono quando torna la rete
+  roadUploader.stop();
+  void roadUploader.flush(true);
+  return true;
+}
+
+/**
+ * REG-714: «Termina» senza rete. La chiusura (con l'ora del tocco) va in coda
+ * dopo i punti; il riepilogo provvisorio diventa quello del server quando
+ * arriva, poi si aggiorna ancora se mancavano punti.
+ */
+async function closeOffline(sessionId: string, endedAt: Date) {
+  roadUploader.onSessionClosed(null);
+  roadUploader.resetStreet();
+  await roadQueue.pushClose(sessionId, endedAt.toISOString());
+  await roadQueue.detach();
+  const provisional = roadStore.provisionalSummary(endedAt);
+  if (provisional) roadStore.showSummary(provisional, false, true);
+  else roadStore.reset();
+  const off = roadUploader.onQueuedClose((id, detail) => {
+    if (id !== sessionId) return;
+    off();
+    if (roadStore.get().summary?.id !== sessionId) return;
+    if (!detail) {
+      roadStore.updateSummary({ ...roadStore.get().summary!, status: 'completed' }, false);
+      return;
+    }
+    const late = roadQueue.pendingFor(sessionId) > 0;
+    roadStore.updateSummary(detail, late);
+    if (late) watchLateSync(sessionId);
+  });
+  roadUploader.stop();
+  roadUploader.ensureRunning();
 }
 
 /** Quando gli ultimi punti della guida chiusa arrivano, il riepilogo si ricarica coi km giusti. */
@@ -589,8 +656,9 @@ function watchLateSync(sessionId: string) {
 
 /** Ricarica il riepilogo (dopo aver salvato il pagellino). */
 export async function refreshRoadSummary() {
-  const { summary } = roadStore.get();
-  if (!summary) return;
+  const { summary, summaryProvisional } = roadStore.get();
+  // REG-714: la guida per il server è ancora aperta, il riepilogo resta del telefono.
+  if (!summary || summaryProvisional) return;
   try {
     roadStore.updateSummary(await regloApi.getRoadSession(summary.id));
   } catch {

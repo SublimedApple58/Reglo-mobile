@@ -5,6 +5,8 @@ import * as Haptics from '../utils/haptics';
 import { regloApi } from '../services/regloApi';
 import { notesEditorStore } from '../stores/notesEditorStore';
 import type { RoadLesson } from '../types/regloApi';
+import { roadQueue } from './queue';
+import { isOfflineError, queueLessonPatch } from './offlineLesson';
 
 /**
  * Giro Road (Tiziano 28/10): le note sulla guida si prendono anche DENTRO
@@ -13,6 +15,7 @@ import type { RoadLesson } from '../types/regloApi';
  * vede anche l'allievo) e lo stesso foglio note della home (`edit-notes`).
  * La nota già scritta si legge dalla guida (getAppointments per allievo e
  * orario) e si tiene qui, così il foglio si apre subito.
+ * REG-714: senza rete la nota si salva lo stesso, in coda (parte da sola).
  */
 
 /** appointmentId → nota attuale (`null` = nessuna); assente = da caricare. */
@@ -35,12 +38,14 @@ function loadNotes(lesson: RoadLesson): Promise<string | null> {
         to: lesson.endsAt,
         limit: 20,
       });
-      const note = list.find((a) => a.id === id)?.notes?.trim() || null;
+      const queued = roadQueue.queuedLesson(id, 'notes');
+      const note = queued ? queued.notes ?? null : list.find((a) => a.id === id)?.notes?.trim() || null;
       notes.set(id, note);
       notify();
       return note;
     } catch {
-      return notes.get(id) ?? null;
+      const queued = roadQueue.queuedLesson(id, 'notes');
+      return queued ? queued.notes ?? null : notes.get(id) ?? null;
     } finally {
       loading.delete(id);
     }
@@ -92,8 +97,16 @@ export async function openRoadNotes(router: Router, lesson: RoadLesson, route: R
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
         return true;
       } catch (err) {
-        Alert.alert('Note non salvate', err instanceof Error ? err.message : 'Riprova tra poco.');
-        return false;
+        if (!isOfflineError(err)) {
+          Alert.alert('Note non salvate', err instanceof Error ? err.message : 'Riprova tra poco.');
+          return false;
+        }
+        // REG-714: senza rete resta sul telefono e parte appena torna.
+        await queueLessonPatch(id, 'notes', { notes: next });
+        notes.set(id, next);
+        notify();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+        return true;
       }
     },
   });

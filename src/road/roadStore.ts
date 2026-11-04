@@ -103,6 +103,11 @@ type State = {
   summary: RoadDetail | null;
   /** REG-691: ultimi punti della guida chiusa ancora in invio (i km si aggiornano dopo). */
   summarySyncing: boolean;
+  /**
+   * REG-714: guida chiusa senza rete. Il riepilogo è fatto dal telefono (km,
+   * minuti, segnalazioni) finché la chiusura in coda non arriva al server.
+   */
+  summaryProvisional: boolean;
   /** Il pagellino è acceso per l'autoscuola (bottone nell'header). */
   evaluationEnabled: boolean;
   /** Guida su cui si può entrare in Road adesso (da `/road/state`). */
@@ -152,6 +157,7 @@ const INITIAL: State = {
   toast: null,
   summary: null,
   summarySyncing: false,
+  summaryProvisional: false,
   evaluationEnabled: false,
   eligible: null,
   roadEnabled: false,
@@ -490,12 +496,75 @@ export const roadStore = {
     set({ phase });
   },
 
-  showSummary(summary: RoadDetail, syncing = false) {
-    set({ phase: 'summary', summary, summarySyncing: syncing, toast: null, planAlert: null, hotspotWatch: EMPTY_HOTSPOT_WATCH });
+  showSummary(summary: RoadDetail, syncing = false, provisional = false) {
+    set({
+      phase: 'summary',
+      summary,
+      summarySyncing: syncing,
+      summaryProvisional: provisional,
+      toast: null,
+      planAlert: null,
+      hotspotWatch: EMPTY_HOTSPOT_WATCH,
+    });
   },
 
+  /** REG-714: correzione fatta senza rete, solo sul telefono. */
+  patchSummary(patch: Partial<RoadDetail>) {
+    if (state.summary) set({ summary: { ...state.summary, ...patch } });
+  },
+
+  /** Dettaglio dal server: il riepilogo provvisorio (REG-714) diventa quello vero. */
   updateSummary(summary: RoadDetail, syncing?: boolean) {
-    if (state.summary?.id === summary.id) set({ summary, ...(syncing === undefined ? {} : { summarySyncing: syncing }) });
+    if (state.summary?.id === summary.id) {
+      set({ summary, summaryProvisional: false, ...(syncing === undefined ? {} : { summarySyncing: syncing }) });
+    }
+  },
+
+  /**
+   * REG-714: riepilogo fatto dal telefono quando «Termina» non arriva al
+   * server: km stimati in guida, minuti fino al tocco, segnalazioni e ripassi
+   * di questa guida, percorso disegnato. Il giro raggiunto lo dirà il server.
+   */
+  provisionalSummary(endedAt: Date): RoadDetail | null {
+    const { session } = state;
+    if (!session) return null;
+    const started = new Date(session.startedAt).getTime();
+    const lessonStart = new Date(session.lesson.startsAt).getTime();
+    const from = Number.isFinite(lessonStart) && lessonStart < started ? lessonStart : started;
+    const t = endedAt.getTime();
+    return {
+      ...session,
+      status: 'completed',
+      endedAt: endedAt.toISOString(),
+      distanceMeters: Math.round(state.distanceMeters),
+      durationSec: Math.max(0, Math.round((t - from) / 1000)),
+      planReached: null,
+      markers: state.markers.map((m) => ({
+        id: m.clientId,
+        clientId: m.clientId,
+        kind: m.kind,
+        label: m.label,
+        note: m.note,
+        lat: m.lat,
+        lng: m.lng,
+        street: m.street,
+        sentiment: m.sentiment,
+        recordedAt: m.recordedAt,
+      })),
+      track: state.track.map((p) => [p.latitude, p.longitude, 0] as [number, number, number]),
+      stops: [],
+      evaluation: null,
+      hotspotChecks: state.checks.map((c) => ({
+        clientId: c.clientId,
+        hotspotKey: c.hotspotKey,
+        kind: c.kind,
+        label: c.label,
+        lat: 0,
+        lng: 0,
+        outcome: c.outcome,
+        recordedAt: c.recordedAt,
+      })),
+    };
   },
 
   reset() {

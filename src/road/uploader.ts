@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import NetInfo from '@react-native-community/netinfo';
 import { regloApi } from '../services/regloApi';
+import type { RoadDetail } from '../types/regloApi';
 import { RegloApiError } from '../services/apiClient';
 import { loadQueue, roadQueue } from './queue';
 import { roadStore } from './roadStore';
@@ -20,6 +21,8 @@ import { roadEta } from './returnEta';
  * - REG-691: un 401 o un FORBIDDEN non buttano mai niente. Si spedisce anche
  *   dopo «Termina» e dopo un nuovo login (punti in ritardo accettati dal
  *   server fino a 2 h dalla chiusura).
+ * - REG-714: dopo i punti partono le chiusure fatte senza rete (`POST /end`
+ *   con l'ora del tocco) e poi note e pagellino salvati senza rete.
  * - Nome della via: `reverseGeocodeAsync` dell'ultima posizione, al massimo
  *   ogni ~20 s, campo `street` (via senza civico).
  */
@@ -74,6 +77,10 @@ async function refreshStreet(force = false) {
 /** Guide che il server rifiuta per questo utente (FORBIDDEN): si riprovano al prossimo login, non si buttano. */
 const parked = new Set<string>();
 const syncedListeners = new Set<(sessionId: string) => void>();
+const closedQueuedListeners = new Set<(sessionId: string, detail: RoadDetail | null) => void>();
+
+/** Code dell'utente attuale ancora da spedire (punti, segnalazioni, chiusure, note, pagellino). */
+const hasWork = () => roadQueue.pendingAllPoints > 0 || roadQueue.pendingMarkers > 0 || roadQueue.pendingOps > 0;
 
 async function flushMarkers() {
   for (;;) {
@@ -167,13 +174,51 @@ async function flushPoints() {
   }
 }
 
+/**
+ * REG-714: «Termina» toccato senza rete. Parte dopo i punti (km e giro giusti
+ * alla chiusura). Guida cancellata o non trovata = si scarta; «non è tua» =
+ * resta per il prossimo login.
+ */
+async function flushCloses() {
+  for (;;) {
+    const op = roadQueue.peekClose(parked);
+    if (!op) return;
+    let detail: RoadDetail | null = null;
+    try {
+      detail = await regloApi.endRoadSession(op.sessionId, op.endedAt);
+    } catch (err) {
+      if (errorCode(err) === 'FORBIDDEN') {
+        parked.add(op.sessionId);
+        continue;
+      }
+      if (!isRejection(err)) throw err;
+    }
+    await roadQueue.shiftClose(op.sessionId);
+    closedQueuedListeners.forEach((fn) => fn(op.sessionId, detail));
+  }
+}
+
+/** REG-714: note e pagellino salvati senza rete. Un rifiuto del server li scarta. */
+async function flushLessonOps() {
+  for (;;) {
+    const op = roadQueue.peekLessonOp();
+    if (!op) return;
+    try {
+      await regloApi.updateAppointmentDetails(op.appointmentId, op.patch);
+    } catch (err) {
+      if (!(err instanceof RegloApiError) || !err.status || err.status >= 500 || err.status === 401) throw err;
+    }
+    await roadQueue.shiftLessonOp(op);
+  }
+}
+
 /** Timer acceso anche fuori da Road finché restano punti di guide chiuse da spedire. */
 let active = false;
 
 function ensureTimer() {
   if (!timer) {
     timer = setInterval(() => {
-      if (!active && roadQueue.pendingAllPoints === 0 && roadQueue.pendingMarkers === 0) {
+      if (!active && !hasWork()) {
         teardown();
         return;
       }
@@ -216,7 +261,13 @@ export const roadUploader = {
 
   maybeFlush() {
     const due = Date.now() - lastFlushAt >= FLUSH_EVERY_MS;
-    if (due || roadQueue.pendingPoints >= FLUSH_AT_POINTS || roadQueue.pendingMarkers > 0 || roadQueue.pendingAllPoints > roadQueue.pendingPoints) {
+    if (
+      due ||
+      roadQueue.pendingPoints >= FLUSH_AT_POINTS ||
+      roadQueue.pendingMarkers > 0 ||
+      roadQueue.pendingOps > 0 ||
+      roadQueue.pendingAllPoints > roadQueue.pendingPoints
+    ) {
       void roadUploader.flush();
     }
   },
@@ -234,10 +285,12 @@ export const roadUploader = {
         await refreshStreet();
         await flushMarkers();
         await flushPoints();
+        await flushCloses();
+        await flushLessonOps();
         failures = 0;
         nextAttemptAt = 0;
         lastOkAt = Date.now();
-        return roadQueue.pendingAllPoints === 0 && roadQueue.pendingMarkers === 0;
+        return !hasWork();
       } catch {
         failures += 1;
         nextAttemptAt = Date.now() + Math.min(60_000, 2_000 * 2 ** Math.min(failures, 5));
@@ -263,7 +316,7 @@ export const roadUploader = {
     active = false;
     failures = 0;
     nextAttemptAt = 0;
-    if (roadQueue.pendingAllPoints > 0 || roadQueue.pendingMarkers > 0) ensureTimer();
+    if (hasWork()) ensureTimer();
     else teardown();
   },
 
@@ -274,7 +327,7 @@ export const roadUploader = {
   async resumeAfterLogin() {
     parked.clear();
     await loadQueue();
-    if (roadQueue.pendingAllPoints > 0 || roadQueue.pendingMarkers > 0) {
+    if (hasWork()) {
       ensureTimer();
       void roadUploader.flush(true);
     }
@@ -286,6 +339,22 @@ export const roadUploader = {
     return () => {
       syncedListeners.delete(fn);
     };
+  },
+
+  /**
+   * REG-714: la chiusura in coda è arrivata al server (`detail` = il dettaglio
+   * vero; null = guida rifiutata, es. cancellata nel frattempo).
+   */
+  onQueuedClose(fn: (sessionId: string, detail: RoadDetail | null) => void) {
+    closedQueuedListeners.add(fn);
+    return () => {
+      closedQueuedListeners.delete(fn);
+    };
+  },
+
+  /** REG-714: c'è qualcosa da spedire (chi chiude offline riaccende il timer). */
+  ensureRunning() {
+    if (hasWork()) ensureTimer();
   },
 
   resetStreet() {

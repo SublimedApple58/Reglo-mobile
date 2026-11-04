@@ -83,8 +83,15 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
    «Pagellino», chip «Resti in Road: il percorso continua», CTA **nera**, niente
    tipo/esito/note; salva solo `evaluations`. Il tracking non si ferma.
 7. **Termina**: haptic warning → Alert nativo → svuota le code, spegne il GPS, svuota di nuovo,
-   `POST /end` (guida `completed`) → riepilogo. Se `end` fallisce (offline) il GPS si
-   riaccende e l'Alert dice di riprovare.
+   `POST /end { endedAt }` (guida `completed`, `endedAt` = l'ora del tocco) → riepilogo.
+   **REG-714 — anche senza rete**: se NetInfo dice offline (o `end` fallisce per la rete: nessuna
+   risposta, 5xx, 401) la guida si chiude lo stesso sul telefono: GPS spento, chiusura in coda
+   (`roadQueue.pushClose`), riepilogo **provvisorio** dai numeri del telefono
+   (`roadStore.provisionalSummary`: km stimati in guida, minuti fino al tocco, segnalazioni,
+   ripassi, percorso disegnato; giro raggiunto assente) con la riga «Chiusa senza rete. Km e
+   minuti sono quelli del telefono…». Quando la chiusura arriva al server
+   (`roadUploader.onQueuedClose`) il riepilogo diventa quello vero. Solo un rifiuto vero (4xx:
+   guida non tua, cancellata) lascia la guida aperta con l'Alert.
 8. **Riepilogo** (page sheet, niente swipe): numeri, percorso e segnalazioni **dal server**.
    Card pagellino gialla: «Compila» (vuoto) / «Completa» (N voci su M) / «Apri» (completo);
    nascosta se il pagellino è spento. «Chiudi» → `exitRoad()` → la home.
@@ -113,6 +120,24 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   invio…» e si ricarica da solo quando arrivano (`onSessionSynced`). Fuori da Road il timer
   dell'uploader resta acceso solo finché ci sono code da spedire. Code ferme da oltre 6 h si
   buttano. L'annullamento della guida libera (guida cancellata) usa `discardSession`.
+- **REG-714 — chiusura, note e pagellino in coda** (`src/road/queue.ts`, `src/road/offlineLesson.ts`):
+  - `closes[]` = `{ sessionId, endedAt, ownerId, at }`: l'uploader le manda **dopo** i punti
+    (`flushCloses`), così km e giro al server sono giusti. Il server accetta l'ora del tocco
+    (fra inizio e adesso) e una guida chiusa come abbandonata dal job nel frattempo torna
+    completata. `FORBIDDEN` = resta per il prossimo login; altri 400 = scartata.
+  - `lessonOps[]` = note (`{ notes }`) e pagellino (`{ evaluations }`) salvati senza rete, uno per
+    guida e per tipo (vince l'ultimo), mandati con `updateAppointmentDetails` dopo le chiusure
+    (`flushLessonOps`). Un 4xx li scarta, rete/5xx/401 li tiene.
+  - Il pagellino letto all'ingresso in Road resta in memoria (`cacheRoadEvaluation`): senza rete il
+    foglio (`manage-lesson-details`, variante road) e la card del riepilogo usano quello, con sopra
+    i voti in coda (`cachedRoadEvaluation`). Il riepilogo dice «Salvato sul telefono: parte appena
+    torna la rete» finché note o pagellino della guida sono in coda (`roadQueue.subscribe`).
+  - Le correzioni delle segnalazioni dal riepilogo (`correctRoadMarker`) senza rete vanno nella coda
+    delle segnalazioni e cambiano subito il riepilogo (`roadStore.patchSummary`).
+  - All'avvio, se `/road/state` dice la guida ancora attiva ma la sua chiusura è in coda
+    (`roadQueue.hasClose`), `RoadController` non la riapre: spedisce.
+  - Chiusure, note e pagellino si tengono 48 h (`OPS_STALE_MS`); il timer dell'uploader resta acceso
+    finché ci sono (`pendingOps`).
 - Segnalazioni: coda separata con `clientId` generato in app (idempotente); «Annulla» prima
   dell'invio toglie l'add dalla coda, dopo manda `DELETE …/markers/<clientId>`. Restano in
   coda anche dopo la fine (il server le accetta fino a 2 h dopo la chiusura). Un rifiuto 400

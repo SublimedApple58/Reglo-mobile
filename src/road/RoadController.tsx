@@ -11,7 +11,7 @@ import { roadStore, useRoadSelector } from './roadStore';
 import { isInviteDismissed, resumeRoad } from './roadActions';
 import { isRoadTrackingActive, stopRoadTracking } from './tracking';
 import { roadUploader } from './uploader';
-import { roadQueue } from './queue';
+import { loadQueue, roadQueue } from './queue';
 import { onRoadCheckRequest, ROAD_INVITE_ROUTE, ROAD_ROUTE, roadEntryStore, roadInviteOpen } from './entryFlow';
 import { roadMiniStore, useRoadMinimized } from './miniStore';
 
@@ -60,6 +60,14 @@ export function RoadController() {
       // REG-649: il giro della guida dell'invito pronto prima che il foglio si apra.
       if (!st.activeSession && st.planEnabled !== false) prefetchLessonPlan(st.eligibleLesson);
       if (st.activeSession) {
+        // REG-714: «Termina» già toccato senza rete: la chiusura è in coda e
+        // il server non lo sa ancora. Non si riapre la guida, si spedisce.
+        await loadQueue();
+        if (roadQueue.hasClose(st.activeSession.id)) {
+          roadStore.setEligible(null);
+          void roadUploader.flush(true);
+          return;
+        }
         await resumeRoad(st.activeSession);
         return;
       }

@@ -5,11 +5,13 @@ import { regloApi } from '../services/regloApi';
 import type { AutoscuolaAppointmentWithRelations, RoadLesson } from '../types/regloApi';
 import { dayLabel, formatRange } from './format';
 import { lessonStudentName } from './roadStore';
+import { isOfflineError, queueLessonPatch } from './offlineLesson';
 
 /**
  * REG-638 — apre il pagellino della guida sopra Road riusando il foglio della
  * home (`manage-lesson-details`, variante `road`): caricamento voci/punteggi e
  * logica di salvataggio restano quelli. Qui si salva SOLO il pagellino.
+ * REG-714: senza rete il pagellino si salva in coda e parte da solo.
  */
 export function openRoadPagellino(
   router: Router,
@@ -47,8 +49,13 @@ export function openRoadPagellino(
         opts.onSaved?.();
         return true;
       } catch (err) {
-        Alert.alert('Pagellino non salvato', err instanceof Error ? err.message : 'Riprova tra poco.');
-        return false;
+        if (!isOfflineError(err)) {
+          Alert.alert('Pagellino non salvato', err instanceof Error ? err.message : 'Riprova tra poco.');
+          return false;
+        }
+        await queueLessonPatch(lesson.appointmentId, 'evaluations', { evaluations });
+        opts.onSaved?.();
+        return true;
       }
     },
   });

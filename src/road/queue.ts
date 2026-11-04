@@ -1,5 +1,11 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import type { AddRoadHotspotCheckInput, AddRoadMarkerInput, RoadPoint, UpdateRoadMarkerInput } from '../types/regloApi';
+import type {
+  AddRoadHotspotCheckInput,
+  AddRoadMarkerInput,
+  RoadPoint,
+  UpdateAppointmentDetailsInput,
+  UpdateRoadMarkerInput,
+} from '../types/regloApi';
 
 /**
  * REG-638 Reglo Road — code persistenti su file (sopravvivono a kill/crash).
@@ -19,6 +25,9 @@ import type { AddRoadHotspotCheckInput, AddRoadMarkerInput, RoadPoint, UpdateRoa
  *   più niente: si spedisce solo quando è di nuovo dentro lo stesso utente.
  *   Si scarta solo ciò che il server non accetterà mai (guida cancellata o
  *   chiusa da oltre 2 h) o che resta fermo oltre `STALE_MS`.
+ * - REG-714: `closes` = «Termina» toccato senza rete (con l'ora del tocco):
+ *   si manda dopo i punti di quella guida. `lessonOps` = note e pagellino
+ *   salvati senza rete (uno per guida e per tipo: vince l'ultimo).
  *
  * Un solo runtime JS: lo stato vive in memoria e si scrive su file a ogni
  * modifica (scritture in fila, mai concorrenti).
@@ -42,26 +51,50 @@ type SessionQueue = {
   touchedAt: number;
 };
 
+/** REG-714: chiusura della guida in attesa di rete. */
+export type CloseOp = { sessionId: string; endedAt: string; ownerId?: string | null; at: number };
+
+/** REG-714: note o pagellino della guida in attesa di rete. */
+export type LessonOp = {
+  appointmentId: string;
+  kind: 'notes' | 'evaluations';
+  patch: UpdateAppointmentDetailsInput;
+  ownerId?: string | null;
+  at: number;
+};
+
 type QueueState = {
   current: string | null;
   sessions: SessionQueue[];
   markerOps: MarkerOp[];
+  closes: CloseOp[];
+  lessonOps: LessonOp[];
 };
 
 export type PointBatch = { sessionId: string; seq: number; points: RoadPoint[] };
 
 /** Il server accetta i punti fino a 2 h dalla chiusura: oltre non servono più. */
 const STALE_MS = 6 * 60 * 60 * 1000;
+/**
+ * REG-714: chiusure, note e pagellino si tengono di più: il server li accetta
+ * sempre (una guida abbandonata dal job torna completata con l'ora del tocco).
+ */
+const OPS_STALE_MS = 48 * 60 * 60 * 1000;
 
 const FILE = `${FileSystem.documentDirectory}reglo-road-queue.json`;
-const EMPTY: QueueState = { current: null, sessions: [], markerOps: [] };
+const emptyState = (): QueueState => ({ current: null, sessions: [], markerOps: [], closes: [], lessonOps: [] });
 
-let state: QueueState = { ...EMPTY, sessions: [], markerOps: [] };
+let state: QueueState = emptyState();
 let loaded: Promise<void> | null = null;
 let writeChain: Promise<void> = Promise.resolve();
 let owner: string | null = null;
+/** REG-714: chi mostra «in attesa di rete» (riepilogo) si ridisegna a ogni modifica. */
+const listeners = new Set<() => void>();
+let version = 0;
 
 function persist() {
+  version += 1;
+  listeners.forEach((fn) => fn());
   const snapshot = JSON.stringify(state);
   writeChain = writeChain
     .then(() => FileSystem.writeAsStringAsync(FILE, snapshot))
@@ -83,16 +116,22 @@ function prune(now = Date.now()) {
   state.sessions = state.sessions.filter(
     (q) => q.sessionId === state.current || (pendingOf(q) > 0 && now - q.touchedAt < STALE_MS),
   );
+  state.closes = state.closes.filter((c) => now - c.at < OPS_STALE_MS);
+  state.lessonOps = state.lessonOps.filter((o) => now - o.at < OPS_STALE_MS);
 }
 
 /** File del formato di prima (una sola sessione): si converte senza perdere niente. */
 function migrate(parsed: Record<string, unknown>): QueueState {
   const markerOps = Array.isArray(parsed.markerOps) ? (parsed.markerOps as MarkerOp[]) : [];
+  const closes = Array.isArray(parsed.closes) ? (parsed.closes as CloseOp[]) : [];
+  const lessonOps = Array.isArray(parsed.lessonOps) ? (parsed.lessonOps as LessonOp[]) : [];
   if (Array.isArray(parsed.sessions)) {
     return {
       current: typeof parsed.current === 'string' ? parsed.current : null,
       sessions: parsed.sessions as SessionQueue[],
       markerOps,
+      closes,
+      lessonOps,
     };
   }
   const sessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId : null;
@@ -108,7 +147,7 @@ function migrate(parsed: Record<string, unknown>): QueueState {
         },
       ]
     : [];
-  return { current: sessionId, sessions, markerOps };
+  return { current: sessionId, sessions, markerOps, closes, lessonOps };
 }
 
 export function loadQueue(): Promise<void> {
@@ -119,7 +158,7 @@ export function loadQueue(): Promise<void> {
         state = migrate(JSON.parse(raw) as Record<string, unknown>);
         prune();
       } catch {
-        state = { ...EMPTY, sessions: [], markerOps: [] };
+        state = emptyState();
       }
     })();
   }
@@ -146,6 +185,10 @@ export const roadQueue = {
   },
   get pendingMarkers() {
     return state.markerOps.filter((m) => mine(m.ownerId)).length;
+  },
+  /** REG-714: chiusure, note e pagellino che l'utente attuale deve spedire. */
+  get pendingOps() {
+    return state.closes.filter((c) => mine(c.ownerId)).length + state.lessonOps.filter((o) => mine(o.ownerId)).length;
   },
   /** Punti ancora da spedire di una guida precisa (anche già chiusa). */
   pendingFor(sessionId: string) {
@@ -271,11 +314,67 @@ export const roadQueue = {
     await persist();
   },
 
+  // ─── REG-714: chiusura, note e pagellino senza rete ─────────────────────
+
+  /** Cambia a ogni modifica della coda (per `useSyncExternalStore`). */
+  get version() {
+    return version;
+  },
+  subscribe(fn: () => void) {
+    listeners.add(fn);
+    return () => {
+      listeners.delete(fn);
+    };
+  },
+
+  async pushClose(sessionId: string, endedAt: string) {
+    await loadQueue();
+    state.closes = state.closes.filter((c) => c.sessionId !== sessionId);
+    state.closes.push({ sessionId, endedAt, ownerId: owner, at: Date.now() });
+    await persist();
+  },
+  /** «Termina» di questa guida è ancora in coda (la guida sul server è aperta). */
+  hasClose(sessionId: string) {
+    return state.closes.some((c) => c.sessionId === sessionId);
+  },
+  peekClose(skip: ReadonlySet<string> = new Set()): CloseOp | null {
+    return state.closes.find((c) => mine(c.ownerId) && !skip.has(c.sessionId)) ?? null;
+  },
+  async shiftClose(sessionId: string) {
+    const before = state.closes.length;
+    state.closes = state.closes.filter((c) => c.sessionId !== sessionId);
+    if (state.closes.length !== before) await persist();
+  },
+
+  /** Note o pagellino: sostituisce quello già in coda per la stessa guida. */
+  async pushLessonOp(appointmentId: string, kind: LessonOp['kind'], patch: UpdateAppointmentDetailsInput) {
+    await loadQueue();
+    state.lessonOps = state.lessonOps.filter((o) => !(o.appointmentId === appointmentId && o.kind === kind));
+    state.lessonOps.push({ appointmentId, kind, patch, ownerId: owner, at: Date.now() });
+    await persist();
+  },
+  /** Il valore in coda per questa guida (undefined = niente in coda). */
+  queuedLesson(appointmentId: string, kind: LessonOp['kind']): UpdateAppointmentDetailsInput | undefined {
+    return state.lessonOps.find((o) => o.appointmentId === appointmentId && o.kind === kind)?.patch;
+  },
+  /** Prima operazione che l'utente attuale può spedire (dopo le chiusure: vedi uploader). */
+  peekLessonOp(): LessonOp | null {
+    return state.lessonOps.find((o) => mine(o.ownerId)) ?? null;
+  },
+  async shiftLessonOp(op: LessonOp) {
+    const idx = state.lessonOps.indexOf(op);
+    if (idx >= 0) {
+      state.lessonOps.splice(idx, 1);
+      await persist();
+    }
+  },
+
   /** Guida cancellata (annullata nei primi secondi): punti e segnalazioni via. */
   async discardSession(sessionId: string) {
     await loadQueue();
     state.sessions = state.sessions.filter((q) => q.sessionId !== sessionId);
     state.markerOps = state.markerOps.filter((m) => m.sessionId !== sessionId);
+    state.closes = state.closes.filter((c) => c.sessionId !== sessionId);
     if (state.current === sessionId) state.current = null;
     await persist();
   },

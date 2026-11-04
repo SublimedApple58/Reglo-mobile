@@ -1119,9 +1119,11 @@ export const createRegloApi = (baseUrl?: string) => {
         `/api/autoscuole/road/sessions/${sessionId}/markers/${encodeURIComponent(markerIdOrClientId)}`,
         { method: 'DELETE' },
       ),
-    endRoadSession: async (sessionId: string) =>
+    /** REG-714: `endedAt` = l'ora del tocco su «Termina» (anche se parte dopo, dalla coda offline). */
+    endRoadSession: async (sessionId: string, endedAt?: string) =>
       client.request<RoadDetail>(`/api/autoscuole/road/sessions/${sessionId}/end`, {
         method: 'POST',
+        body: endedAt ? { endedAt } : undefined,
         timeoutMs: 25_000,
       }),
     /** Percorso di una guida (allievo: solo con il setting dell'autoscuola). */
