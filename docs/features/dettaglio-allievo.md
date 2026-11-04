@@ -27,3 +27,17 @@ Il foglio che si apre toccando un allievo (tab Allievi, agenda). Form sheet nati
 - Fluidità §15 del design system: niente transizioni di layout né `key` che rimontano lo storico; solo dissolvenze 180 ms; nessun fetch al tocco (i dati sono quelli del caricamento).
 - Nuove azioni sulle guide vanno in `LessonHistoryRow` e negli handler della scheda (`openDetails`, `recordOutcome`, `openRoad`), passati anche dal seed: così valgono in scheda e in «Vedi tutte».
 - Data di nascita e altri dati anagrafici non arrivano da `/api/autoscuole/students`: per mostrarli serve prima il backend.
+
+## Luoghi dell'allievo (REG-705, 2026-11-03)
+Con «Disponibilità per luogo» accesa sull'autoscuola (`settings.availabilityByLocation`
+e almeno 2 luoghi) la riga «Luogo di default» del foglio Impostazioni allievo
+diventa **«Luoghi»** (nomi separati da virgola, «Tutti i luoghi» se vuoto) e apre
+il form sheet `student-locations` (`src/components/StudentLocationsSheet.tsx`,
+seed `src/stores/studentLocationsStore.ts`, route in `home/` e `notes/`, `FORM_SHEET`).
+- Scelta multipla con cerchio clay a destra; sotto il nome «Principale» o «Rendi
+  principale» (solo sui luoghi scelti), altrimenti l'indirizzo.
+- «Salva» solo con modifiche (`dirty` chiede conferma alla chiusura, `busy` blocca
+  il gesto): `setStudentLocations` poi, se serve, `setStudentDefaultLocation`.
+  La scheda si aggiorna sulla risposta del backend (niente optimistic update).
+- API: `regloApi.setStudentLocations` → `PUT /api/autoscuole/students/[id]/locations`;
+  `StudentProfile.locationIds`. Spenta la funzione, resta il picker del luogo di default.

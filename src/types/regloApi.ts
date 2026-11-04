@@ -215,6 +215,9 @@ export type AutoscuolaStudent = {
   // campo Luogo nel form di prenotazione alla selezione dell'allievo.
   defaultLocationId?: Uuid | null;
   defaultLocationName?: string | null;
+  // REG-705: luoghi dove fa guida (vuoto = tutti). Il principale è
+  // `defaultLocationId` ed è sempre tra questi quando ce ne sono.
+  locationIds?: Uuid[];
   createdAt: IsoDate;
   updatedAt: IsoDate;
 };
@@ -590,6 +593,9 @@ export type AutoscuolaWaitlistOffer = {
 
 export type AutoscuolaWaitlistOfferWithSlot = AutoscuolaWaitlistOffer & {
   slot: AutoscuolaAvailabilitySlot;
+  /** REG-705e: luogo della fascia, solo con «Disponibilità per luogo» accesa. */
+  locationId?: Uuid | null;
+  locationName?: string | null;
 };
 
 export type AutoscuolaWaitlistResponse = {
@@ -617,6 +623,9 @@ export type AutoscuolaSwapOfferWithDetails = {
     type: string;
     instructorName: string | null;
     vehicleName: string | null;
+    /** REG-705e: luogo della guida ceduta (backend nuovo; assente sui vecchi). */
+    locationId?: Uuid | null;
+    locationName?: string | null;
   };
 };
 
@@ -820,6 +829,8 @@ export type UpdateVehicleInput = {
 export type TimeRange = {
   startMinutes: number;
   endMinutes: number;
+  /** REG-705c: luogo della fascia; assente = tutti i luoghi. */
+  locationId?: string | null;
 };
 
 export type DailyAvailabilityOverride = {
@@ -887,6 +898,8 @@ export type CreateBookingRequestInput = {
   excludeStartsAt?: IsoDate;
   requestId?: Uuid;
   instructorId?: Uuid;
+  /** REG-705e: luogo dello slot scelto (dall'`AvailableSlot`); assente = come prima. */
+  locationId?: Uuid | null;
 };
 
 export type RespondWaitlistOfferInput = {
@@ -1035,6 +1048,10 @@ export type AutoscuolaSettings = {
   // category additionally reserves a follow car.
   followCarRules?: Partial<Record<'AM' | 'A1' | 'A2' | 'A', { enabled: boolean }>>;
   groupLessonsEnabled?: boolean;
+  // REG-705: «Disponibilità per luogo» (valore salvato: vale solo con ≥ 2 luoghi).
+  availabilityByLocation?: boolean;
+  locationChangeBufferEnabled?: boolean;
+  locationChangeBufferMinutes?: number;
   quizEnabled?: boolean;
   // ── Aspetto: colore dei blocchi guida in agenda (setting company). ──
   // Replica lato mobile del pannello web "Aspetto". Vedi
@@ -1099,7 +1116,14 @@ export type MobileBookingOptions = {
   bookingBlocked?: boolean;
 };
 
-export type AvailableSlot = { startsAt: IsoDate; endsAt: IsoDate };
+export type AvailableSlot = {
+  startsAt: IsoDate;
+  endsAt: IsoDate;
+  /** REG-705d/e: presenti solo con «Disponibilità per luogo» accesa. `null` =
+   *  fascia senza luogo. Due slot alla stessa ora possono differire per luogo. */
+  locationId?: Uuid | null;
+  locationName?: string | null;
+};
 
 export type InstructorBookingMode = 'manual_full' | 'manual_engine';
 

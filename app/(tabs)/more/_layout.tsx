@@ -25,6 +25,9 @@ export default function MoreLayout() {
       <Stack.Screen name="vehicle-form" options={FORM_SHEET} />
       <Stack.Screen name="evaluation-item" options={FORM_SHEET} />
       <Stack.Screen name="time-picker" options={FORM_SHEET} />
+      {/* REG-705c: «Luogo della fascia» da «Disponibilità di X» (INSTRUCTOR_OWNER). */}
+      <Stack.Screen name="select-options" options={FORM_SHEET} />
+      <Stack.Screen name="select-options-long" options={FORM_SHEET} />
       <Stack.Screen name="color-picker" options={FORM_SHEET} />
       <Stack.Screen name="hours-period" options={FORM_SHEET} />
     </Stack>

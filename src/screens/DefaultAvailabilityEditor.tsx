@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useStackBase } from '../hooks/useStackBase';
+import { useRangeLocations } from '../hooks/useRangeLocations';
 import { useQueryClient } from '@tanstack/react-query';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface } from '../components/clay';
@@ -30,10 +31,7 @@ const DEFAULT_RANGE: TimeRange = { startMinutes: 540, endMinutes: 1080 };
 type Schedule = Record<number, TimeRange[]>;
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const fmtMin = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 /** Fasce come testo: «08:00–13:00 · 14:00–19:00». */
-const rangesText = (ranges: TimeRange[]) =>
-  ranges.map((r) => `${fmtMin(r.startMinutes)}–${fmtMin(r.endMinutes)}`).join(' · ');
 const todayStr = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -66,6 +64,8 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
   const router = useRouter();
   // I fogli si aprono nello stack corrente (`home/` o `role/`).
   const stackBase = useStackBase();
+  // REG-705c: nomi dei luoghi accanto alle fasce (solo con la funzione accesa).
+  const rangeLocations = useRangeLocations();
   const queryClient = useQueryClient();
   const { activeCompanyId } = useSession();
 
@@ -236,7 +236,11 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
       {/* ── Orari settimanali ─────────────────────────── */}
       <ClaySection
         style={st.firstSection}
-        footnote="Valgono ogni settimana. Tocca un giorno per cambiarne gli orari."
+        footnote={
+          rangeLocations.enabled
+            ? 'Valgono ogni settimana. Senza luogo, la fascia vale per tutti gli allievi.'
+            : 'Valgono ogni settimana. Tocca un giorno per cambiarne gli orari.'
+        }
       >
         {loading ? (
           <ClayList>
@@ -253,7 +257,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
                   <ClayListRow
                     key={day}
                     title={DAY_FULL[day]}
-                    subtitle={ranges.length ? rangesText(ranges) : 'Giorno libero'}
+                    subtitle={ranges.length ? rangeLocations.rangesText(ranges) : 'Giorno libero'}
                     onPress={() => openDaySheet(day)}
                     testID={`availability-day-${day}`}
                   />
@@ -298,7 +302,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
                   <ClayListRow
                     key={o.id}
                     title={formatExceptionDate(o.date)}
-                    subtitle={absent ? 'Assente' : rangesText(o.ranges)}
+                    subtitle={absent ? 'Assente' : rangeLocations.rangesText(o.ranges)}
                     onPress={() => openExceptionSheet(o)}
                   />
                 );

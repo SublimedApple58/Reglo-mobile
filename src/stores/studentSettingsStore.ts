@@ -9,7 +9,8 @@ export type StudentSettingsData = {
   studentName?: string | null;
   group?: { value: boolean; saving: boolean; onChange: (next: boolean) => void } | null;
   examReady?: { value: boolean; saving: boolean; onChange: (next: boolean) => void } | null;
-  location?: { label: string; onPress: () => void } | null;
+  /** `title` default «Luogo di default»; «Luoghi» con la disponibilità per luogo (REG-705). */
+  location?: { title?: string; label: string; onPress: () => void } | null;
   /** Slot libero per righe future senza toccare il foglio. */
   extra?: ReactNode;
 };

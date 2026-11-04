@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
@@ -33,6 +33,7 @@ import {
 import { NotificationItem, ConfirmationData, AvailableSlotsData, PersistedNotification } from '../types/notifications';
 import { colors, spacing, typography } from '../theme';
 import { formatDay, formatTime } from '../utils/date';
+import { isSameSlot, slotKey, slotLocationParam, slotLocationMode } from '../utils/slotLocation';
 
 const lessonTypeLabelMap: Record<string, string> = {
   manovre: 'Manovre',
@@ -114,6 +115,8 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
   const [availableSlotsDurations, setAvailableSlotsDurations] = useState<number[]>([60]);
   const [availableSlotsDuration, setAvailableSlotsDuration] = useState(60);
   const [availableSlotsLoading, setAvailableSlotsLoading] = useState(false);
+  // REG-705e: un luogo solo → sotto il titolo; più luoghi → su ogni slot.
+  const availableSlotsLocationMode = useMemo(() => slotLocationMode(availableSlotsList), [availableSlotsList]);
 
   // ── UI ──
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
@@ -438,6 +441,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
         preferredDate: availableSlotsDate,
         durationMinutes: availableSlotsDuration,
         selectedStartsAt: availableSlotsSelected.startsAt,
+        ...slotLocationParam(availableSlotsSelected),
       });
       if (response.matched) {
         setToast({ text: 'Guida prenotata', tone: 'success' });
@@ -1143,11 +1147,12 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
 
 
       {/* ── Waitlist Offer ── */}
+      {/* REG-705e: righe discrete (quando, durata, luogo) come il resto dell'app;
+          «No, grazie» chiude il foglio e lascia l'offerta nella posta. */}
       <BottomSheet
         visible={isStudent && waitlistOpen && !!waitlistOffer}
         onClose={waitlistLoading ? () => {} : () => { setWaitlistOpen(false); setWaitlistOffer(null); }}
         closeDisabled={waitlistLoading}
-        showHandle
         footer={
           busySlotLabel ? (
             <View style={styles.busyFooter}>
@@ -1156,38 +1161,59 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
               </View>
             </View>
           ) : (
-            <Pressable
-              onPress={waitlistLoading ? undefined : handleAcceptWaitlist}
-              disabled={waitlistLoading}
-              style={[styles.waitlistCta, waitlistLoading && { opacity: 0.5 }]}
-            >
-              <Text style={styles.waitlistCtaText}>
-                {waitlistLoading ? 'Attendi...' : `${'\u{1F389}'} Prenota questa guida!`}
-              </Text>
-            </Pressable>
+            <View style={styles.waitlistActions}>
+              <Pressable
+                onPress={waitlistLoading ? undefined : () => { setWaitlistOpen(false); setWaitlistOffer(null); }}
+                disabled={waitlistLoading}
+                style={({ pressed }) => [styles.waitlistGhost, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.waitlistGhostText}>No, grazie</Text>
+              </Pressable>
+              <Pressable
+                onPress={waitlistLoading ? undefined : handleAcceptWaitlist}
+                disabled={waitlistLoading}
+                style={[styles.waitlistCta, waitlistLoading && { opacity: 0.6 }]}
+              >
+                <GradientCTABackground radius={26} />
+                {waitlistLoading
+                  ? <ActivityIndicator color="#FFFFFF" />
+                  : <Text style={styles.waitlistCtaText}>Prenota</Text>}
+              </Pressable>
+            </View>
           )
         }
       >
         {waitlistOffer ? (
-          <View style={{ gap: 16 }}>
+          <View style={{ gap: 18 }}>
             <View style={styles.waitlistHero}>
-              <Text style={styles.waitlistHeroEmoji}>{'\u{1F552}'}</Text>
               <Text style={styles.waitlistHeroTitle}>Slot liberato!</Text>
               <Text style={styles.waitlistHeroSub}>
-                Qualcuno ha disdetto e c{'\u2019'}è un posto per te
+                Si {'\u00E8'} liberato un posto che fa per te.
               </Text>
             </View>
             <View style={styles.waitlistCard}>
               <View style={styles.waitlistCardRow}>
-                <Text style={styles.waitlistCardIcon}>{'\u{1F4C5}'}</Text>
+                <Ionicons name="calendar-outline" size={19} color="#111111" />
                 <Text style={styles.waitlistCardText}>
-                  {formatDay(waitlistOffer.slot.startsAt)} {'\u2022'} {formatTime(waitlistOffer.slot.startsAt)}
+                  {formatDay(waitlistOffer.slot.startsAt)} {'\u00B7'} {formatTime(waitlistOffer.slot.startsAt)}
                 </Text>
               </View>
+              <View style={styles.waitlistCardDivider} />
               <View style={styles.waitlistCardRow}>
-                <Text style={styles.waitlistCardIcon}>{'\u23F1'}</Text>
-                <Text style={styles.waitlistCardText}>Durata: 30 min</Text>
+                <Ionicons name="time-outline" size={19} color="#111111" />
+                <Text style={styles.waitlistCardText}>
+                  {Math.max(0, Math.round((new Date(waitlistOffer.slot.endsAt).getTime() - new Date(waitlistOffer.slot.startsAt).getTime()) / 60000))} min
+                </Text>
               </View>
+              {waitlistOffer.locationName ? (
+                <>
+                  <View style={styles.waitlistCardDivider} />
+                  <View style={styles.waitlistCardRow}>
+                    <Ionicons name="location-outline" size={19} color="#111111" />
+                    <Text style={styles.waitlistCardText} numberOfLines={1}>{waitlistOffer.locationName}</Text>
+                  </View>
+                </>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -1216,14 +1242,29 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
           >
             <GradientCTABackground radius={20} />
             <Text style={styles.chunkyPinkCtaText}>
-              {availableSlotsBooking ? 'Attendi...' : 'Prenota'}
+              {availableSlotsBooking
+                ? 'Attendi...'
+                : availableSlotsLocationMode.mode === 'multi' && availableSlotsSelected?.locationName
+                  ? `Prenota a ${availableSlotsSelected.locationName}`
+                  : 'Prenota'}
             </Text>
           </Pressable>
         }
       >
-        <Text style={styles.availableSlotsSubtitle}>
-          {availableSlotsDate ? formatDay(`${availableSlotsDate}T00:00:00Z`) : ''} {'\u2022'} {availableSlotsDuration} min
-        </Text>
+        <View style={styles.availableSlotsSubtitleRow}>
+          <Text style={styles.availableSlotsSubtitle} numberOfLines={1}>
+            {availableSlotsDate ? formatDay(`${availableSlotsDate}T00:00:00Z`) : ''} {'\u2022'} {availableSlotsDuration} min
+            {availableSlotsLocationMode.mode === 'single' ? ` ${'\u2022'} ` : ''}
+          </Text>
+          {availableSlotsLocationMode.mode === 'single' ? (
+            <>
+              <Ionicons name="location-outline" size={14} color="#6A6A6A" />
+              <Text style={[styles.availableSlotsSubtitle, { flexShrink: 1 }]} numberOfLines={1}>
+                {availableSlotsLocationMode.name}
+              </Text>
+            </>
+          ) : null}
+        </View>
 
         {availableSlotsDurations.length > 1 ? (
           <View style={styles.availableSlotsDurationRow}>
@@ -1255,10 +1296,10 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
           >
             <View style={styles.availableSlotsTimeline}>
               {availableSlotsList.map((slot, index) => {
-                const isActive = availableSlotsSelected?.startsAt === slot.startsAt;
+                const isActive = isSameSlot(availableSlotsSelected, slot);
                 const isLast = index === availableSlotsList.length - 1;
                 return (
-                  <View key={slot.startsAt} style={styles.availableSlotsTimelineRow}>
+                  <View key={slotKey(slot)} style={styles.availableSlotsTimelineRow}>
                     <View style={styles.availableSlotsTimelineLeft}>
                       <Text style={styles.availableSlotsTimelineHour}>{formatTime(slot.startsAt)}</Text>
                       {!isLast ? <View style={styles.availableSlotsTimelineLine} /> : null}
@@ -1267,9 +1308,19 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
                       style={[styles.availableSlotsTimelineCard, isActive && styles.availableSlotsTimelineCardActive]}
                       onPress={() => setAvailableSlotsSelected(slot)}
                     >
-                      <Text style={isActive ? styles.availableSlotsTimelineCardTextActive : styles.availableSlotsTimelineCardText}>
-                        {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
-                      </Text>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={isActive ? styles.availableSlotsTimelineCardTextActive : styles.availableSlotsTimelineCardText}>
+                          {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
+                        </Text>
+                        {availableSlotsLocationMode.mode === 'multi' && slot.locationName ? (
+                          <View style={styles.availableSlotsTimelineMeta}>
+                            <Ionicons name="location-outline" size={13} color="#6A6A6A" />
+                            <Text style={styles.availableSlotsTimelineMetaText} numberOfLines={1}>
+                              {slot.locationName}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
                       {isActive ? (
                         <View style={styles.availableSlotsTimelineCheck}>
                           <Text style={styles.availableSlotsTimelineCheckText}>{'\u2713'}</Text>
@@ -1447,17 +1498,12 @@ const styles = StyleSheet.create({
   waitlistHero: {
     alignItems: 'center',
     gap: 6,
-    paddingBottom: 4,
-  },
-  waitlistHeroEmoji: {
-    fontSize: 44,
-    marginBottom: 2,
   },
   waitlistHeroTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#222222',
-    letterSpacing: -0.4,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#111111',
+    letterSpacing: -0.5,
   },
   waitlistHeroSub: {
     fontSize: 15,
@@ -1466,44 +1512,64 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   waitlistCard: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    padding: 16,
-    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(17,17,17,0.10)',
+    shadowColor: '#111111',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
   waitlistCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 14,
+    paddingVertical: 15,
   },
-  waitlistCardIcon: {
-    fontSize: 16,
-    width: 24,
-    textAlign: 'center',
+  waitlistCardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(17,17,17,0.10)',
+    marginLeft: 33,
   },
   waitlistCardText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '500',
-    color: '#222222',
+    color: '#111111',
     flex: 1,
   },
-  waitlistCta: {
-    backgroundColor: '#22C55E',
-    height: 54,
-    borderRadius: 20,
+  waitlistActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  waitlistGhost: {
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#22C55E',
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(17,17,17,0.10)',
+  },
+  waitlistGhostText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111111',
+  },
+  waitlistCta: {
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...primaryCtaShadow,
   },
   waitlistCtaText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 
@@ -1687,11 +1753,28 @@ const styles = StyleSheet.create({
   },
 
   // ── Available Slots ──
+  availableSlotsSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 12,
+  },
   availableSlotsSubtitle: {
     fontSize: 14,
     fontWeight: '500',
     color: '#6A6A6A',
-    marginBottom: 12,
+  },
+  availableSlotsTimelineMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  availableSlotsTimelineMetaText: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6A6A6A',
   },
   availableSlotsDurationRow: {
     flexDirection: 'row',
@@ -1775,13 +1858,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#595959',
-    flex: 1,
   },
   availableSlotsTimelineCardTextActive: {
     fontSize: 15,
     fontWeight: '700',
     color: '#111111',
-    flex: 1,
   },
   availableSlotsTimelineCheck: {
     width: 24,

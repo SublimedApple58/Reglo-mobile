@@ -85,6 +85,19 @@ export default function SwapDetailScreen() {
             <Text style={s.rowText}>{lessonTypeLabel(appointment.type)}</Text>
           </View>
 
+          {/* REG-705e: luogo della guida, solo con «Disponibilità per luogo» accesa. */}
+          {appointment.locationName ? (
+            <>
+              <View style={s.divider} />
+              <View style={s.row}>
+                <View style={[s.chip, { backgroundColor: '#F1F1F1' }]}>
+                  <Ionicons name="location" size={18} color="#111111" />
+                </View>
+                <Text style={s.rowText} numberOfLines={1}>{appointment.locationName}</Text>
+              </View>
+            </>
+          ) : null}
+
           {appointment.instructorName ? (
             <>
               <View style={s.divider} />

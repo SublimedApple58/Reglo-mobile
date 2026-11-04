@@ -84,3 +84,25 @@ The default mode persists **different hours per weekday** via the backend `Autos
 ## Connected features
 - **Booking Flow** — published/override availability determines bookable slots
 - **Settings** — `availabilityMode` toggle lives in `more/availability-mode`
+
+## Luogo della fascia (REG-705c, 2026-11-03)
+Con «Disponibilità per luogo» accesa (`settings.availabilityByLocation` + almeno 2
+luoghi) ogni fascia ha un luogo (`TimeRange.locationId`, assente = tutti i luoghi).
+- `src/hooks/useRangeLocations.ts`: `enabled`, `nameFor`, `rangesText` (riepiloghi
+  «08:00–13:00 Sede · 14:30–18:30 …») e `pickLocation` (apre `select-options`,
+  scelta singola «Luogo della fascia» con «Tutti i luoghi» in cima, nello stack
+  corrente via `useStackBase`).
+- `RangesEditor`: props opzionali `locationLabel` + `onPickLocation` → sotto
+  «Fascia N» il luogo premibile (troncato). Usati da `role/publish-day`
+  (settimana tipo e pubblicazione) e `role/availability-exception`.
+- `DefaultAvailabilityEditor`: righe dei giorni ed eccezioni con i nomi dei luoghi;
+  nota sotto la lista «Senza luogo, la fascia vale per tutti gli allievi».
+- `role/instructor-availability` («Disponibilità di X» del titolare, anche in
+  `more/`): stesso luogo sotto ogni fascia in Predefinito e nel giorno del
+  Calendario. Il Predefinito si ricava dagli slot, che non portano il luogo: se la
+  settimana tipo ha fasce con luogo si usano quelle (`getDefaultAvailability`),
+  così salvare da qui non cancella i luoghi.
+- `select-options` / `select-options-long` registrati anche negli stack `role/` e
+  `more/` (prima solo `home/` e `notes/`): senza, «Luogo della fascia» non si
+  apriva dalla tab Istruttore.
+Spenta la funzione gli editor sono identici a prima.

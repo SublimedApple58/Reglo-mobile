@@ -6,7 +6,7 @@ import { ClayButton, ClayList } from './clay';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../utils/motion';
 
-export type TimeRange = { startMinutes: number; endMinutes: number };
+export type TimeRange = { startMinutes: number; endMinutes: number; locationId?: string | null };
 
 export type RangesEditorProps = {
   ranges: TimeRange[];
@@ -14,6 +14,12 @@ export type RangesEditorProps = {
   onPickTime: (index: number, field: 'start' | 'end') => void;
   onAddRange: () => void;
   disabled?: boolean;
+  /**
+   * REG-705c: con la disponibilità per luogo, sotto «Fascia N» c'è il luogo
+   * (nome, o «Tutti i luoghi») che apre la scelta. Assente = editor di prima.
+   */
+  locationLabel?: (range: TimeRange) => string | null;
+  onPickLocation?: (index: number) => void;
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -26,7 +32,7 @@ const fmtMin = (m: number) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
  * Usato da Disponibilità istruttore (fogli publish-day, availability-exception)
  * e da OwnerInstructorScreen / InstructorManageScreen.
  */
-export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange, disabled = false }: RangesEditorProps) {
+export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange, disabled = false, locationLabel, onPickLocation }: RangesEditorProps) {
   const canRemove = ranges.length > 1;
 
   return (
@@ -40,6 +46,7 @@ export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange,
             disabled={disabled}
             onPickTime={onPickTime}
             onRemove={canRemove ? () => onChange(ranges.filter((_, i) => i !== index)) : undefined}
+            location={onPickLocation ? { label: locationLabel?.(range) ?? null, onPress: () => onPickLocation(index) } : undefined}
           />
         ))}
       </ClayList>
@@ -57,6 +64,7 @@ function RangeRow({
   onPickTime,
   onRemove,
   divider,
+  location,
 }: {
   index: number;
   range: TimeRange;
@@ -64,11 +72,32 @@ function RangeRow({
   onPickTime: (index: number, field: 'start' | 'end') => void;
   onRemove?: () => void;
   divider?: boolean;
+  location?: { label: string | null; onPress: () => void };
 }) {
   return (
     <Animated.View entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={styles.row}>
       {divider ? <View style={styles.divider} /> : null}
-      <Text style={styles.label}>Fascia {index + 1}</Text>
+      {location ? (
+        <View style={styles.labelCol}>
+          <Text style={styles.labelTight}>Fascia {index + 1}</Text>
+          <Pressable
+            onPress={location.onPress}
+            disabled={disabled}
+            hitSlop={8}
+            style={({ pressed }) => [styles.locRow, pressed && styles.timePressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`Luogo della fascia ${index + 1}, ${location.label ?? 'Tutti i luoghi'}`}
+            testID={`range-location-${index}`}
+          >
+            <Text style={[styles.loc, !location.label && styles.locAll]} numberOfLines={1}>
+              {location.label ?? 'Tutti i luoghi'}
+            </Text>
+            <Ionicons name="chevron-forward" size={12} color={CLAY.chevron} />
+          </Pressable>
+        </View>
+      ) : (
+        <Text style={styles.label}>Fascia {index + 1}</Text>
+      )}
       <TimeValue
         value={fmtMin(range.startMinutes)}
         label={`Inizio fascia ${index + 1}`}
@@ -118,6 +147,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 18 },
   divider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)' },
   label: { flex: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
+  labelCol: { flex: 1, minWidth: 0 },
+  labelTight: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3, alignSelf: 'flex-start', maxWidth: '100%' },
+  loc: { flexShrink: 1, fontSize: 14, color: CLAY.ink3 },
+  locAll: { color: CLAY.ink4 },
   time: { height: 40, minWidth: 74, borderRadius: 20, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: CLAY.surface },
   timePressed: { opacity: 0.6 },
   timeText: { fontSize: 16.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
