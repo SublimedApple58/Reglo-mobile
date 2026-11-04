@@ -382,14 +382,18 @@ Piano: `../reglo/plans/road/003-punti-critici-e-giro.md`. API: `GET /road/plan` 
 - **`app/road/index.tsx`**: card nera sotto la testata (stessa forma del toast «… segnato»): cerchio bianco con il numero della tappa (✓ quando raggiunta), «250 m · Via Roma» / «Tappa raggiunta · Via Roma», motivo sotto. Vibrazione: colpo `Heavy` all'avviso, `Success` alla tappa raggiunta. I toast della segnalazione e di Road libero scendono sotto la card se ci sono tutte e due. Il timer di chiusura sta nello schermo, così si chiude anche da fermi (senza fix). `RoadToastFrame` ora con `ReduceMotion.Never` (prima seguiva «Riduci movimento»).
 - **Riepilogo** (`app/road/riepilogo.tsx`): riga «Giro: N tappe su M» sotto i conteggi, da `summary.planReached` (il server la calcola a «Termina guida»: tracciato entro 40 m, percorso d'esame coperto al 60%); niente riga se la guida non aveva un giro.
 - Niente voce, niente indicazioni svolta per svolta. La mappa con linea, tappe e punti dell'allievo è REG-652.
-- **Segnaposti che spariscono (trovato in REG-715, era il problema aperto di REG-714)**: su iOS
-  (react-native-maps 1.20, New Architecture) un prop della `MapView` che cambia dopo il montaggio
-  può far sparire segnaposti già disegnati. Nel ripasso erano i `legalLabelInsets` legati
-  all'altezza della card (riprodotto: Velocità e Parcheggio sparivano alle schede 3 e 5; tolti,
-  ricomparsi). Regole in `RoadRouteMap`: `initialRegion` congelata al montaggio, `mapPadding`
-  memo con numeri fissi (copertura della card = costante `CARD_COVER`), niente margini che
-  inseguono il layout. `fitToCoordinates` rispetta `mapPadding`, `animateToRegion` no (spostamento
-  a mano in `focus`).
+- **Segnaposti che spariscono e chiusure dell'app (trovato in REG-715; era il problema aperto di
+  REG-714)**: su iOS (react-native-maps 1.20 attraverso l'interop della New Architecture) quando un
+  figlio della `MapView` cambia dopo il montaggio, `AIRMap insertReactSubview:atIndex:` reinserisce
+  i figli e va fuori indice: segnaposti spariti o crash (`NSRangeException`, crash report
+  `Reglo-2026-11-04-143157.ips`). Riprodotto nel ripasso (segnaposto grande ↔ piccolo a ogni scheda).
+  Regola in `RoadRouteMap`: **dentro la MapView niente cambia dopo il montaggio**. I dati nuovi
+  (correzione, punti tardivi, provvisorio → server) rimontano la MapView (`key` = firma dei dati,
+  figli derivati solo dalla firma, callback dei segnaposti stabili per chiave). La segnalazione
+  scelta è il segnaposto grande disegnato SOPRA la mappa (`RoadPinBody`), nel punto di
+  `pointForCoordinate` a camera ferma (`onRegionChangeComplete`), in dissolvenza; mentre la mappa
+  si muove non si vede. `mapPadding` fisso (copertura della card = costante `CARD_COVER`).
+  `fitToCoordinates` rispetta `mapPadding`, `animateToRegion` no (spostamento a mano in `focus`).
 - Verificato sul simulatore contro staging (Aurora Costa, posizione simulata a Torino con `xcrun simctl location booted start --speed=9 …`): avviso a 250 m, «Tappa raggiunta», riepilogo «Giro: 2 tappe su 2».
 
 ## Mappa del giro in Road (REG-652, 29/10)
