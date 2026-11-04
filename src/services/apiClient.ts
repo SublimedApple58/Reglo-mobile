@@ -141,6 +141,22 @@ export const authStorage = {
   },
 };
 
+/**
+ * REG-722: URL e intestazioni (login, autoscuola, bypass di Vercel) per
+ * scaricare un file direttamente su disco (`FileSystem.downloadAsync`), senza
+ * passare dal JSON.
+ */
+export const apiDownloadInfo = async (path: string, baseUrl = DEFAULT_BASE_URL) => {
+  const token = await authStorage.getToken();
+  const companyId = await authStorage.getActiveCompanyId();
+  const headers: Record<string, string> = {
+    ...(VERCEL_BYPASS ? { 'x-vercel-protection-bypass': VERCEL_BYPASS } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(companyId ? { 'x-reglo-company-id': companyId } : {}),
+  };
+  return { url: buildUrl(baseUrl, path), headers };
+};
+
 export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
   const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
     const url = withQuery(buildUrl(baseUrl, path), options.params);

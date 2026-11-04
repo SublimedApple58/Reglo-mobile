@@ -21,6 +21,8 @@ import {
 import { INITIAL_REROUTE, remainingStops, stepReroute, type RerouteState } from './reroute';
 import { advanceOnLine, type RoadGuide } from './roadGuide';
 import { EMPTY_HOTSPOT_WATCH, stepHotspotWatch, type HotspotWatch } from './navGuide';
+import { createLiveMatcher, ensureRoadsNear, type MatchPoint } from './osmStore';
+import type { RoadMatcher } from './osmMatch';
 
 /**
  * REG-638 Reglo Road — stato della modalità Road (un solo store di modulo,
@@ -93,6 +95,14 @@ type State = {
   session: RoadSessionWithLesson | null;
   catalog: RoadCatalog;
   track: Array<{ latitude: number; longitude: number }>;
+  /**
+   * REG-722: la linea disegnata in guida, agganciata alle strade OSM (calamita).
+   * `snapTrack` = confermata (cresce solo in coda), `snapTail` = gli ultimi ~4 s,
+   * provvisori, dall'ultimo punto confermato all'auto. Dove non ci sono strade
+   * (zona senza celle) i punti sono quelli del GPS. `track` resta il GPS grezzo.
+   */
+  snapTrack: Array<{ latitude: number; longitude: number }>;
+  snapTail: Array<{ latitude: number; longitude: number }>;
   distanceMeters: number;
   /** Salti impossibili di fila rispetto all'ultimo fix (REG-693). */
   spikes: number;
@@ -149,6 +159,8 @@ const INITIAL: State = {
   session: null,
   catalog: { base: FALLBACK_BASE_CATALOG, custom: [] },
   track: [],
+  snapTrack: [],
+  snapTail: [],
   distanceMeters: 0,
   spikes: 0,
   fix: null,
@@ -174,6 +186,22 @@ const INITIAL: State = {
 };
 
 let state: State = INITIAL;
+
+// REG-722: la calamita della guida in corso (una per sessione) e l'ultimo punto
+// attorno a cui si sono chieste le celle.
+let liveMatcher: { sessionId: string; m: RoadMatcher } | null = null;
+let cellsAskedAt: { lat: number; lng: number } | null = null;
+const CELLS_EVERY_M = 1000;
+const toPt = (p: MatchPoint) => ({ latitude: p[0], longitude: p[1] });
+
+function matcherFor(sessionId: string, lat: number, lng: number): RoadMatcher {
+  if (liveMatcher?.sessionId !== sessionId) liveMatcher = { sessionId, m: createLiveMatcher(lat, lng) };
+  if (!cellsAskedAt || haversineMeters(cellsAskedAt.lat, cellsAskedAt.lng, lat, lng) > CELLS_EVERY_M) {
+    cellsAskedAt = { lat, lng };
+    ensureRoadsNear(lat, lng);
+  }
+  return liveMatcher.m;
+}
 const listeners = new Set<() => void>();
 
 function set(patch: Partial<State>) {
@@ -268,6 +296,8 @@ export const roadStore = {
         ? {}
         : {
             track: [],
+            snapTrack: [],
+            snapTail: [],
             spikes: 0,
             distanceMeters: session.distanceMeters ?? 0,
             fix: session.last
@@ -331,6 +361,8 @@ export const roadStore = {
         alerted: [...new Set([...state.planProgress.alerted, ...fromTrack.alerted])],
       },
       track: [...serverTrack, ...state.track],
+      // la parte già sul server (pulita) davanti a quella agganciata qui
+      snapTrack: [...serverTrack, ...state.snapTrack],
       distanceMeters: Math.max(state.distanceMeters, detail.distanceMeters ?? 0),
       markers: [...serverMarkers, ...state.markers].sort(
         (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
@@ -345,6 +377,14 @@ export const roadStore = {
     const hotspots = state.guide?.hotspots ?? [];
     let request: RerouteRequest | null = null;
     const track = state.track.slice();
+    let snapTrack = state.snapTrack;
+    let snapTail = state.snapTail;
+    const sessionId = state.session?.id ?? '';
+    const snap = (p: RoadPoint, heading: number | null) => {
+      const u = matcherFor(sessionId, p[1], p[2]).push({ t: p[0], lat: p[1], lng: p[2], speed: p[3], heading });
+      if (u.committed.length) snapTrack = [...snapTrack, ...u.committed.map(toPt)];
+      snapTail = u.provisional.map(toPt);
+    };
     // Le tappe nell'ordine della linea (REG-652), così il numero dell'avviso è quello sulla mappa.
     // Le tappe raggiunte si contano anche con gli avvisi spenti (servono al riaggancio, REG-654).
     const stops = state.guide?.stops ?? state.session?.plan?.stops ?? [];
@@ -368,6 +408,7 @@ export const roadStore = {
           spikes = 0;
           fix = { lat, lng, speed, heading: heading ?? null, accuracy, t };
           track.push({ latitude: lat, longitude: lng });
+          snap(p, heading ?? null);
           continue;
         }
         spikes = 0;
@@ -376,6 +417,7 @@ export const roadStore = {
       }
       fix = { lat, lng, speed, heading: h ?? fix?.heading ?? null, accuracy, t };
       track.push({ latitude: lat, longitude: lng });
+      snap(p, h ?? null);
       // La finestra «com'è andata» si misura con l'orologio del telefono (lo
       // stesso del timer della schermata): il tempo dei punti GPS può essere
       // su un'altra base (punti arrivati in ritardo, simulatore).
@@ -406,7 +448,7 @@ export const roadStore = {
         }
       }
     }
-    set({ fix, distanceMeters, track, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes });
+    set({ fix, distanceMeters, track, snapTrack, snapTail, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes });
     if (request) rerouteHandler?.(request);
   },
 

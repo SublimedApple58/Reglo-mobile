@@ -182,12 +182,13 @@ function useTrackChunks(track: TrackPt[]) {
 
 const TRACK_INK = 'rgba(17,17,17,0.30)';
 const TRACK_INK_NIGHT = 'rgba(242,242,242,0.32)';
-const TrackPiece = React.memo(function TrackPiece({ pts, still, night }: { pts: TrackPt[] | null; still: TrackPt[]; night: boolean }) {
-  const on = !!pts && pts.length >= 2;
+const inkAlpha = (rgba: string, k: number) => rgba.replace(/[\d.]+\)$/, (a) => `${(parseFloat(a) * k).toFixed(3)})`);
+const TrackPiece = React.memo(function TrackPiece({ pts, still, night, k = 1 }: { pts: TrackPt[] | null; still: TrackPt[]; night: boolean; k?: number }) {
+  const on = !!pts && pts.length >= 2 && k > 0;
   return (
     <Polyline
-      coordinates={on ? pts : still}
-      strokeColor={on ? (night ? TRACK_INK_NIGHT : TRACK_INK) : 'rgba(17,17,17,0)'}
+      coordinates={on ? pts! : still}
+      strokeColor={on ? inkAlpha(night ? TRACK_INK_NIGHT : TRACK_INK, k) : 'rgba(17,17,17,0)'}
       strokeWidth={5}
       lineCap="round"
       lineJoin="round"
@@ -196,16 +197,86 @@ const TrackPiece = React.memo(function TrackPiece({ pts, still, night }: { pts: 
   );
 });
 
+/**
+ * REG-722: la traccia è quella agganciata alle strade (calamita OSM). I pezzi
+ * fissi prendono la parte confermata, che cresce solo in coda; l'ultimo posto
+ * prende il resto confermato più gli ultimi ~4 s provvisori. Quando la coda
+ * provvisoria cambia forma (la calamita ha deciso un'altra strada all'incrocio)
+ * la forma vecchia sfuma in 240 ms in un posto fisso in più, senza salti.
+ */
+const TAIL_FADE_MS = 240;
+const TAIL_FADE_STEPS = 4;
+const TAIL_SAME_M = 1.5;
+
+function joinTail(rest: TrackPt[], provisional: TrackPt[]): TrackPt[] {
+  const last = rest[rest.length - 1];
+  const first = provisional[0];
+  const same = last && first && last.latitude === first.latitude && last.longitude === first.longitude;
+  return [...rest, ...(same ? provisional.slice(1) : provisional)];
+}
+
+/** Ogni punto della coda vecchia (tranne la punta) sta ancora sulla nuova? */
+function tailStillOn(old: TrackPt[], next: TrackPt[]): boolean {
+  if (old.length < 3 || next.length < 2) return true;
+  const ky = 110_574;
+  const kx = 111_320 * Math.cos((old[0].latitude * Math.PI) / 180);
+  const xy = (p: TrackPt) => [p.longitude * kx, p.latitude * ky] as const;
+  const line = next.map(xy);
+  return old.slice(0, -1).every((p) => {
+    const [x, y] = xy(p);
+    for (let i = 0; i + 1 < line.length; i++) {
+      const [ax, ay] = line[i];
+      const dx = line[i + 1][0] - ax, dy = line[i + 1][1] - ay;
+      const f = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1e-9)));
+      if (Math.hypot(x - ax - f * dx, y - ay - f * dy) <= TAIL_SAME_M) return true;
+    }
+    return false;
+  });
+}
+
+function useTailFade(shown: TrackPt[]) {
+  const last = useRef<TrackPt[]>([]);
+  const [ghost, setGhost] = useState<{ pts: TrackPt[]; k: number } | null>(null);
+  useEffect(() => {
+    const old = last.current;
+    last.current = shown;
+    if (tailStillOn(old, shown)) return;
+    const t0 = Date.now();
+    let step = 0;
+    let raf = 0;
+    setGhost({ pts: old, k: 1 });
+    const frame = () => {
+      const x = Math.min(1, (Date.now() - t0) / TAIL_FADE_MS);
+      const next = Math.ceil(x * TAIL_FADE_STEPS);
+      if (next !== step) {
+        step = next;
+        const p = step / TAIL_FADE_STEPS;
+        setGhost(x >= 1 ? null : { pts: old, k: (1 - p) * (1 - p) });
+      }
+      if (x < 1) raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [shown]);
+  return ghost;
+}
+
 const LiveTrack = React.memo(function LiveTrack({ center, night }: { center: { lat: number; lng: number }; night: boolean }) {
-  const track = useRoadSelector((s) => s.track);
+  const track = useRoadSelector((s) => s.snapTrack);
+  const provisional = useRoadSelector((s) => s.snapTail);
   const still = useMemo(() => STILL(center), [center]);
   const { chunks, tail } = useTrackChunks(track);
+  // `tail` è una copia nuova a ogni disegno: la forma cambia solo con `track` e la coda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => joinTail(tail, provisional), [track, provisional]);
+  const ghost = useTailFade(shown);
   return (
     <>
       {Array.from({ length: TRACK_SLOTS }, (_, i) => (
         <TrackPiece key={i} pts={chunks[i] ?? null} still={still} night={night} />
       ))}
-      <TrackPiece pts={tail} still={still} night={night} />
+      <TrackPiece pts={ghost?.pts ?? null} still={still} night={night} k={ghost?.k ?? 0} />
+      <TrackPiece pts={shown} still={still} night={night} />
     </>
   );
 });

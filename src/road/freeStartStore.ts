@@ -1,3 +1,4 @@
+import { prefetchRoadsAround } from './osmStore';
 import type { AutoscuolaStudent, RoadFreeOptions } from '../types/regloApi';
 import { regloApi } from '../services/regloApi';
 import { prefetchUserPhotos } from '../services/userPhotos';
@@ -46,6 +47,8 @@ export function warmRoadFree() {
     .then((next) => {
       if (!roadFreeStore.get()) roadFreeStore.set(next);
       prefetchRoadFaces(next);
+      // REG-722: le strade attorno alla sede per la calamita (su disco: offline dopo la prima volta)
+      if (next.headquarters) prefetchRoadsAround(next.headquarters.lat, next.headquarters.lng);
       void refreshRoadStudents();
     })
     .catch(() => {
