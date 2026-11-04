@@ -183,18 +183,55 @@ function useTrackChunks(track: TrackPt[]) {
 
 const TRACK_INK = 'rgba(17,17,17,0.30)';
 const TRACK_INK_NIGHT = 'rgba(242,242,242,0.32)';
+/**
+ * REG-722: di sera su iOS la mappa sta sotto un velo nero al 70% e la traccia
+ * grigia spariva. `veiled` = linea chiara con un bordo scuro (due Polyline,
+ * sempre montate: il passaggio giorno/notte non aggiunge figli alla mappa).
+ * `NIGHT_TRACK_CONTRAST = false` = come prima (anteprima per Tiziano).
+ */
+const NIGHT_TRACK_CONTRAST = true;
+/** Prova: 'chiara' = bianca con bordo, 'piena' = quasi nera piena. */
+const NIGHT_TRACK_STYLE: 'chiara' | 'piena' = 'piena';
+const TRACK_CORE_VEIL = 'rgba(255,255,255,0.95)';
+const TRACK_CASE_VEIL = 'rgba(17,17,17,0.85)';
+const NO_INK = 'rgba(17,17,17,0)';
 const inkAlpha = (rgba: string, k: number) => rgba.replace(/[\d.]+\)$/, (a) => `${(parseFloat(a) * k).toFixed(3)})`);
-const TrackPiece = React.memo(function TrackPiece({ pts, still, night, k = 1 }: { pts: TrackPt[] | null; still: TrackPt[]; night: boolean; k?: number }) {
+const TrackPiece = React.memo(function TrackPiece({
+  pts,
+  still,
+  night,
+  veiled = false,
+  k = 1,
+}: {
+  pts: TrackPt[] | null;
+  still: TrackPt[];
+  night: boolean;
+  veiled?: boolean;
+  k?: number;
+}) {
   const on = !!pts && pts.length >= 2 && k > 0;
+  const contrast = veiled && NIGHT_TRACK_CONTRAST;
+  const solid = contrast && NIGHT_TRACK_STYLE === 'piena';
+  const core = solid ? 'rgba(10,10,10,0.92)' : contrast ? TRACK_CORE_VEIL : night ? TRACK_INK_NIGHT : TRACK_INK;
   return (
-    <Polyline
-      coordinates={on ? pts! : still}
-      strokeColor={on ? inkAlpha(night ? TRACK_INK_NIGHT : TRACK_INK, k) : 'rgba(17,17,17,0)'}
-      strokeWidth={5}
-      lineCap="round"
-      lineJoin="round"
-      zIndex={1}
-    />
+    <>
+      <Polyline
+        coordinates={on ? pts! : still}
+        strokeColor={on && contrast && !solid ? inkAlpha(TRACK_CASE_VEIL, k) : NO_INK}
+        strokeWidth={9}
+        lineCap="round"
+        lineJoin="round"
+        zIndex={1}
+      />
+      <Polyline
+        coordinates={on ? pts! : still}
+        strokeColor={on ? inkAlpha(core, k) : NO_INK}
+        strokeWidth={5}
+        lineCap="round"
+        lineJoin="round"
+        zIndex={1}
+      />
+    </>
   );
 });
 
@@ -262,7 +299,15 @@ function useTailFade(shown: TrackPt[]) {
   return ghost;
 }
 
-const LiveTrack = React.memo(function LiveTrack({ center, night }: { center: { lat: number; lng: number }; night: boolean }) {
+const LiveTrack = React.memo(function LiveTrack({
+  center,
+  night,
+  veiled,
+}: {
+  center: { lat: number; lng: number };
+  night: boolean;
+  veiled: boolean;
+}) {
   const track = useRoadSelector((s) => s.snapTrack);
   const provisional = useRoadSelector((s) => s.snapTail);
   const still = useMemo(() => STILL(center), [center]);
@@ -274,10 +319,10 @@ const LiveTrack = React.memo(function LiveTrack({ center, night }: { center: { l
   return (
     <>
       {Array.from({ length: TRACK_SLOTS }, (_, i) => (
-        <TrackPiece key={i} pts={chunks[i] ?? null} still={still} night={night} />
+        <TrackPiece key={i} pts={chunks[i] ?? null} still={still} night={night} veiled={veiled} />
       ))}
-      <TrackPiece pts={ghost?.pts ?? null} still={still} night={night} k={ghost?.k ?? 0} />
-      <TrackPiece pts={shown} still={still} night={night} />
+      <TrackPiece pts={ghost?.pts ?? null} still={still} night={night} veiled={veiled} k={ghost?.k ?? 0} />
+      <TrackPiece pts={shown} still={still} night={night} veiled={veiled} />
     </>
   );
 });
@@ -440,7 +485,7 @@ const LiveMap = React.memo(function LiveMap({
     >
       {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
       <LiveGuide center={where} night={darkMap} />
-      <LiveTrack center={where} night={darkMap} />
+      <LiveTrack center={where} night={darkMap} veiled={night && Platform.OS === 'ios'} />
       <LivePins />
       <LiveCarMarker following={following} color={carColor} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
     </MapView>
