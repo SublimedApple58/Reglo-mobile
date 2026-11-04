@@ -393,7 +393,7 @@ Piano: `../reglo/plans/road/003-punti-critici-e-giro.md`. API: `GET /road/plan` 
   scelta è il segnaposto grande disegnato SOPRA la mappa (`RoadPinBody`), nel punto di
   `pointForCoordinate` a camera ferma (`onRegionChangeComplete`), in dissolvenza; mentre la mappa
   si muove non si vede. `mapPadding` fisso (copertura della card = costante `CARD_COVER`).
-  `fitToCoordinates` rispetta `mapPadding`, `animateToRegion` no (spostamento a mano in `focus`).
+  `fitToCoordinates` e (su iOS) `animateToRegion` rispettano `mapPadding`: in `focus` solo mezzo segnaposto di spostamento.
 - Verificato sul simulatore contro staging (Aurora Costa, posizione simulata a Torino con `xcrun simctl location booted start --speed=9 …`): avviso a 250 m, «Tappa raggiunta», riepilogo «Giro: 2 tappe su 2».
 
 ## Mappa del giro in Road (REG-652, 29/10)

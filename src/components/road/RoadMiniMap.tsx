@@ -137,13 +137,15 @@ export function RoadRouteMap({
     });
   };
 
-  // Camera sulla segnalazione, al centro della parte libera (`animateToRegion`
-  // ignora `mapPadding`: lo spostamento si fa a mano).
+  // Camera sulla segnalazione, al centro della parte libera: su iOS
+  // `animateToRegion` centra già nell'area di `mapPadding` (verificato sul
+  // simulatore); qui solo mezzo segnaposto, perché il fumetto sta sopra il punto.
   const focus = (m: { lat: number; lng: number }, duration: number) => {
-    const { w, h } = size.current;
-    if (!w || !h) return;
+    const { w } = size.current;
+    const h = size.current.h - insetTop - insetBottom;
+    if (!w || !(h > 0)) return;
     const d = FOCUS_DELTA;
-    const offsetPx = (insetBottom - insetTop) / 2 - PIN_HALF;
+    const offsetPx = -PIN_HALF;
     ref.current?.animateToRegion(
       {
         latitude: m.lat - (d * offsetPx) / h,
