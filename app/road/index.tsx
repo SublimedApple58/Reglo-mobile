@@ -54,6 +54,7 @@ import { SentimentBadge } from '../../src/components/road/RoadSentiment';
 import { Avatar, ClayButton } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { RoadMarkerPin } from '../../src/components/road/RoadMapParts';
+import { OsmCredit } from '../../src/components/road/OsmCredit';
 import { RoadGuideOverlay } from '../../src/components/road/RoadGuideOverlay';
 import { CAR_DISC, RoadLiveCar, RoadLiveCarMarker } from '../../src/components/road/RoadLiveCar';
 import { RoadNavCard } from '../../src/components/road/RoadNavCard';
@@ -930,6 +931,11 @@ export default function RoadScreen() {
         {night && Platform.OS === 'ios' ? <View style={ns.veil} pointerEvents="none" /> : null}
       </View>
 
+      {/* REG-722: la linea agganciata viene dai dati OSM */}
+      <View pointerEvents="none" style={[s.osmCredit, { bottom: 8 + panelH + 6 }]}>
+        <OsmCredit night={night} />
+      </View>
+
       {carPt ? (
         <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
       ) : null}
@@ -1592,6 +1598,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  osmCredit: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   speedNum: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, lineHeight: 24, fontVariant: ['tabular-nums'] },
   speedUnit: { fontSize: 10.5, fontWeight: '500', color: CLAY.ink3, marginTop: 1 },
   ctl: { position: 'absolute', right: 14, alignItems: 'flex-end', gap: 10 },

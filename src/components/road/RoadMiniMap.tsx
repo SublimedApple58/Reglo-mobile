@@ -1,3 +1,4 @@
+import { OsmCredit } from './OsmCredit';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
@@ -299,6 +300,9 @@ export function RoadRouteMap({
         })}
       </MapView>
 
+      {/* REG-722: la linea è agganciata alle strade OSM */}
+      {track.length > 1 ? <OsmCredit style={[styles.credit, { bottom: 6 + insetBottom }]} /> : null}
+
       {overlay && selected ? (
         <Animated.View
           pointerEvents="none"
@@ -317,4 +321,5 @@ const OVERLAY_W = 260;
 const styles = StyleSheet.create({
   wrap: { overflow: 'hidden', backgroundColor: '#FFFFFF' },
   overlay: { position: 'absolute', width: OVERLAY_W, alignItems: 'center' },
+  credit: { position: 'absolute', right: 10 },
 });

@@ -558,3 +558,15 @@ Piano approvato da Tiziano (04/11): il ripasso è un bottone, non parte da solo;
 - Verificato sul simulatore contro staging (Aurora Costa, 5 segnalazioni aggiunte via API alla
   guida live, posizione simulata a Torino): elenco con mappa da riepilogo e da «Road di Aurora» ›
   guida, riga→mappa, segnaposto→riga, ripasso 1→5 con correzione a metà, passaggio al pagellino.
+
+## REG-722 — la «calamita»: linea in guida agganciata alle strade OSM (04/11/2026)
+- **Cosa**: la traccia grigia «già fatta» in guida non è più il GPS grezzo: sta sulle strade di OpenStreetMap, agganciata in locale sul telefono, senza chiamate a pagamento e anche offline. Stessa calamita della web («Dal vivo») e della fine guida sul server. Doc del backend: `../reglo/docs/features/reglo-road.md` § REG-722.
+- **File**:
+  - `src/road/osmCells.ts`, `src/road/osmMatch.ts` — **copie** di `reglo/lib/autoscuole/road/osm-cells.ts` e `osm-match.ts` (puri): tenerle uguali.
+  - `src/road/osmStore.ts` — celle da `GET /autoscuole/road/osm/v1/<cella>` con `FileSystem.downloadAsync` (`apiDownloadInfo` in `apiClient.ts`: Bearer, autoscuola, bypass), salvate in `documentDirectory/road-osm/v1/` (`.none` = zona non coperta; dopo 35 giorni si riscaricano in sottofondo). Un grafo per avvio dell'app: `prefetchRoadsAround` (sede, 20 km, da `warmRoadFree`), `ensureRoadsNear` (3 km attorno all'auto, ogni 1 km percorso), `createLiveMatcher`.
+  - `src/road/roadStore.ts` — `ingestPoints` dà ogni fix accettato anche alla calamita della sessione: `snapTrack` (confermata, cresce solo in coda) e `snapTail` (ultimi ~4 s provvisori). `track` resta il GPS grezzo (km, giro, avvisi, riepilogo locale). Dopo un kill `hydrateFromDetail` mette la traccia del server davanti anche a `snapTrack`.
+  - `app/road/index.tsx › LiveTrack` — i 10 pezzi fissi prendono `snapTrack`; l'ultimo posto la coda confermata + la provvisoria (`joinTail`). Se la coda provvisoria cambia forma (punti vecchi a più di 1,5 m dalla nuova, `tailStillOn`) la forma vecchia sfuma in 240 ms in un **posto fisso in più** (`useTailFade`, 4 passi agganciati ai fotogrammi, come `RoadGuideOverlay`): niente salti. Sempre 12 Polyline montate (crash AIRMap).
+  - `src/components/road/OsmCredit.tsx` — «© OpenStreetMap» (10 pt, grigio; chiaro di notte): in guida al centro sopra il pannello, fra velocità e audio; in `RoadRouteMap` (riepilogo, percorso, segnalazioni, ripasso) in basso a destra quando c'è una linea.
+- **Comportamento**: zona senza celle (o celle non ancora scaricate) = la linea resta il GPS, come prima. Ritardo dal vivo 4 s (`LIVE_LAG_MS`): misurato sulla guida vera di Teramo, con 4 s la linea dal vivo coincide con quella di fine guida. Costo per fix ~0,03 ms.
+- **Niente moduli nativi**: `expo-file-system` c'era già. OTA 2.4.0.
+- **Provato**: simulatore contro staging, GPS simulato sul giro reale di Teramo (con la laterale e l'inversione), celle di Teramo caricate a mano su R2.
