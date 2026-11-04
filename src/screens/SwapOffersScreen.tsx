@@ -223,51 +223,32 @@ export const SwapOffersScreen = () => {
             </Text>
             <Text style={st.cardHint}>{mine ? 'in attesa di un sostituto' : 'cerca un sostituto'}</Text>
           </View>
-          {mine ? (
-            <View style={[st.openBadge, { backgroundColor: '#EBEBEB' }]}>
-              <Text style={[st.openBadgeText, { color: '#0A0A0A' }]}>In attesa</Text>
-            </View>
-          ) : (
-            <View style={st.openBadge}>
-              <View style={st.openDot} />
-              <Text style={st.openBadgeText}>Aperta</Text>
-            </View>
-          )}
         </View>
 
-        {/* When */}
-        <View style={st.whenRow}>
-          <View style={[st.chip, { backgroundColor: '#EBEBEB' }]}>
-            <Ionicons name="calendar" size={17} color="#0A0A0A" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={st.whenDate}>{formatDay(offer.appointment.startsAt)}</Text>
-            <Text style={st.whenTime}>
-              {formatTimeRange(offer.appointment.startsAt, offer.appointment.endsAt)}
-            </Text>
-          </View>
-        </View>
+        {/* When — REG-705e: righe discrete (luogo, istruttore, veicolo) al posto delle pillole. */}
+        <Text style={st.whenDate}>{formatDay(offer.appointment.startsAt)}</Text>
+        <Text style={st.whenTime}>
+          {formatTimeRange(offer.appointment.startsAt, offer.appointment.endsAt)}
+        </Text>
 
-        {/* Meta pills */}
-        <View style={st.metaRow}>
-          <View style={st.metaPill}>
-            <Ionicons name="pricetag-outline" size={12} color={colors.textSecondary} />
-            <Text style={st.metaText}>{lessonTypeLabel(offer.appointment.type)}</Text>
-          </View>
-          {offer.appointment.instructorName ? (
-            <View style={st.metaPill}>
-              <Ionicons name="person-outline" size={12} color={colors.textSecondary} />
-              <Text style={st.metaText} numberOfLines={1}>
-                {offer.appointment.instructorName}
-              </Text>
+        <View style={st.metaList}>
+          {offer.appointment.locationName ? (
+            <View style={st.metaLine}>
+              <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
+              <Text style={st.metaText} numberOfLines={1}>{offer.appointment.locationName}</Text>
             </View>
           ) : null}
+          <View style={st.metaLine}>
+            <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
+            <Text style={st.metaText} numberOfLines={1}>
+              {offer.appointment.instructorName ?? 'Istruttore da assegnare'}
+              <Text style={st.metaDim}>{` \u00B7 ${lessonTypeLabel(offer.appointment.type)}`}</Text>
+            </Text>
+          </View>
           {offer.appointment.vehicleName ? (
-            <View style={st.metaPill}>
-              <Ionicons name="car-outline" size={12} color={colors.textSecondary} />
-              <Text style={st.metaText} numberOfLines={1}>
-                {offer.appointment.vehicleName}
-              </Text>
+            <View style={st.metaLine}>
+              <Ionicons name="car-outline" size={15} color={colors.textSecondary} />
+              <Text style={st.metaText} numberOfLines={1}>{offer.appointment.vehicleName}</Text>
             </View>
           ) : null}
         </View>
@@ -457,25 +438,13 @@ const st = StyleSheet.create({
   avatarText: { fontSize: 15, fontWeight: '700', color: '#818181' },
   cardName: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   cardHint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
-  openBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#ECFDF5', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
-  },
-  openDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  openBadgeText: { fontSize: 11, fontWeight: '700', color: '#059669', letterSpacing: 0.2 },
+  whenDate: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  whenTime: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, marginTop: 3 },
 
-  whenRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  chip: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  whenDate: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
-  whenTime: { fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 1 },
-
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
-  metaPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#F6F6F8', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
-    maxWidth: '100%',
-  },
-  metaText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, flexShrink: 1 },
+  metaList: { gap: 7, marginTop: 12 },
+  metaLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  metaText: { flexShrink: 1, fontSize: 14, fontWeight: '500', color: '#3A3A3C' },
+  metaDim: { fontWeight: '400', color: colors.textMuted },
 
   cardFooter: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingTop: 14,

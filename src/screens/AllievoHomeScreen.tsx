@@ -121,14 +121,6 @@ const normalize = (value: string | null | undefined) =>
 const formatLessonType = (value: string | null | undefined) =>
   lessonTypeLabelMap[normalize(value)] ?? value ?? 'Guida';
 
-const LESSON_CARD_COLORS = [
-  { bg: '#F4F4F4', accent: '#111111' },  // rose
-  { bg: '#F4F4F4', accent: '#111111' },  // sky
-  { bg: '#F0FDF4', accent: '#22C55E' },  // mint
-  { bg: '#FFFBEB', accent: '#F59E0B' },  // amber
-  { bg: '#F8F8F8', accent: '#8B5CF6' },  // violet
-] as const;
-
 const findLinkedStudent = (
   students: AutoscuolaStudent[],
   user: { name: string | null; email: string } | null
@@ -1464,9 +1456,6 @@ export const AllievoHomeScreen = () => {
         <View style={styles.headerRow}>
           <Animated.View style={[styles.compactHeader, compactTitleStyle]}>
             <Text style={styles.compactTitle} numberOfLines={1}>Ciao, {firstName}</Text>
-            <View style={styles.compactTag}>
-              <Text style={styles.compactTagText}>Pratica</Text>
-            </View>
           </Animated.View>
         </View>
       </View>
@@ -1493,12 +1482,10 @@ export const AllievoHomeScreen = () => {
           {activeCompanyName ? (
             <View style={styles.largeTitleSchoolRow}>
               <Image source={require('../../assets/icons3d-ai/pin.png')} style={styles.largeTitleSchoolIcon} />
-              <Text style={[styles.largeTitleSub, { flexShrink: 1 }]} numberOfLines={1}>{activeCompanyName}</Text>
-              {studentLicenseLabel ? (
-                <View style={styles.licensePill}>
-                  <Text style={styles.licensePillText}>{studentLicenseLabel}</Text>
-                </View>
-              ) : null}
+              <Text style={[styles.largeTitleSub, { flexShrink: 1 }]} numberOfLines={1}>
+                {activeCompanyName}
+                {studentLicenseLabel ? ` \u00B7 Patente ${studentLicenseLabel}` : ''}
+              </Text>
             </View>
           ) : (
             <Text style={styles.largeTitleSub}>Le tue guide</Text>
@@ -1641,9 +1628,7 @@ export const AllievoHomeScreen = () => {
               <View style={styles.heroTop}>
                 <View style={{ flex: 1 }}>
                   {nextLessonCountdown && (
-                    <View style={styles.heroPill}>
-                      <Text style={styles.heroPillText}>{nextLessonCountdown}</Text>
-                    </View>
+                    <Text style={styles.heroWhen}>{nextLessonCountdown}</Text>
                   )}
                   <Text style={styles.heroTime}>
                     {formatTime(nextLesson.startsAt)}{nextLesson.endsAt ? ` \u2013 ${formatTime(nextLesson.endsAt)}` : ''}
@@ -1656,33 +1641,36 @@ export const AllievoHomeScreen = () => {
                 />
               </View>
 
+              {/* REG-705e: righe discrete al posto dei chip — luogo, poi chi e che guida. */}
               <View style={styles.heroFooter}>
+                {nextLesson.location ? (
+                  <View style={styles.heroLine}>
+                    <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
+                    <Text style={styles.heroLineText} numberOfLines={1}>
+                      {nextLesson.location.name}
+                      {nextLesson.location.address && nextLesson.location.address !== nextLesson.location.name ? (
+                        <Text style={styles.heroLineAddr}>{`  ${nextLesson.location.address}`}</Text>
+                      ) : null}
+                    </Text>
+                  </View>
+                ) : null}
                 {mySwapByAppointment.has(nextLesson.id) ? (
-                  <View style={styles.heroSwapChip}>
-                    <Ionicons name="swap-horizontal" size={13} color="#0A0A0A" />
-                    <Text style={styles.heroSwapChipText}>Sostituzione richiesta</Text>
+                  <View style={styles.heroLine}>
+                    <Ionicons name="swap-horizontal" size={15} color={colors.textSecondary} />
+                    <Text style={styles.heroLineText} numberOfLines={1}>Sostituzione richiesta</Text>
                   </View>
                 ) : (
-                  <>
-                    <View style={styles.heroChip}>
-                      <Ionicons name="person" size={13} color={colors.textSecondary} />
-                      <Text style={styles.heroChipText}>{nextLesson.instructor?.name ?? 'Da assegnare'}</Text>
-                    </View>
-                    {nextLesson.types && nextLesson.types.length > 0 && (
-                      <View style={styles.heroChip}>
-                        <Ionicons name="flag" size={13} color={colors.textSecondary} />
-                        <Text style={styles.heroChipText}>{formatLessonType(nextLesson.types[0])}</Text>
-                      </View>
-                    )}
-                    {/* Guida moto individuale: tipo birilli/strada (REG-399),
-                        stesso chip del resto — l'allievo lo vede in home. */}
-                    {nextLesson.motoLessonType && (
-                      <View style={styles.heroChip}>
-                        <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[nextLesson.motoLessonType]} size={13} color={colors.textSecondary} />
-                        <Text style={styles.heroChipText}>{MOTO_LESSON_TYPE_LABELS[nextLesson.motoLessonType]}</Text>
-                      </View>
-                    )}
-                  </>
+                  <View style={styles.heroLine}>
+                    <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
+                    <Text style={styles.heroLineText} numberOfLines={1}>
+                      {nextLesson.instructor?.name ?? 'Da assegnare'}
+                      <Text style={styles.heroLineDim}>
+                        {nextLesson.types && nextLesson.types.length > 0 ? ` \u00B7 ${formatLessonType(nextLesson.types[0])}` : ''}
+                        {/* Guida moto individuale: tipo birilli/strada (REG-399). */}
+                        {nextLesson.motoLessonType ? ` \u00B7 ${MOTO_LESSON_TYPE_LABELS[nextLesson.motoLessonType]}` : ''}
+                      </Text>
+                    </Text>
+                  </View>
                 )}
               </View>
             </Pressable>
@@ -1722,23 +1710,13 @@ export const AllievoHomeScreen = () => {
                   <Text style={styles.bookCardSub}>una guida</Text>
                 </Pressable>
               )}
-              {upcoming.slice(1).map((lesson, idx) => {
-                const bg = LESSON_CARD_COLORS[(idx + 1) % LESSON_CARD_COLORS.length];
+              {upcoming.slice(1).map((lesson) => {
                 return (
                   <Pressable
                     key={lesson.id}
                     onPress={() => openLessonDetail(lesson)}
-                    style={({ pressed }) => [
-                      styles.miniCard,
-                      { backgroundColor: bg.bg },
-                      pressed && styles.ctaPressed,
-                    ]}
+                    style={({ pressed }) => [styles.miniCard, pressed && styles.ctaPressed]}
                   >
-                    {mySwapByAppointment.has(lesson.id) && (
-                      <View style={styles.miniSwapBadge}>
-                        <Ionicons name="swap-horizontal" size={12} color="#0A0A0A" />
-                      </View>
-                    )}
                     <Image
                       source={lessonArtSource(lesson.vehicle?.licenseCategory ?? studentLicenseCategory)}
                       style={styles.miniCardIcon}
@@ -1749,6 +1727,12 @@ export const AllievoHomeScreen = () => {
                     <Text style={styles.miniCardDate} numberOfLines={1}>
                       {formatDay(lesson.startsAt)}
                     </Text>
+                    {lesson.location ? (
+                      <View style={styles.miniCardPlace}>
+                        <Ionicons name="location-outline" size={11} color={colors.textSecondary} />
+                        <Text style={styles.miniCardPlaceText} numberOfLines={1}>{lesson.location.name}</Text>
+                      </View>
+                    ) : null}
                     {mySwapByAppointment.has(lesson.id) ? (
                       <Text style={styles.miniCardSwap} numberOfLines={1}>
                         Sostituzione richiesta
@@ -1929,11 +1913,6 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   compactTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
-  compactTag: {
-    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
-    backgroundColor: colors.primary,
-  },
-  compactTagText: { fontSize: 11, fontWeight: '700', color: colors.surface },
   headerBellBtn: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
@@ -1951,8 +1930,6 @@ const styles = StyleSheet.create({
   largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
   largeTitleSchoolRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   largeTitleSchoolIcon: { width: 16, height: 16 },
-  licensePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: '#F0F0F0' },
-  licensePillText: { fontSize: 11, fontWeight: '600', color: '#595959', letterSpacing: -0.1 },
 
   /* ── Scambi (swap offers) slot ── */
   swapCard: {
@@ -2015,12 +1992,7 @@ const styles = StyleSheet.create({
   heroTop: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  heroPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#B0B0B0', borderRadius: 999,
-    paddingHorizontal: 11, paddingVertical: 3, marginBottom: 6,
-  },
-  heroPillText: { fontSize: 11, fontWeight: '700', color: '#0A0A0A' },
+  heroWhen: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 4 },
   heroTime: {
     fontSize: 30, fontWeight: '600', color: '#111111',
     letterSpacing: -0.8, lineHeight: 36,
@@ -2028,41 +2000,30 @@ const styles = StyleSheet.create({
   heroDate: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
   heroIcon: { width: 72, height: 72 },
   heroFooter: {
-    flexDirection: 'row', gap: 8,
+    gap: 8,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
     paddingTop: 12,
   },
-  heroChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#F2F2F2', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  heroChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  heroSwapChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#EBEBEB', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  heroSwapChipText: { fontSize: 12, fontWeight: '700', color: '#0A0A0A' },
+  heroLine: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
+  heroLineText: { flexShrink: 1, fontSize: 14, fontWeight: '500', color: '#3A3A3C' },
+  heroLineAddr: { fontWeight: '400', color: colors.textMuted },
+  heroLineDim: { fontWeight: '400', color: colors.textMuted },
 
   /* ── Mini-cards: horizontal upcoming lessons ── */
   upcomingScroll: { gap: 12, paddingRight: spacing.md, paddingVertical: 6 },
   miniCard: {
     width: 150, borderRadius: 20, padding: 14,
-    alignItems: 'flex-start', gap: 4,
+    alignItems: 'flex-start', gap: 4, backgroundColor: colors.surface,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.10, shadowRadius: 10, elevation: 5,
   },
   miniCardIcon: { width: 32, height: 32, marginBottom: 4 },
-  miniCardTime: { fontSize: 16, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },
+  miniCardTime: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
   miniCardDate: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
   miniCardInstructor: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
-  miniCardSwap: { fontSize: 11, fontWeight: '700', color: '#0A0A0A', marginTop: 2 },
-  miniSwapBadge: {
-    position: 'absolute', top: 10, right: 10,
-    width: 24, height: 24, borderRadius: 12, backgroundColor: '#EBEBEB',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  miniCardSwap: { fontSize: 11, fontWeight: '600', color: '#0A0A0A', marginTop: 2 },
+  miniCardPlace: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, maxWidth: '100%' },
+  miniCardPlaceText: { flexShrink: 1, fontSize: 11, fontWeight: '600', color: '#3A3A3C' },
 
   /* ── Guide di gruppo — teal card (modelled on the instructor agenda card) ── */
   glSectionLabel: {

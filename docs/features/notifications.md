@@ -103,6 +103,8 @@ funzionava già. `components/LessonsOverview.tsx` e `agendaLessons` /
 - **"Troppo tardi!" (expired)** drawer removed — a taken/expired waitlist/proposal now shows a toast ("Offerta non più disponibile"). `staleDrawerKind` is now `'accepted' | null`.
 
 ## Remaining custom BottomSheets (allievo) — to migrate later
+**REG-705e**: il foglio «Slot liberato» non ha più emoji né grabber (X in alto): card con righe giorno·ora, durata vera dello slot (prima era fissa a 30 min) e luogo (`offer.locationName`); bottoni «No, grazie» (chiude, l'offerta resta in posta) e «Prenota». Il foglio «Orari disponibili» mostra il luogo come `booking-slots` (vedi `booking-flow.md`).
+
 Still custom `BottomSheet` in `NotificationOverlay`, shown to students: **Waitlist** ("Slot liberato"), **Proposal** ("Nuova proposta"), **Available slots** ("Scegli un orario"), **"Già fatto!"** (already-accepted, waitlist/proposal). All backend kinds are live/reachable. `CalendarDrawer` (custom Modal) is also pending. Time picker (allievo Disponibilità): migrated to a **formSheet route** `app/(tabs)/settings/time-picker.tsx` (fitToContents, `timePickerStore`-driven), no duck mascot, pink selection. The legacy `TimePickerDrawer` component (instructor screens) now uses a native pageSheet Modal, duck removed — to be route-migrated with the instructor app.
 
 ## Adding a new notification kind (full checklist)

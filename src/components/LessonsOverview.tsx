@@ -397,8 +397,9 @@ function LessonRow({
       if (late) return 'Annullata tardi';
       return who;
     }
-    if (lesson.type === 'esame') return 'Esame';
-    return `Guida · ${who}`;
+    if (lesson.type === 'esame') return lesson.location?.name ? `Esame · ${lesson.location.name}` : 'Esame';
+    // REG-705e: il luogo prima di chi guida, quando la guida ne ha uno.
+    return lesson.location?.name ? `${lesson.location.name} · ${who}` : `Guida · ${who}`;
   })();
 
   const body = (

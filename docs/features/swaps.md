@@ -30,9 +30,12 @@ There is no longer a `swaps` entry in `app/(tabs)/_layout.tsx`.
 ## API functions used
 `getSwapOffers`, `getMySwapOffers`, `respondSwapOffer`, `cancelSwapOffer`, `createSwapOffer`, `getStudents`
 
-## Luogo (REG-705e, dati)
+## Luogo (REG-705e)
 `AutoscuolaSwapOfferWithDetails.appointment` ha `locationId` + `locationName` (backend
-nuovo; assenti sui vecchi). UI in attesa dell'ok sulle anteprime 705-e.
+nuovo; assenti sui vecchi). Nella card di `SwapOffersScreen` data e orario stanno su
+due righe e sotto ci sono righe discrete (luogo, istruttore `· tipo`, veicolo) al
+posto delle pillole; via anche i badge «Aperta» / «In attesa». In `swap-detail` c'è
+una riga «Luogo» prima dell'istruttore.
 
 ## Components used
 BookingCelebration, ToastNotice (+ native Modal page sheet, BlurView header).

@@ -44,14 +44,28 @@ is the only live path.
   temporaneamente sospese. Contatta la segreteria." e non apre il foglio.
   Backward-compatible: campo assente (backend vecchio) = non bloccato.
 
-## Luogo dello slot (REG-705e, dati)
+## Luogo dello slot (REG-705e)
 Con «Disponibilità per luogo» accesa `AvailableSlot` porta `locationId` + `locationName`
 e alla stessa ora possono esserci più slot (uno per luogo). L'identità di uno slot è
 `slotKey` / `isSameSlot` (`src/utils/slotLocation.ts`: ora + luogo), non più solo
 `startsAt`; ogni `createBookingRequest` (booking-slots, scelta libera, foglio
 «Orari disponibili» di `NotificationOverlay`) aggiunge `slotLocationParam(slot)`.
-Spenta la funzione la richiesta è identica a prima. La UI con il nome del luogo
-aspetta l'ok sulle anteprime 705-e.
+Spenta la funzione la richiesta è identica a prima.
+
+UI (anteprime approvate da Tiziano il 04/11): `slotLocationMode(slots)` decide come
+mostrare il luogo. `single` (tutti allo stesso luogo) → il nome va una volta sola
+nel sottotitolo, accanto a giorno e durata; `multi` → riga discreta «pin + luogo»
+sotto l'orario di ogni slot (in `booking-slots` anche `· Nome` dell'istruttore se
+lo slot lo porta) e bottone «Prenota a <luogo>»; `none` → come prima. Vale per
+`booking-slots.tsx` e per il foglio «Orari disponibili» di `NotificationOverlay`.
+
+Home allievo (stessa approvazione): niente pillole né chip. Il countdown della
+prossima guida è testo semplice; sotto, righe discrete: luogo (nome + indirizzo in
+grigio), istruttore `· tipo guida · tipo moto`, oppure «Sostituzione richiesta».
+Card piccole bianche (via i colori a rotazione e il badge scambio), con la riga
+del luogo. La patente è testo dopo il nome dell'autoscuola, e nell'header
+compatto non c'è più il tag «Pratica». «Le tue guide» (`LessonsOverview`): sottotitolo
+`<luogo> · <istruttore>` quando la guida ha un luogo.
 
 ## API functions used
 `getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
