@@ -96,22 +96,28 @@ export function RoadRouteMap({
         <RoadTrack coordinates={coords} width={interactive ? 6 : 5} />
         {coords.length > 1 ? <RoadEndpointDot coordinate={coords[0]} /> : null}
         {coords.length > 1 ? <RoadEndpointDot coordinate={coords[coords.length - 1]} /> : null}
-        {(stops ?? []).map((st) => (
-          <RoadStopMarker
-            key={`stop-${st.startMs}`}
-            coordinate={{ latitude: st.lat, longitude: st.lng }}
-            minutes={st.minutes}
-            labeled={labeled}
-          />
-        ))}
-        {markers.map((m) => (
+        {/*
+          REG-714: chiave per POSIZIONE e segnaposti prima delle soste. Un Marker
+          inserito in mezzo ai figli della MapView su iOS (New Architecture) non
+          si disegna: il riepilogo provvisorio (id = clientId) che diventa quello
+          del server (id veri, soste in più) faceva sparire le segnalazioni.
+        */}
+        {markers.map((m, i) => (
           <RoadMarkerPin
-            key={m.id || m.clientId}
+            key={`marker-${i}`}
             coordinate={{ latitude: m.lat, longitude: m.lng }}
             kind={m.kind}
             label={m.label}
             small={!labeled}
             sentiment={m.sentiment ?? null}
+          />
+        ))}
+        {(stops ?? []).map((st, i) => (
+          <RoadStopMarker
+            key={`stop-${i}`}
+            coordinate={{ latitude: st.lat, longitude: st.lng }}
+            minutes={st.minutes}
+            labeled={labeled}
           />
         ))}
       </MapView>
