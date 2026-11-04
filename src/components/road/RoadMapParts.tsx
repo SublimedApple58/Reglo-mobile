@@ -130,6 +130,27 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   a.dot === b.dot,
 );
 
+/**
+ * REG-715 — il segnaposto grande (fumetto con etichetta + puntino) come vista
+ * normale, FUORI dalla mappa: la segnalazione scelta si disegna sopra la
+ * MapView invece di cambiare i props di un Marker montato (su iOS, New
+ * Architecture, `AIRMap insertReactSubview` andava fuori indice e i segnaposti
+ * sparivano o l'app si chiudeva). Il punto sulla coordinata è a `ROAD_PIN_POINT_Y`.
+ */
+export const ROAD_PIN_POINT_Y = TAG_H + GAP + DOT / 2;
+export function RoadPinBody({ kind, label, sentiment }: { kind: string; label: string; sentiment?: Sentiment | null }) {
+  return (
+    <View style={[pin.wrap, { height: TAG_H + GAP + DOT }]} pointerEvents="none">
+      <View style={[pin.tag, sentiment ? { borderWidth: 2.5, borderColor: sentimentColor(sentiment) } : null]}>
+        <Image source={markerArt(kind)} style={pin.img} resizeMode="contain" />
+        <Text style={pin.label} numberOfLines={1}>{label}</Text>
+        <View style={pin.tail} />
+      </View>
+      <View style={pin.dot} />
+    </View>
+  );
+}
+
 /** Puntino bianco bordato di nero: partenza / arrivo nelle minimappe. */
 export function RoadEndpointDot({ coordinate }: { coordinate: LatLng }) {
   const tracksViewChanges = useTracksViewChanges();

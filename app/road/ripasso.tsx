@@ -21,7 +21,11 @@ import { ripassoHandoff, ripassoOrder } from '../../src/road/ripasso';
 import { SWITCH_IN, SWITCH_OUT, SWITCH_LAYOUT } from '../../src/utils/motion';
 import type { RoadMarker } from '../../src/types/regloApi';
 
-/** Altezza della card prima della prima misura. */
+/**
+ * Parte bassa della mappa coperta dalla card: FISSA (la card più alta), non
+ * misurata. La MapView non deve ricevere props che cambiano a ogni scheda:
+ * succedeva coi margini legati all'altezza della card e i segnaposti sparivano.
+ */
 const CARD_COVER = 300;
 
 /**
@@ -45,8 +49,6 @@ export default function RipassoScreen() {
   const steps = useMemo(() => order.filter((k) => byKey.has(k)), [order, byKey]);
 
   const [idx, setIdx] = useState(0);
-  // Parte bassa della mappa coperta dalla card (misurata): centro della camera e logo Apple sopra.
-  const [cardH, setCardH] = useState(CARD_COVER);
   const i = Math.max(0, Math.min(idx, steps.length - 1));
   const current = steps.length ? byKey.get(steps[i]) ?? null : null;
   const last = i === steps.length - 1;
@@ -72,6 +74,8 @@ export default function RipassoScreen() {
     [steps, i, goTo],
   );
 
+  const mapInsets = useMemo(() => ({ top: insets.top + 56, bottom: insets.bottom + 10 + CARD_COVER }), [insets.top, insets.bottom]);
+
   if (!summary || !current) return <View style={s.root} />;
 
   const correct = () => openRoadMarkerMenu(summary.id, current, () => void refreshRoadSummary());
@@ -89,7 +93,7 @@ export default function RipassoScreen() {
         interactive
         selectedId={roadMarkerKey(current)}
         onPressMarker={onPin}
-        insets={{ top: insets.top + 56, bottom: insets.bottom + 10 + cardH }}
+        insets={mapInsets}
         style={StyleSheet.absoluteFill}
         edgePadding={40}
       />
@@ -106,10 +110,6 @@ export default function RipassoScreen() {
       <Animated.View
         layout={SWITCH_LAYOUT}
         style={[s.card, CLAY_SHADOW.raise, { bottom: insets.bottom + 10 }]}
-        onLayout={(e) => {
-          const h = Math.round(e.nativeEvent.layout.height);
-          setCardH((prev) => (Math.abs(prev - h) < 4 ? prev : h));
-        }}
       >
         <Animated.View key={steps[i]} entering={SWITCH_IN} exiting={SWITCH_OUT}>
           <MarkerCard marker={current} onMore={correct} />

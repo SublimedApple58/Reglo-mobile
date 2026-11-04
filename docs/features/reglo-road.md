@@ -382,6 +382,14 @@ Piano: `../reglo/plans/road/003-punti-critici-e-giro.md`. API: `GET /road/plan` 
 - **`app/road/index.tsx`**: card nera sotto la testata (stessa forma del toast «… segnato»): cerchio bianco con il numero della tappa (✓ quando raggiunta), «250 m · Via Roma» / «Tappa raggiunta · Via Roma», motivo sotto. Vibrazione: colpo `Heavy` all'avviso, `Success` alla tappa raggiunta. I toast della segnalazione e di Road libero scendono sotto la card se ci sono tutte e due. Il timer di chiusura sta nello schermo, così si chiude anche da fermi (senza fix). `RoadToastFrame` ora con `ReduceMotion.Never` (prima seguiva «Riduci movimento»).
 - **Riepilogo** (`app/road/riepilogo.tsx`): riga «Giro: N tappe su M» sotto i conteggi, da `summary.planReached` (il server la calcola a «Termina guida»: tracciato entro 40 m, percorso d'esame coperto al 60%); niente riga se la guida non aveva un giro.
 - Niente voce, niente indicazioni svolta per svolta. La mappa con linea, tappe e punti dell'allievo è REG-652.
+- **Segnaposti che spariscono (trovato in REG-715, era il problema aperto di REG-714)**: su iOS
+  (react-native-maps 1.20, New Architecture) un prop della `MapView` che cambia dopo il montaggio
+  può far sparire segnaposti già disegnati. Nel ripasso erano i `legalLabelInsets` legati
+  all'altezza della card (riprodotto: Velocità e Parcheggio sparivano alle schede 3 e 5; tolti,
+  ricomparsi). Regole in `RoadRouteMap`: `initialRegion` congelata al montaggio, `mapPadding`
+  memo con numeri fissi (copertura della card = costante `CARD_COVER`), niente margini che
+  inseguono il layout. `fitToCoordinates` rispetta `mapPadding`, `animateToRegion` no (spostamento
+  a mano in `focus`).
 - Verificato sul simulatore contro staging (Aurora Costa, posizione simulata a Torino con `xcrun simctl location booted start --speed=9 …`): avviso a 250 m, «Tappa raggiunta», riepilogo «Giro: 2 tappe su 2».
 
 ## Mappa del giro in Road (REG-652, 29/10)
@@ -529,9 +537,13 @@ Piano approvato da Tiziano (04/11): il ripasso è un bottone, non parte da solo;
   (parti coperte: fit, centro della camera e `legalLabelInsets`). Chiave dei segnaposti e delle
   righe = `roadMarkerKey` = **`clientId`** (unico anche sul server): resta uguale quando il
   riepilogo provvisorio di REG-714 (id = clientId) diventa quello del server.
-- **Ripasso** (`app/road/ripasso.tsx`, `fullScreenModal` con dissolvenza): bottone primario
-  «Ripassa con [nome]» in cima al footer del riepilogo (se c'è almeno una segnalazione; il
-  «Compila» del pagellino diventa secondario). Mappa a tutto schermo zoomata sulla segnalazione,
+- **Riepilogo leggero** (Tiziano 04/11): nel footer fisso UNA sola CTA — «Ripassa con [nome]»
+  se ci sono segnalazioni, altrimenti «Compila il pagellino» (acceso e non completo), altrimenti
+  «Fine». «Chiudi» non c'è più: chiude la X del foglio (o il gesto, `closeOnGesture`). Pagellino e
+  Note sono righe native nel contenuto (divisore sottile, titolo, stato grigio, chevron; niente card
+  né bottoni «Compila»/«Scrivi»); pagellino in errore: la riga riprova. «Salvato sul telefono…»
+  (REG-714) sta sotto le righe.
+- **Ripasso** (`app/road/ripasso.tsx`, `fullScreenModal` con dissolvenza): dalla CTA del riepilogo. Mappa a tutto schermo zoomata sulla segnalazione,
   «2 di 5» in alto a sinistra, X a destra, card in basso (simbolo col segno, etichetta, via · ora,
   «Da migliorare»/«Fatto bene», nota espandibile, «⋯» = correzione sul posto). «‹» e «Avanti»;
   all'ultima «Fine» e, se il pagellino è acceso, «Compila il pagellino»: il ripasso si chiude
