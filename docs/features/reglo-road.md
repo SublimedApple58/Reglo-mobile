@@ -36,7 +36,7 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
 | Simboli 3D segnalazioni | `src/road/markerArt.ts`, `assets/road/*.png` |
 | Formattazione (km con virgola, HH:MM) | `src/road/format.ts` |
 | Pezzi di mappa | `src/components/road/RoadMapParts.tsx` (percorso, pin, auto), `RoadMiniMap.tsx` (`RoadRouteMap`), `RoadMarkerList.tsx` |
-| Modalità Road (stack a sé, niente tab) | `app/road/_layout.tsx`, `index.tsx` (mappa), `segnala.tsx`, `riepilogo.tsx`, `pagellino.tsx`, `select-options(-long).tsx` |
+| Modalità Road (stack a sé, niente tab) | `app/road/_layout.tsx`, `index.tsx` (mappa), `segnala.tsx`, `riepilogo.tsx`, `pagellino.tsx`, `segnalazioni.tsx` e `ripasso.tsx` (REG-715), `select-options(-long).tsx` |
 | Invito / informativa | `app/(tabs)/home/road-invite.tsx`, `road-privacy.tsx` (TALL_SHEET) |
 | «Entra in Road» nella home | `WeeklyLiveCard` prop `onEnterRoad`, cablata in `IstruttoreHomeScreen` |
 | Percorso allievo | `app/(tabs)/home/lesson-detail.tsx` (blocco «Il tuo percorso»), `app/(tabs)/home/road-map.tsx` (tutto schermo), `src/road/routeMapStore.ts` |
@@ -510,3 +510,35 @@ Approvata da Tiziano sulle anteprime (`/tmp/hiro-anteprime/road-live-redesign/`)
     - riga «Poi …» se la svolta dopo arriva entro 250 m (`NavState.then`);
     - linea del giro 10/16 pt.
   - **Limite noto (iOS)**: MapKit disegna gli edifici 3D anche con `showsBuildings={false}`, e la linea (overlay a livello strade) passa sotto i loro bordi. Si toglie solo in nativo (livello `aboveLabels` o Mapbox, fase 2 rimandata).
+
+## Tutte le segnalazioni e ripasso con l'allievo (REG-715, 04/11)
+
+Piano approvato da Tiziano (04/11): il ripasso è un bottone, non parte da solo; ordine
+«da migliorare» → «fatto bene», in ordine di tempo; non configurabile; web non toccato.
+
+- **«Tutte le N segnalazioni»** (`src/screens/RoadMarkersSheet.tsx`, FORM_SHEET): UNA mappa
+  fissa in alto (`FormSheet fixedTop`) e l'elenco intero sotto (`FormSheet list` + `listRef`,
+  righe `RoadMarkerRow` memo, `getItemLayout` 58 pt). Riga → la mappa va sul segnaposto (300 ms)
+  e lo ingrandisce, riga velata; segnaposto → l'elenco scorre alla riga; mappa vuota → tutto il
+  percorso. Due route: `app/road/segnalazioni.tsx` (`source="summary"`, dati vivi dello store,
+  «⋯» corregge con `openRoadMarkerMenu`, anche senza rete) e `(tabs)/{home,drive,notes}/road-segnalazioni`
+  (`source="percorso"`, dati di `roadRouteMapStore`, sola lettura). Riepilogo e «Percorso»
+  mostrano 3 righe + la riga «Tutte le N segnalazioni ›»; nel riepilogo anche la minimappa la apre.
+- **`RoadRouteMap`** (`RoadMiniMap.tsx`): `selectedId` (segnaposto grande, zIndex 9, camera
+  `animateToRegion` ~400 m centrata nella parte libera), `onPressMarker`, `onPressMap`, `insets`
+  (parti coperte: fit, centro della camera e `legalLabelInsets`). Chiave dei segnaposti e delle
+  righe = `roadMarkerKey` = **`clientId`** (unico anche sul server): resta uguale quando il
+  riepilogo provvisorio di REG-714 (id = clientId) diventa quello del server.
+- **Ripasso** (`app/road/ripasso.tsx`, `fullScreenModal` con dissolvenza): bottone primario
+  «Ripassa con [nome]» in cima al footer del riepilogo (se c'è almeno una segnalazione; il
+  «Compila» del pagellino diventa secondario). Mappa a tutto schermo zoomata sulla segnalazione,
+  «2 di 5» in alto a sinistra, X a destra, card in basso (simbolo col segno, etichetta, via · ora,
+  «Da migliorare»/«Fatto bene», nota espandibile, «⋯» = correzione sul posto). «‹» e «Avanti»;
+  all'ultima «Fine» e, se il pagellino è acceso, «Compila il pagellino»: il ripasso si chiude
+  e il pagellino si apre dal riepilogo (`ripassoHandoff` in `src/road/ripasso.ts` + `useFocusEffect`).
+  Ordine `ripassoOrder`: «da migliorare», poi neutre (senza segno), poi «fatto bene», ciascun
+  gruppo per `recordedAt`; fissato all'apertura per clientId (una correzione non sposta le schede,
+  un'eliminazione le accorcia; tutte eliminate → si chiude). Tocco su un segnaposto = salta a quella.
+- Verificato sul simulatore contro staging (Aurora Costa, 5 segnalazioni aggiunte via API alla
+  guida live, posizione simulata a Torino): elenco con mappa da riepilogo e da «Road di Aurora» ›
+  guida, riga→mappa, segnaposto→riga, ripasso 1→5 con correzione a metà, passaggio al pagellino.

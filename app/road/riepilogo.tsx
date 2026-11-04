@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../src/components/SheetScaffold';
-import { useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { RoadRouteMap } from '../../src/components/road/RoadMiniMap';
-import { RoadMarkerList } from '../../src/components/road/RoadMarkerList';
+import { RoadMarkerList, toMarkerItem } from '../../src/components/road/RoadMarkerList';
+import { roadMarkerKey } from '../../src/components/road/RoadMiniMap';
+import { ripassoHandoff } from '../../src/road/ripasso';
 import { RoadCheckList } from '../../src/components/road/RoadCheckList';
 import { countSentiments, SentimentCounts } from '../../src/components/road/RoadSentiment';
 import { lessonStudentName, useRoadSelector } from '../../src/road/roadStore';
@@ -43,8 +46,11 @@ function evalCounts(data: AppointmentEvaluation): EvalState {
   return { status: 'ok', enabled: !!data.enabled, total: active.length, done: scored };
 }
 
-/** Oltre, «+N altre»: il foglio abbraccia il contenuto e non deve superare lo schermo. */
-const MAX_MARKERS = 4;
+/**
+ * Le prime righe; l'elenco intero è nel foglio «Tutte le N segnalazioni»
+ * (REG-715, con la mappa), che si apre anche toccando la minimappa.
+ */
+const MAX_MARKERS = 3;
 
 /**
  * REG-638 — riepilogo a fine guida (form sheet che abbraccia il contenuto, CTA
@@ -115,9 +121,31 @@ export default function RiepilogoScreen() {
     // RoadController riporta alla home appena la fase torna `idle`.
   };
 
+  const pgLesson = summary?.lesson;
+  const openPagellino = useCallback(() => {
+    if (!pgLesson) return;
+    openRoadPagellino(router, pgLesson, {
+      showStayChip: false,
+      onSaved: () => {
+        void refreshRoadSummary();
+        setEvTry((n) => n + 1);
+      },
+    });
+  }, [router, pgLesson]);
+
+  // REG-715: «Compila il pagellino» dall'ultima scheda del ripasso.
+  useFocusEffect(
+    useCallback(() => {
+      if (ripassoHandoff.take()) openPagellino();
+    }, [openPagellino]),
+  );
+
   if (!summary) return <View style={s.root} />;
 
   const lesson = summary.lesson;
+  const hasMarkers = summary.markers.length > 0;
+  const firstName = lessonStudentName(lesson).split(' ')[0];
+  const openAll = () => router.push('/road/segnalazioni');
   const sub = [
     dayLabel(lesson.startsAt),
     `${formatHm(lesson.startsAt)} – ${formatHm(summary.endedAt ?? lesson.endsAt)}`,
@@ -154,6 +182,17 @@ export default function RiepilogoScreen() {
       cta={
         <>
       <Animated.View style={s.foot} layout={ROAD_LAYOUT}>
+        {/* REG-715: il ripasso è un'azione, non parte da solo. */}
+        {hasMarkers ? (
+          <Animated.View entering={ROAD_TEXT_IN} exiting={ROAD_EXIT}>
+            <ClayButton
+              title={`Ripassa con ${firstName}`}
+              onPress={() => router.push('/road/ripasso')}
+              style={s.ripasso}
+              testID="road-summary-ripasso"
+            />
+          </Animated.View>
+        ) : null}
         {showPagellino ? (
           <Animated.View entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} layout={ROAD_LAYOUT}>
             <ClaySurface radius={24} style={s.pg}>
@@ -184,17 +223,10 @@ export default function RiepilogoScreen() {
               </View>
               <ClayButton
                 compact
-                variant={pgEmpty ? 'primary' : 'secondary'}
+                // Con le segnalazioni la prima azione è il ripasso (che porta al pagellino).
+                variant={pgEmpty && !hasMarkers ? 'primary' : 'secondary'}
                 title={pgEmpty ? 'Compila' : 'Modifica'}
-                onPress={() =>
-                  openRoadPagellino(router, lesson, {
-                    showStayChip: false,
-                    onSaved: () => {
-                      void refreshRoadSummary();
-                      setEvTry((n) => n + 1);
-                    },
-                  })
-                }
+                onPress={openPagellino}
                 style={s.pgBtn}
                 testID="road-summary-pagellino"
               />
@@ -220,9 +252,16 @@ export default function RiepilogoScreen() {
     >
 
       {/* La mappa si ritaglia nel figlio: l'ombra clay sta sul contenitore. */}
-      <View style={[s.miniWrap, CLAY_SHADOW.raise]}>
+      <Pressable
+        onPress={hasMarkers ? openAll : undefined}
+        disabled={!hasMarkers}
+        accessibilityRole={hasMarkers ? 'button' : undefined}
+        accessibilityLabel={hasMarkers ? 'Apri tutte le segnalazioni sulla mappa' : undefined}
+        testID="road-summary-map"
+        style={({ pressed }) => [s.miniWrap, CLAY_SHADOW.raise, pressed && s.mapPressed]}
+      >
         <RoadRouteMap track={summary.track} markers={summary.markers} stops={summary.stops} style={s.mini} />
-      </View>
+      </Pressable>
 
       <View style={s.sum}>
         <ClayStat value={formatKm(summary.distanceMeters)} unit="km" label="Percorsi" />
@@ -270,25 +309,23 @@ export default function RiepilogoScreen() {
       {shown.length ? (
         <View style={{ marginTop: 6 }}>
           <RoadMarkerList
-            items={shown.map((m) => ({
-              key: m.id,
-              kind: m.kind,
-              label: m.label,
-              street: m.street,
-              note: m.note,
-              sentiment: m.sentiment ?? null,
-              recordedAt: m.recordedAt,
-            }))}
+            items={shown.map(toMarkerItem)}
             // REG-696: si corregge anche dopo i 5 s dell'«Annulla».
-            onPressItem={(id) => {
-              const m = shown.find((x) => x.id === id);
+            onPressItem={(key) => {
+              const m = shown.find((x) => roadMarkerKey(x) === key);
               if (m) openRoadMarkerMenu(summary.id, m, () => void refreshRoadSummary());
             }}
           />
           {more > 0 ? (
-            <Text style={s.more}>
-              + {more} {more === 1 ? 'altra segnalazione' : 'altre segnalazioni'} sulla mappa
-            </Text>
+            <Pressable
+              onPress={openAll}
+              style={({ pressed }) => [s.allRow, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              testID="road-summary-all"
+            >
+              <Text style={s.allTx}>Tutte le {summary.markers.length} segnalazioni</Text>
+              <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} />
+            </Pressable>
           ) : null}
         </View>
       ) : null}
@@ -305,7 +342,18 @@ const s = StyleSheet.create({
   syncTx: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 10, lineHeight: 18 },
   queuedTx: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 10, lineHeight: 18, textAlign: 'center' },
   agendaTx: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink3, lineHeight: 19 },
-  more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
+  mapPressed: { transform: [{ scale: 0.98 }] },
+  // Riga «Tutte le N segnalazioni»: come le righe sopra (divisore, 52 di altezza), chevron a destra.
+  allRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 52,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(60,60,67,0.18)',
+  },
+  allTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  ripasso: { marginBottom: 12 },
   foot: {},
   sum: { flexDirection: 'row', gap: 10, marginTop: 16 },
   pg: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 18, paddingRight: 12 },

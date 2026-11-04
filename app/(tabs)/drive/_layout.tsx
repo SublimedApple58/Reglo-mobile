@@ -30,6 +30,7 @@ export default function DriveLayout() {
       <Stack.Screen name="sede-mancante" options={FORM_SHEET} />
       {/* «Ultime guide»: percorso della guida e mappa a tutto schermo, come in home. */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
+      <Stack.Screen name="road-segnalazioni" options={FORM_SHEET} />
       {/* REG-646: punti critici dell'autoscuola (schermata intera) e dettaglio di un punto. */}
       <Stack.Screen name="punti-critici" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen name="punto-critico" options={FORM_SHEET} />

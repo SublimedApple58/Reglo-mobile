@@ -76,6 +76,8 @@ export function FormSheet({
   dirty,
   closeOnGesture,
   list,
+  listRef,
+  fixedTop,
 }: {
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -96,7 +98,15 @@ export function FormSheet({
    * gesti. `children` va nell'intestazione della lista.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  list?: Pick<FlatListProps<any>, 'data' | 'renderItem' | 'keyExtractor' | 'initialNumToRender' | 'maxToRenderPerBatch' | 'windowSize'>;
+  list?: Pick<FlatListProps<any>, 'data' | 'renderItem' | 'keyExtractor' | 'initialNumToRender' | 'maxToRenderPerBatch' | 'windowSize' | 'extraData' | 'getItemLayout' | 'onScrollToIndexFailed'>;
+  /** Riferimento alla FlatList di `list` (es. `scrollToIndex`). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  listRef?: React.Ref<FlatList<any>>;
+  /**
+   * Parte FISSA fra la testata e il centro che scorre (es. la mappa sopra
+   * l'elenco delle segnalazioni, REG-715): resta ferma mentre l'elenco scorre.
+   */
+  fixedTop?: React.ReactNode;
   /** Operazione in corso: trascinare o toccare fuori non chiude. */
   busy?: boolean;
   /** Modifiche non salvate: prima di chiudere chiede conferma. */
@@ -125,7 +135,8 @@ export function FormSheet({
   // collassava a pochi punti.
   const [headH, setHeadH] = useState(0);
   const [footH, setFootH] = useState(0);
-  const scrollMaxH = Math.max(120, maxH - headH - (cta ? footH : 0));
+  const [topH, setTopH] = useState(0);
+  const scrollMaxH = Math.max(120, maxH - headH - (fixedTop ? topH : 0) - (cta ? footH : 0));
   // Altezza del centro ESPLICITA = min(contenuto misurato, tetto): la misura
   // nativa dello ScrollView non si aggiornava quando il contenuto cresceva
   // dopo l'apertura (es. «Prenotazione multipla») e il contenuto finiva sotto
@@ -217,13 +228,22 @@ export function FormSheet({
           )}
         </View>
         <SheetCloseButton onPress={close} />
-        <Animated.View pointerEvents="none" style={[fs.headLine, headLine]} />
+        {fixedTop ? null : <Animated.View pointerEvents="none" style={[fs.headLine, headLine]} />}
       </View>
+
+      {fixedTop ? (
+        <View style={fs.fixedTop} onLayout={(e) => setTopH(e.nativeEvent.layout.height)}>
+          {fixedTop}
+          {/* La linea «contenuto sotto» sta sotto la parte fissa, non sotto il titolo. */}
+          <Animated.View pointerEvents="none" style={[fs.headLine, headLine]} />
+        </View>
+      ) : null}
 
       <View collapsable={false} style={isAndroid && fs.scrollFill} testID="sheet-body">
       {list ? (
         <FlatList
           {...list}
+          ref={listRef}
           testID="sheet-scroll"
           style={isAndroid ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
           contentContainerStyle={[fs.body, cta ? null : fs.bodyLast]}
@@ -396,6 +416,7 @@ const fs = StyleSheet.create({
     // troverebbe lo ScrollView e gli forzerebbe il frame a tutto il foglio.
     backgroundColor: '#FFFFFF',
   },
+  fixedTop: { paddingHorizontal: 22, paddingBottom: 6, backgroundColor: '#FFFFFF' },
   headLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
   titles: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 40 },
   title: { fontSize: 24, fontWeight: '600', color: '#111111', letterSpacing: -0.5, lineHeight: 28 },

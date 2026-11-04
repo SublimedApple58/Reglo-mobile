@@ -2097,6 +2097,10 @@ Cosa fa da solo, sempre uguale:
   che in `cta` scorrono col contenuto;
 - fondo bianco, padding laterale 22, testata 26 sopra e 14 sotto.
 
+Parte fissa sopra una lista (REG-715): `fixedTop` (es. la mappa sopra l'elenco delle
+segnalazioni) resta ferma fra testata e centro, con la linea «contenuto sotto» sotto di
+lei; `listRef` dà la FlatList di `list` (es. `scrollToIndex`).
+
 Liste a tutta larghezza dentro il foglio (righe native con divisori): un
 contenitore con `marginHorizontal: -22` (vedi `drive/avvia.tsx`, `s.bleed`). La
 ricerca sta nel contenuto, non in una testata sticky (il wrapper sticky di RN

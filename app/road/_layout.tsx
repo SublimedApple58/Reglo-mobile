@@ -19,6 +19,9 @@ export default function RoadLayout() {
       <Stack.Screen name="pagellino" options={FORM_SHEET} />
       <Stack.Screen name="note" options={FORM_SHEET} />
       <Stack.Screen name="riepilogo" options={FORM_SHEET} />
+      {/* REG-715: elenco completo con la mappa e ripasso con l'allievo. */}
+      <Stack.Screen name="segnalazioni" options={FORM_SHEET} />
+      <Stack.Screen name="ripasso" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
     </Stack>
   );
 }

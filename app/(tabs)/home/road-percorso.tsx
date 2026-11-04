@@ -7,14 +7,15 @@ import { CLAY, CLAY_SHADOW } from '../../../src/theme';
 import { useRouter, useSegments } from 'expo-router';
 
 import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
-import { RoadMarkerList } from '../../../src/components/road/RoadMarkerList';
+import { RoadMarkerList, toMarkerItem } from '../../../src/components/road/RoadMarkerList';
+import { Ionicons } from '@expo/vector-icons';
 import { countSentiments, SentimentCounts } from '../../../src/components/road/RoadSentiment';
 import { roadRouteMapStore } from '../../../src/road/routeMapStore';
 import { retryRoadPercorso } from '../../../src/road/openRoadPercorso';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../../src/road/format';
 
-/** Oltre, «+N altre»: il foglio abbraccia il contenuto e non deve superare lo schermo. */
-const MAX_MARKERS = 5;
+/** Le prime righe; l'elenco intero con la mappa è «Tutte le N segnalazioni» (REG-715). */
+const MAX_MARKERS = 3;
 
 /**
  * REG-638 — «Percorso Road» di una guida nell'app istruttore (dettaglio guida e
@@ -115,21 +116,17 @@ export default function RoadPercorsoSheet() {
 
         {shown.length ? (
           <View style={{ marginTop: 6 }}>
-            <RoadMarkerList
-              items={shown.map((m) => ({
-                key: m.id,
-                kind: m.kind,
-                label: m.label,
-                street: m.street,
-                note: m.note,
-                sentiment: m.sentiment ?? null,
-                recordedAt: m.recordedAt,
-              }))}
-            />
+            <RoadMarkerList items={shown.map(toMarkerItem)} />
             {more > 0 ? (
-              <Text style={s.more}>
-                + {more} {more === 1 ? 'altra segnalazione' : 'altre segnalazioni'} sulla mappa
-              </Text>
+              <Pressable
+                onPress={() => router.push(`/(tabs)/${stack}/road-segnalazioni`)}
+                style={({ pressed }) => [s.allRow, pressed && { opacity: 0.6 }]}
+                accessibilityRole="button"
+                testID="road-percorso-all"
+              >
+                <Text style={s.allTx}>Tutte le {detail.markers.length} segnalazioni</Text>
+                <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} />
+              </Pressable>
             ) : null}
           </View>
         ) : (
@@ -149,6 +146,16 @@ const s = StyleSheet.create({
   mini: { height: 172, borderRadius: 24, overflow: 'hidden' },
   sum: { flexDirection: 'row', gap: 10, marginTop: 16 },
   more: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, marginTop: 8 },
+  // Come la riga del riepilogo: divisore, 52 di altezza, chevron a destra.
+  allRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 52,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(60,60,67,0.18)',
+  },
+  allTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   skSub: { marginTop: 6 },
   skStat: { flex: 1 },
   skRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
