@@ -16,12 +16,12 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing, ReduceMotion } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing, ReduceMotion, ZoomIn, FadeOut } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
-import { minimizeRoad } from '../../src/road/miniStore';
-import { lessonStudentName, roadStore, useRoadSelector } from '../../src/road/roadStore';
+import { minimizeRoad, ROAD_COVER_MS, ROAD_SWITCH_MS, useRoadMinimized } from '../../src/road/miniStore';
+import { lessonStudentName, roadStore, useRoadSelector, type RoadLocalMarker } from '../../src/road/roadStore';
 import { endRoad, recordHotspotCheck, swapRoadMarkerPlace, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { ROAD_EXIT, ROAD_TEXT_IN } from '../../src/road/motion';
@@ -53,12 +53,21 @@ import {
 import { SentimentBadge } from '../../src/components/road/RoadSentiment';
 import { Avatar, ClayButton } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
-import { RoadMarkerPin } from '../../src/components/road/RoadMapParts';
+import {
+  arrowsAlong,
+  chevronCoords,
+  RoadEndpointDot,
+  RoadMarkerPin,
+  RoadPinBody,
+  ROAD_PIN_BODY_H,
+  ROAD_PIN_POINT_Y,
+} from '../../src/components/road/RoadMapParts';
 import { RoadGuideOverlay } from '../../src/components/road/RoadGuideOverlay';
 import { CAR_DISC, RoadLiveCar, RoadLiveCarMarker } from '../../src/components/road/RoadLiveCar';
 import { RoadNavCard } from '../../src/components/road/RoadNavCard';
 import { ExpandableText } from '../../src/components/road/ExpandableText';
 import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
+import { RoadCompass } from '../../src/components/road/RoadCompass';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
@@ -181,7 +190,8 @@ function useTrackChunks(track: TrackPt[]) {
 }
 
 const TRACK_INK = 'rgba(17,17,17,0.30)';
-const TRACK_INK_NIGHT = 'rgba(242,242,242,0.32)';
+// REG-723: senza il velo, di notte la linea chiara deve leggersi sopra le strade chiare.
+const TRACK_INK_NIGHT = 'rgba(242,242,242,0.6)';
 const TrackPiece = React.memo(function TrackPiece({ pts, still, night }: { pts: TrackPt[] | null; still: TrackPt[]; night: boolean }) {
   const on = !!pts && pts.length >= 2;
   return (
@@ -210,6 +220,66 @@ const LiveTrack = React.memo(function LiveTrack({ center, night }: { center: { l
   );
 });
 
+/**
+ * REG-723 — partenza e verso di marcia sulla linea dal vivo. Posti fissi
+ * (crash AIRMap aggiungendo figli): il segnaposto di partenza e ARROW_SLOTS
+ * frecce «›» disegnate come linee sulla mappa (girano con lei, niente
+ * ridisegni a ogni fotogramma). Una freccia ogni 200 m; se non bastano i posti
+ * la distanza raddoppia. Le frecce già messe non cambiano più.
+ */
+const ARROW_SLOTS = 24;
+const ARROW_EVERY_M = 200;
+/** La freccia: mezza larghezza e lunghezza in metri (~1 m a punto allo zoom di guida). */
+const ARROW_HALF_M = 1.7;
+const ARROW_LEN_M = 2.6;
+const ARROW_INK = 'rgba(255,255,255,0.9)';
+const ARROW_INK_NIGHT = 'rgba(10,10,10,0.6)';
+
+function useLiveArrows(track: TrackPt[]) {
+  const cache = useRef<{ first: TrackPt | null; every: number; lines: TrackPt[][] }>({ first: null, every: ARROW_EVERY_M, lines: [] });
+  return useMemo(() => {
+    let c = cache.current;
+    if (c.first !== (track[0] ?? null)) c = cache.current = { first: track[0] ?? null, every: ARROW_EVERY_M, lines: [] };
+    let found = arrowsAlong(track, c.every, c.every / 2);
+    while (found.length > ARROW_SLOTS) {
+      c = cache.current = { first: c.first, every: c.every * 2, lines: [] };
+      found = arrowsAlong(track, c.every, c.every / 2);
+    }
+    for (let i = c.lines.length; i < found.length; i++) c.lines.push(chevronCoords(found[i], ARROW_HALF_M, ARROW_LEN_M));
+    return c.lines.slice();
+    // Ricalcolo solo quando la linea si allunga.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [track.length, track[0]]);
+}
+
+const ArrowPiece = React.memo(function ArrowPiece({ pts, still, night }: { pts: TrackPt[] | null; still: TrackPt[]; night: boolean }) {
+  return (
+    <Polyline
+      coordinates={pts ?? still}
+      strokeColor={pts ? (night ? ARROW_INK_NIGHT : ARROW_INK) : 'rgba(17,17,17,0)'}
+      strokeWidth={1.6}
+      lineCap="round"
+      lineJoin="round"
+      zIndex={2}
+    />
+  );
+});
+
+const LiveEnds = React.memo(function LiveEnds({ center, night }: { center: { lat: number; lng: number }; night: boolean }) {
+  const track = useRoadSelector((s) => s.track);
+  const still = useMemo(() => STILL(center), [center]);
+  const lines = useLiveArrows(track);
+  const first = track[0] ?? null;
+  return (
+    <>
+      <RoadEndpointDot coordinate={first ?? still[0]} kind="start" opacity={first ? 1 : 0} />
+      {Array.from({ length: ARROW_SLOTS }, (_, i) => (
+        <ArrowPiece key={i} pts={lines[i] ?? null} still={still} night={night} />
+      ))}
+    </>
+  );
+});
+
 const LiveGuide = React.memo(function LiveGuide({ center, night }: { center: { lat: number; lng: number }; night: boolean }) {
   const guide = useRoadSelector((s) => s.guide);
   const passed = useRoadSelector((s) => s.guidePassed);
@@ -230,9 +300,22 @@ const LiveGuide = React.memo(function LiveGuide({ center, night }: { center: { l
   );
 });
 
-const LivePins = React.memo(function LivePins() {
+const LivePins = React.memo(function LivePins({ onPin }: { onPin: (clientId: string) => void }) {
   const markers = useRoadSelector((s) => s.markers);
   const lastId = markers.length ? markers[markers.length - 1].clientId : null;
+  // REG-723: segnalazioni toccabili. Una callback stabile per segnalazione: i
+  // props dei Marker non cambiano a ogni render.
+  const onPinRef = useRef(onPin);
+  onPinRef.current = onPin;
+  const handlers = useRef(new Map<string, () => void>());
+  const handlerFor = (id: string) => {
+    let fn = handlers.current.get(id);
+    if (!fn) {
+      fn = () => onPinRef.current(id);
+      handlers.current.set(id, fn);
+    }
+    return fn;
+  };
   return (
     <>
       {markers.map((m) => (
@@ -243,6 +326,7 @@ const LivePins = React.memo(function LivePins() {
           label={m.label}
           small={m.clientId !== lastId}
           sentiment={m.sentiment}
+          onPress={handlerFor(m.clientId)}
         />
       ))}
     </>
@@ -310,10 +394,15 @@ const LiveMap = React.memo(function LiveMap({
   mapHeadRef,
   onPanDrag,
   onRegionDone,
+  onPin,
+  onMapPress,
   night,
 }: {
   /** REG-697: mappa notte (MapKit scura su iOS, stile in grigi su Android). */
   night: boolean;
+  /** REG-723: tocco su una segnalazione / sulla mappa fuori dalle segnalazioni. */
+  onPin: (clientId: string) => void;
+  onMapPress: () => void;
   mapRef: React.RefObject<MapView | null>;
   center: { lat: number; lng: number; heading: number };
   panelH: number;
@@ -326,8 +415,9 @@ const LiveMap = React.memo(function LiveMap({
   onRegionDone: () => void;
 }) {
   const where = useMemo(() => ({ lat: center.lat, lng: center.lng }), [center]);
-  // Linee chiare solo sulla mappa davvero scura (Android); su iOS il velo scurisce quelle del giorno.
-  const darkMap = night && Platform.OS === 'android';
+  // REG-723: di notte la mappa è scura su tutte e due (iOS: stile notte nativo,
+  // senza più il velo nero sopra), quindi linee chiare su tutte e due.
+  const darkMap = night;
   const initialCamera = useMemo(() => {
     const t = cameraTarget(0, null);
     return {
@@ -362,14 +452,21 @@ const LiveMap = React.memo(function LiveMap({
       pitchEnabled
       zoomEnabled
       scrollEnabled
-      userInterfaceStyle="light"
+      userInterfaceStyle={night ? 'dark' : 'light'}
       onPanDrag={onPanDrag}
       onRegionChangeComplete={onRegionDone}
+      onPress={(e) => {
+        // Il tocco su una segnalazione arriva anche alla mappa: si ignora.
+        if ((e.nativeEvent as { action?: string }).action === 'marker-press') return;
+        onMapPress();
+      }}
     >
       {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
       <LiveGuide center={where} night={darkMap} />
       <LiveTrack center={where} night={darkMap} />
-      <LivePins />
+      {/* REG-723: partenza e frecce del verso, posti fissi subito dopo la traccia. */}
+      <LiveEnds center={where} night={darkMap} />
+      <LivePins onPin={onPin} />
       <LiveCarMarker following={following} color={carColor} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
     </MapView>
   );
@@ -439,6 +536,19 @@ export default function RoadScreen() {
   useKeepAwake('reglo-road');
   // REG-697: dal tramonto all'alba mappa e superfici scure (solo grigi e nero).
   const night = useRoadNight();
+  // REG-723: passaggio con la barra «Torna in Road» senza scatti. Sotto il velo
+  // che sale (RoadController) Road si stringe appena quando si riduce, e
+  // arrivando si allarga dal 98,5% mentre il velo scende.
+  const minimized = useRoadMinimized();
+  const switchScale = useSharedValue(SWITCH_SCALE_IN);
+  useEffect(() => {
+    switchScale.value = withTiming(minimized ? SWITCH_SCALE_OUT : 1, {
+      duration: minimized ? ROAD_COVER_MS : ROAD_SWITCH_MS + 40,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.Never,
+    });
+  }, [minimized, switchScale]);
+  const switchStyle = useAnimatedStyle(() => ({ transform: [{ scale: switchScale.value }] }));
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const session = useRoadSelector((s) => s.session);
@@ -639,7 +749,8 @@ export default function RoadScreen() {
         // REG-698: a mappa libera la camera è dell'utente: basta controllare a 10 Hz.
         still = IDLE_AFTER_FRAMES + 1;
         sent = null;
-        if (now - lastTouch.current >= AUTO_RETURN_MS) startReturn();
+        // REG-723: con una segnalazione aperta si resta lì finché non la si chiude.
+        if (now - lastTouch.current >= AUTO_RETURN_MS && !pinIdRef.current) startReturn();
         return;
       }
       const rot = headingDelta(smp.camHeading, smp.heading);
@@ -786,6 +897,49 @@ export default function RoadScreen() {
   }, []);
 
   // Con la mappa libera: la direzione della mappa (bussola, auto marker).
+  // ─── REG-723: segnalazione toccata (si ingrandisce e mostra il dettaglio) ──
+  const [pinSel, setPinSel] = useState<PinSel | null>(null);
+  const pinIdRef = useRef<string | null>(null);
+  const pinTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showPin = useCallback(async () => {
+    const id = pinIdRef.current;
+    const m = id ? roadStore.get().markers.find((x) => x.clientId === id) : null;
+    if (!m) return;
+    const p = await mapRef.current?.pointForCoordinate({ latitude: m.lat, longitude: m.lng }).catch(() => null);
+    if (!p || pinIdRef.current !== id) return;
+    setPinSel({ m, x: p.x, y: p.y });
+  }, []);
+  const closePin = useCallback(() => {
+    clearTimeout(pinTimer.current);
+    if (!pinIdRef.current) return;
+    pinIdRef.current = null;
+    lastTouch.current = Date.now();
+    setPinSel(null);
+  }, []);
+  const onPin = useCallback(
+    (id: string) => {
+      const m = roadStore.get().markers.find((x) => x.clientId === id);
+      if (!m) return;
+      Haptics.selectionAsync().catch(() => undefined);
+      release();
+      pinIdRef.current = id;
+      setPinSel(null);
+      // La camera va sulla segnalazione (stessa direzione e zoom), poi il pin grande.
+      mapRef.current?.animateCamera({ center: { latitude: m.lat, longitude: m.lng } }, { duration: PIN_FLY_MS });
+      clearTimeout(pinTimer.current);
+      pinTimer.current = setTimeout(() => void showPin(), PIN_FLY_MS + 60);
+    },
+    [release, showPin],
+  );
+  const onPanDrag = useCallback(() => {
+    closePin();
+    release();
+  }, [closePin, release]);
+  useEffect(() => {
+    if (following) closePin();
+  }, [following, closePin]);
+  useEffect(() => () => clearTimeout(pinTimer.current), []);
+
   const onRegionDone = useCallback(() => {
     if (mode.current !== 'free') return;
     mapRef.current
@@ -832,7 +986,7 @@ export default function RoadScreen() {
   const carPt = box ? { x: box.w / 2, y: MAP_PADDING_TOP + (box.h - MAP_PADDING_TOP - (8 + panelH)) / 2 } : null;
 
   return (
-    <View style={[s.root, night && ns.root]} onTouchStart={onAnyTouch}>
+    <Animated.View style={[s.root, night && ns.root, switchStyle]} onTouchStart={onAnyTouch}>
       <View
         style={StyleSheet.absoluteFill}
         onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
@@ -850,14 +1004,16 @@ export default function RoadScreen() {
           carEpoch={carEpoch}
           liveRef={liveRef}
           mapHeadRef={mapHeadRef}
-          onPanDrag={release}
+          onPanDrag={onPanDrag}
           onRegionDone={onRegionDone}
+          onPin={onPin}
+          onMapPress={closePin}
           night={night}
         />
-        {/* REG-697: la mappa scura di Apple è blu (non si ricolora): di notte su
-            iOS resta quella chiara in grigi, abbassata da un velo nero. */}
-        {night && Platform.OS === 'ios' ? <View style={ns.veil} pointerEvents="none" /> : null}
       </View>
+
+      {/* REG-723: la segnalazione toccata, grande, con il dettaglio. */}
+      {pinSel ? <LivePinDetail key={pinSel.m.clientId} sel={pinSel} night={night} /> : null}
 
       {carPt ? (
         <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
@@ -904,7 +1060,7 @@ export default function RoadScreen() {
         insetsBottom={insets.bottom}
         night={night}
       />
-    </View>
+    </Animated.View>
   );
 }
 
@@ -1216,7 +1372,55 @@ function LiveTop({
   );
 }
 
+// ─── REG-723: la segnalazione toccata ───────────────────────────────────────
+
+type PinSel = { m: RoadLocalMarker; x: number; y: number };
+/** Scala di Road nel passaggio con la barra ridotta (REG-723). */
+const SWITCH_SCALE_IN = 0.985;
+const SWITCH_SCALE_OUT = 0.97;
+/** Volo della camera sulla segnalazione toccata. */
+const PIN_FLY_MS = 300;
+const PIN_W = 260;
+/** Spazio sopra il punto per scheda + fumetto (il contenuto sta in fondo). */
+const PIN_BOX_H = 420;
+const PIN_IN = ZoomIn.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never);
+const PIN_OUT = FadeOut.duration(140).reduceMotion(ReduceMotion.Never);
+
+/**
+ * Sopra la mappa (non un Marker che cambia: crash AIRMap, REG-715): il fumetto
+ * grande sul punto e sopra la scheda con ora, via, segno e nota. Si ingrandisce
+ * dal punto in 220 ms, senza rimbalzo.
+ */
+const LivePinDetail = React.memo(function LivePinDetail({ sel, night }: { sel: PinSel; night: boolean }) {
+  const { m } = sel;
+  const sub = [formatHm(m.recordedAt), m.street].filter(Boolean).join(' · ');
+  const sign = m.sentiment === 'good' ? 'Fatto bene' : m.sentiment === 'bad' ? 'Da migliorare' : null;
+  return (
+    <View
+      pointerEvents="none"
+      style={[s.pinBox, { left: sel.x - PIN_W / 2, top: sel.y + (ROAD_PIN_BODY_H - ROAD_PIN_POINT_Y) - PIN_BOX_H }]}
+    >
+      <Animated.View entering={PIN_IN} exiting={PIN_OUT} style={s.pinInner}>
+        <View style={[s.pinCard, night && ns.surface, CLAY_SHADOW.raiseSm]} testID="road-pin-detail">
+          <Text style={[s.pinSub, night && ns.ink3]} numberOfLines={1}>
+            {sign ? `${sign} · ${sub}` : sub}
+          </Text>
+          {m.note ? (
+            <Text style={[s.pinNote, night && ns.ink]} numberOfLines={3}>
+              {m.note}
+            </Text>
+          ) : null}
+        </View>
+        <RoadPinBody kind={m.kind} label={m.label} sentiment={m.sentiment} />
+      </Animated.View>
+    </View>
+  );
+});
+
 // ─── Controlli: velocità a sinistra, Ricentra e bussola a destra ────────────
+
+/** Quanto sale il cerchio della velocità per lasciare libera la scritta «Mappe». */
+const SPEED_LIFT = 20;
 
 const LiveControls = React.memo(function LiveControls({
   bottom,
@@ -1239,7 +1443,8 @@ const LiveControls = React.memo(function LiveControls({
   const muted = useRoadSoundMuted();
   return (
     <>
-      <View style={[s.speed, night && ns.surface, CLAY_SHADOW.raise, { bottom }]} accessibilityLabel={`${speedKmh} chilometri orari`}>
+      {/* REG-723: sopra la scritta di Apple Mappe (in basso a sinistra), staccato dal bordo. */}
+      <View style={[s.speed, night && ns.surface, CLAY_SHADOW.raise, { bottom: bottom + SPEED_LIFT }]} accessibilityLabel={`${speedKmh} chilometri orari`}>
         <Text style={[s.speedNum, night && ns.ink]}>{speedKmh}</Text>
         <Text style={[s.speedUnit, night && ns.ink3]}>km/h</Text>
       </View>
@@ -1264,12 +1469,11 @@ const LiveControls = React.memo(function LiveControls({
               onPress={onNorth}
               style={({ pressed }) => [s.round, night && ns.surface, CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.95 }] }]}
               accessibilityRole="button"
-              accessibilityLabel="Rimetti il nord in alto"
+              accessibilityLabel="Bussola: rimetti il nord in alto"
               testID="road-north"
             >
-              <View style={{ transform: [{ rotate: `${-mapHeading}deg` }] }}>
-                <MaterialIcons name="navigation" size={22} color={night ? NIGHT.ink : CLAY.ink} />
-              </View>
+              {/* REG-723: bussola con la «N» (prima una freccia uguale a «Ricentra»). */}
+              <RoadCompass heading={mapHeading} night={night} />
             </Pressable>
           </Animated.View>
         ) : null}
@@ -1282,7 +1486,7 @@ const LiveControls = React.memo(function LiveControls({
               accessibilityLabel="Ricentra sull'auto"
               testID="road-recenter"
             >
-              <MaterialIcons name="near-me" size={20} color={night ? NIGHT.ink : CLAY.ink} />
+              <MaterialIcons name="my-location" size={20} color={night ? NIGHT.ink : CLAY.ink} />
               <Text style={[s.recenterTx, night && ns.ink]}>Ricentra</Text>
             </Pressable>
           </Animated.View>
@@ -1303,7 +1507,8 @@ const LiveStatusRow = React.memo(function LiveStatusRow({ range, minutes, night 
   const st = useLiveStatus();
   const line = liveStatusLine(st);
   // Corta: con Note, Pagellino e Riduci accanto, «10:34 – 11:04 · 12 min» si troncava.
-  const text = line ?? `${minutes} min · fine ${range}`;
+  // REG-723: l'orario di fine per primo (prima si tagliava «fine 19…»).
+  const text = line ?? `Fine ${range} · ${minutes} min`;
   return (
     <View style={s.liveRow} testID="road-live-status" accessibilityLiveRegion="polite">
       <View style={line ? [s.liveRing, night && ns.ring] : s.liveDot} />
@@ -1312,7 +1517,9 @@ const LiveStatusRow = React.memo(function LiveStatusRow({ range, minutes, night 
         entering={ROAD_TEXT_IN}
         style={[s.liveTx, night && ns.ink3, line ? (night ? ns.ink : s.liveWarn) : null]}
         numberOfLines={1}
-        accessibilityLabel={line ?? `In corso da ${minutes} minuti, fine alle ${range}`}
+        adjustsFontSizeToFit
+        minimumFontScale={0.85}
+        accessibilityLabel={line ?? `Fine alle ${range}, in corso da ${minutes} minuti`}
       >
         {text}
       </Animated.Text>
@@ -1412,7 +1619,7 @@ const LivePanel = React.memo(function LivePanel({
             {formatKm(distance)}
             <Text style={[s.statUnit, night && ns.ink3]}> km</Text>
           </Text>
-          <Text style={[s.statLabel, night && ns.ink3]}>Percorsi</Text>
+          <Text style={[s.statLabel, night && ns.ink3]}>Distanza</Text>
         </View>
         <View style={s.stat}>
           <Text style={[s.statNum, night && ns.ink]}>{markersN}</Text>
@@ -1511,9 +1718,22 @@ const s = StyleSheet.create({
   placeSep: { fontSize: 14, color: 'rgba(255,255,255,0.35)' },
   freeBanner: { paddingVertical: 8, paddingLeft: 18 },
 
+  pinBox: { position: 'absolute', width: PIN_W, height: PIN_BOX_H, justifyContent: 'flex-end', alignItems: 'center' },
+  pinInner: { alignItems: 'center', transformOrigin: 'bottom' },
+  pinCard: {
+    maxWidth: PIN_W - 20,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: CLAY.surface,
+  },
+  pinSub: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
+  pinNote: { fontSize: 15, fontWeight: '400', color: CLAY.ink, marginTop: 3, lineHeight: 20 },
+
   speed: {
     position: 'absolute',
-    left: 14,
+    left: 18,
     width: 62,
     height: 62,
     borderRadius: 31,
@@ -1547,7 +1767,7 @@ const s = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 14,
   },
-  who: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
+  who: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
   name: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   liveRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#E5484D', marginRight: 6 },
@@ -1569,7 +1789,6 @@ const s = StyleSheet.create({
 /** REG-697: le stesse superfici di notte (solo grigi e nero, testo chiaro non pieno). */
 const ns = StyleSheet.create({
   root: { backgroundColor: '#000000' },
-  veil: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
   surface: { backgroundColor: NIGHT.surface },
   surface2: { backgroundColor: NIGHT.surface2 },
   inkBg: { backgroundColor: NIGHT.ink },

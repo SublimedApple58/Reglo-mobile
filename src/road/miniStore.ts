@@ -42,3 +42,8 @@ export function returnToRoad() {
 export function useRoadMinimized(): boolean {
   return useSyncExternalStore(roadMiniStore.subscribe, roadMiniStore.get);
 }
+
+/** Il velo sale sulla schermata di partenza. */
+export const ROAD_COVER_MS = 180;
+/** Durata del passaggio tab ↔ Road (Tiziano 28/10: corto, 200-250 ms, niente rimbalzo). */
+export const ROAD_SWITCH_MS = 240;

@@ -54,6 +54,8 @@ const TAG_H_SMALL = 30;
 const GAP = 7;
 const DOT = 18;
 const STOP_DOT = 24;
+/** REG-723: la segnalazione piccola (disco tondo). */
+const DISC = 30;
 /** Quanto la punta del fumetto scende sotto il fumetto (`pin.tail`). */
 const TAIL_TIP = 6;
 
@@ -87,7 +89,28 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   hidden?: boolean;
 }) {
   const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '', dot]);
-  const tagH = small ? TAG_H_SMALL : TAG_H;
+  // REG-723: la segnalazione piccola è un disco tondo sul punto (come i luoghi
+  // di Apple Mappe), non più il fumetto bianco con punta e puntino che copriva
+  // la strada. Toccata, si ingrandisce sopra la mappa (`RoadPinBody`).
+  if (small) {
+    return (
+      <Marker
+        coordinate={coordinate}
+        anchor={{ x: 0.5, y: 0.5 }}
+        tracksViewChanges={tracksViewChanges}
+        zIndex={zIndex ?? 3}
+        opacity={hidden ? 0 : 1}
+        onPress={hidden ? undefined : onPress}
+      >
+        <View style={pin.discWrap} pointerEvents="none">
+          <View style={[pin.disc, sentiment ? { borderColor: sentimentColor(sentiment) } : null]}>
+            <Image source={markerArt(kind)} style={pin.discImg} resizeMode="contain" />
+          </View>
+        </View>
+      </Marker>
+    );
+  }
+  const tagH = TAG_H;
   // Senza puntino: il fumetto e la sua punta (quadrato ruotato, ~6 pt sotto il fumetto).
   const height = dot ? tagH + GAP + DOT : tagH + TAIL_TIP + 1;
   const pointY = dot ? height - DOT / 2 : tagH + TAIL_TIP;
@@ -106,12 +129,11 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
         <View
           style={[
             pin.tag,
-            small ? pin.tagSmall : null,
             sentiment ? { borderWidth: 2.5, borderColor: sentimentColor(sentiment) } : null,
           ]}
         >
-          <Image source={markerArt(kind)} style={small ? pin.imgSmall : pin.img} resizeMode="contain" />
-          {small ? null : <Text style={pin.label} numberOfLines={1}>{label}</Text>}
+          <Image source={markerArt(kind)} style={pin.img} resizeMode="contain" />
+          <Text style={pin.label} numberOfLines={1}>{label}</Text>
           <View style={pin.tail} />
         </View>
         {dot ? <View style={pin.dot} /> : null}
@@ -138,6 +160,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
  * sparivano o l'app si chiudeva). Il punto sulla coordinata è a `ROAD_PIN_POINT_Y`.
  */
 export const ROAD_PIN_POINT_Y = TAG_H + GAP + DOT / 2;
+/** Altezza del segnaposto grande (il punto è a metà del puntino in fondo). */
+export const ROAD_PIN_BODY_H = TAG_H + GAP + DOT;
 export function RoadPinBody({ kind, label, sentiment }: { kind: string; label: string; sentiment?: Sentiment | null }) {
   return (
     <View style={[pin.wrap, { height: TAG_H + GAP + DOT }]} pointerEvents="none">
@@ -151,14 +175,91 @@ export function RoadPinBody({ kind, label, sentiment }: { kind: string; label: s
   );
 }
 
-/** Puntino bianco bordato di nero: partenza / arrivo nelle minimappe. */
-export function RoadEndpointDot({ coordinate }: { coordinate: LatLng }) {
-  const tracksViewChanges = useTracksViewChanges();
+/**
+ * REG-723 — i capi del percorso: partenza = cerchio bianco con il centro nero,
+ * arrivo = bandierina a scacchi in un disco. `opacity` 0 = posto fisso vuoto.
+ */
+export function RoadEndpointDot({
+  coordinate,
+  kind = 'start',
+  opacity = 1,
+}: {
+  coordinate: LatLng;
+  kind?: 'start' | 'end';
+  opacity?: number;
+}) {
+  const tracksViewChanges = useTracksViewChanges([kind]);
   return (
-    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={tracksViewChanges} zIndex={4}>
-      <View style={pin.endpoint} pointerEvents="none" />
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={tracksViewChanges} zIndex={4} opacity={opacity}>
+      {kind === 'start' ? (
+        <View style={pin.start} pointerEvents="none">
+          <View style={pin.startCore} />
+        </View>
+      ) : (
+        <View style={pin.end} pointerEvents="none">
+          <View style={pin.checker}>
+            {CHECKER.map((on, i) => (
+              <View key={i} style={[pin.cell, on ? pin.cellInk : null]} />
+            ))}
+          </View>
+        </View>
+      )}
     </Marker>
   );
+}
+
+/** 3×3 a scacchi (angoli neri). */
+const CHECKER = [1, 0, 1, 0, 1, 0, 1, 0, 1].map(Boolean);
+
+// ─── REG-723: il verso di marcia lungo la linea ─────────────────────────────
+
+type Arrow = { at: LatLng; bearing: number };
+
+/**
+ * Punti (con la direzione) ogni `spacingM` metri lungo il percorso, dopo
+ * `skipM` dalla partenza e prima di `skipM` dall'arrivo.
+ */
+export function arrowsAlong(coords: LatLng[], spacingM: number, skipM = spacingM / 2): Arrow[] {
+  const out: Arrow[] = [];
+  if (coords.length < 2) return out;
+  const R = 6_371_000;
+  const rad = Math.PI / 180;
+  const seg = (a: LatLng, b: LatLng) => {
+    const x = (b.longitude - a.longitude) * rad * Math.cos(((a.latitude + b.latitude) / 2) * rad);
+    const y = (b.latitude - a.latitude) * rad;
+    return { len: Math.hypot(x, y) * R, bearing: (Math.atan2(x, y) / rad + 360) % 360 };
+  };
+  let total = 0;
+  for (let i = 1; i < coords.length; i++) total += seg(coords[i - 1], coords[i]).len;
+  let next = skipM;
+  let walked = 0;
+  for (let i = 1; i < coords.length && next <= total - skipM; i++) {
+    const a = coords[i - 1];
+    const b = coords[i];
+    const { len, bearing } = seg(a, b);
+    while (len > 0 && next <= walked + len && next <= total - skipM) {
+      const f = (next - walked) / len;
+      out.push({ at: { latitude: a.latitude + (b.latitude - a.latitude) * f, longitude: a.longitude + (b.longitude - a.longitude) * f }, bearing });
+      next += spacingM;
+    }
+    walked += len;
+  }
+  return out;
+}
+
+/** Freccia «›» come linea sulla mappa (gira con la mappa, niente ridisegni): punta in avanti. */
+export function chevronCoords(a: Arrow, halfM: number, backM: number): LatLng[] {
+  const rad = Math.PI / 180;
+  const mLat = 1 / 111_320;
+  const mLng = 1 / (111_320 * Math.cos(a.at.latitude * rad));
+  const off = (fwd: number, side: number) => {
+    const b = a.bearing * rad;
+    // avanti = (sin b, cos b) in (est, nord); di lato = (cos b, -sin b)
+    const e = fwd * Math.sin(b) + side * Math.cos(b);
+    const n = fwd * Math.cos(b) - side * Math.sin(b);
+    return { latitude: a.at.latitude + n * mLat, longitude: a.at.longitude + e * mLng };
+  };
+  return [off(-backM / 2, -halfM), off(backM / 2, 0), off(-backM / 2, halfM)];
 }
 
 /**
@@ -255,9 +356,21 @@ const pin = StyleSheet.create({
     // schermo a ogni movimento della mappa.
     boxShadow: '0px 6px 10px rgba(0,0,0,0.16)',
   },
-  tagSmall: { height: TAG_H_SMALL, borderRadius: TAG_H_SMALL / 2, paddingLeft: 4, paddingRight: 4, gap: 0 },
   img: { width: 28, height: 28 },
-  imgSmall: { width: 22, height: 22 },
+  // Posto per l'ombra attorno al disco (il marker si ritaglia sulla sua vista).
+  discWrap: { padding: 4 },
+  disc: {
+    width: DISC,
+    height: DISC,
+    borderRadius: DISC / 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 2px 5px rgba(0,0,0,0.22)',
+  },
+  discImg: { width: 20, height: 20 },
   label: { fontSize: 13.5, fontWeight: '600', color: '#111111', letterSpacing: -0.1 },
   tail: {
     position: 'absolute',
@@ -296,15 +409,31 @@ const pin = StyleSheet.create({
   },
   stopBar: { width: 3, height: 9, borderRadius: 1, backgroundColor: '#FFFFFF' },
   stopTag: { height: TAG_H_SMALL, borderRadius: TAG_H_SMALL / 2, paddingLeft: 12, paddingRight: 12 },
-  endpoint: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  start: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
-    borderWidth: 4,
-    borderColor: '#111111',
-    boxShadow: '0px 1px 2px rgba(0,0,0,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 1px 3px rgba(0,0,0,0.3)',
   },
+  startCore: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#111111' },
+  end: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    boxShadow: '0px 1px 3px rgba(0,0,0,0.3)',
+  },
+  checker: { width: 12, height: 12, flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: 4, height: 4 },
+  cellInk: { backgroundColor: '#111111' },
 });
 
 const car = StyleSheet.create({
