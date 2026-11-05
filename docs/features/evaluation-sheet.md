@@ -4,7 +4,8 @@ Le voci del pagellino si configurano **dal web** (Impostazioni → Pagellino) **
 (Altro → Pagellino, vedi in fondo); l'app le mostra **dentro il foglio "Dettagli guida"**,
 sotto la valutazione complessiva.
 Nessuna schermata nuova: l'istruttore apre il foglio, tocca le stelline che vuole
-correggere e usa il "Salva" sticky già presente.
+correggere e usa il "Salva" sticky già presente (lì il salvataggio resta esplicito: tipo,
+note, esito e pagellino partono insieme; la configurazione in Altro → Pagellino invece si salva da sola).
 
 ## File
 
@@ -189,12 +190,21 @@ a compilare il pagellino tutti i giorni. Il gate nella route è solo cortesia.
 
 ### Come funziona
 
-- **Draft + un solo Salva**, come sul web: la CTA "Salva pagellino" entra in scena solo quando
-  c'è davvero qualcosa da salvare e il salvataggio è una **sostituzione integrale** dell'elenco.
-  Niente salvataggio a ogni tocco: la regola no-optimistic renderebbe il riordino a scatti
-  (ogni scambio aspetterebbe il server) e l'API sostituisce comunque tutto.
-- Uscire con modifiche pendenti chiede conferma via `usePreventRemove`, che copre **anche lo
-  swipe-back** iOS, non solo la freccia.
+- **Salvataggio automatico, niente «Salva»** (fix 05/11/2026, OTA 2.4.0). Prima c'era un draft con
+  la CTA «Salva pagellino» flottante in fondo: finiva **sotto la tab bar**, quindi Tiziano non la
+  vedeva e le modifiche si perdevano. Ora ogni modifica (interruttore, aggiunta, modifica, elimina,
+  riordino, modello base) aggiorna subito la lista e parte da sola (`apply` → `pump`): **ottimistica
+  con ritorno indietro**, eccezione voluta alla regola no-optimistic (decisione di Tiziano).
+  - Un solo `PUT` alla volta (l'API sostituisce l'elenco intero): ciò che cambia mentre uno è in
+    volo aspetta in `queued` e parte appena finisce, sempre l'ultimo stato.
+  - Le voci nuove hanno una chiave locale; il BE restituisce le voci nell'ordine inviato, così
+    `idByKey` dà loro l'id e i salvataggi dopo le aggiornano invece di duplicarle.
+  - Se un salvataggio fallisce: lista all'ultimo stato confermato (`confirmed`), coda scartata e
+    una riga discreta «Modifica non salvata. Controlla la connessione e riprova.» per 4 s.
+  - Niente conferma «Modifiche non salvate» all'uscita: non c'è più niente in sospeso.
+- **Foglio voce**: la voce nuova ha ancora «Aggiungi voce» (un nome a metà non deve creare voci);
+  quella esistente non ha bottone — scala salvata al tocco, nome 600 ms dopo l'ultimo tasto e
+  comunque alla chiusura (X, gesto, Invio). Un nome svuotato non si salva: resta l'ultimo valido.
 - **Riordino in drag&drop** scritto a mano con Reanimated + gesture-handler (nessuna dipendenza
   nuova: `react-native-draggable-flatlist` non è allineato a Reanimated 4 e non deve finire in un
   OTA). Le righe sono assolute su un passo fisso `STEP = 74 + 10`; una mappa `{key: indice}` in

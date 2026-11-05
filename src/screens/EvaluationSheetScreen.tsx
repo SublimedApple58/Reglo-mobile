@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { usePreventRemove } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -21,7 +20,7 @@ import { ClayButton, ClayList, ClaySection, ClaySurface, ClayToggle } from '../c
 import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { VITA_ART } from '../theme/vitaArt';
-import { SOFT_CARD_EXIT, SOFT_LAYOUT, SOFT_SPRING, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../utils/motion';
+import { SOFT_LAYOUT, SOFT_SPRING, SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../utils/motion';
 import { regloApi } from '../services/regloApi';
 import { useSession } from '../context/SessionContext';
 import { useEvaluationSheet } from '../hooks/queries/useEvaluationSheet';
@@ -43,7 +42,8 @@ const ROW_H = 74;
 const GAP = 10;
 const STEP = ROW_H + GAP;
 
-/** Riga in editing: `id` assente = voce non ancora salvata a DB. */
+/** Riga in elenco: `id` assente = voce non ancora salvata a DB (il suo id
+ *  arriva con la risposta e si legge da `idByKey`). */
 type Draft = {
   key: string;
   id?: string;
@@ -51,11 +51,12 @@ type Draft = {
   scaleMax: number;
 };
 
+type SheetState = { enabled: boolean; items: Draft[] };
+
 const newKey = () => `tmp-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 
-/** Firma del draft: serve solo a capire se c'è qualcosa da salvare. */
-const signature = (enabled: boolean, items: Draft[]) =>
-  `${enabled ? '1' : '0'}|${items.map((i) => `${i.id ?? 'new'}:${i.label}:${i.scaleMax}`).join('|')}`;
+/** Quanto resta a schermo l'avviso di salvataggio fallito. */
+const FAIL_NOTICE_MS = 4000;
 
 /* ── Riga trascinabile ───────────────────────────────────────────────────── */
 
@@ -167,12 +168,12 @@ const SortableRow = ({
 /**
  * Pagellino — REG-639 clay: testata grande con l'indietro clay, interruttore
  * su una superficie clay, voci come card clay trascinabili (ombra fissa, si
- * stacca solo con la scala), CTA clay. Prima apertura: il modello base in una
+ * stacca solo con la scala). Niente «Salva»: ogni modifica si salva da sola
+ * (ottimistica, con ritorno indietro se fallisce). Prima apertura: il modello base in una
  * lista clay, «Usa il modello base» / «Parti da zero». Stelline gialle.
  */
 export const EvaluationSheetScreen = () => {
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { activeCompanyId } = useSession();
@@ -180,15 +181,29 @@ export const EvaluationSheetScreen = () => {
 
   const [enabled, setEnabled] = useState(false);
   const [items, setItems] = useState<Draft[]>([]);
-  const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
-  /** Firma di ciò che è a DB: tutto ciò che se ne discosta è da salvare. */
-  const [savedKey, setSavedKey] = useState<string | null>(null);
+  /** Un salvataggio è fallito: avviso discreto, la lista è già tornata indietro. */
+  const [failed, setFailed] = useState(false);
   /** true = autoscuola che non ha mai configurato il pagellino → modello base. */
   const [pristine, setPristine] = useState(false);
 
   const positions = useSharedValue<Record<string, number>>({});
   const hydrated = useRef(false);
+
+  /* Salvataggio automatico: ogni modifica aggiorna subito la lista e parte da
+     sola. Un solo PUT alla volta (il BE riscrive l'elenco intero): ciò che
+     cambia mentre uno è in volo aspetta in `queued` e parte appena finisce,
+     sempre l'ultimo stato. Se fallisce si torna all'ultimo stato confermato. */
+  const current = useRef<SheetState>({ enabled: false, items: [] });
+  const confirmed = useRef<SheetState>({ enabled: false, items: [] });
+  const queued = useRef<SheetState | null>(null);
+  const inFlight = useRef(false);
+  /** Voci create da questa schermata: chiave locale → id avuto dal server. */
+  const idByKey = useRef<Record<string, string>>({});
+  const failTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (failTimer.current) clearTimeout(failTimer.current);
+  }, []);
 
   // Il server è la fonte: il draft si semina una volta sola, altrimenti un
   // refetch in background cancellerebbe le modifiche in corso.
@@ -201,11 +216,67 @@ export const EvaluationSheetScreen = () => {
       label: i.label,
       scaleMax: asEvaluationScale(i.scaleMax),
     }));
+    current.current = { enabled: data.enabled, items: next };
+    confirmed.current = current.current;
     setEnabled(data.enabled);
     setItems(next);
-    setSavedKey(signature(data.enabled, next));
     setPristine(next.length === 0);
   }, [data]);
+
+  const pump = useCallback(async () => {
+    if (inFlight.current || !queued.current) return;
+    const sent = queued.current;
+    queued.current = null;
+    inFlight.current = true;
+    try {
+      const res = await regloApi.saveEvaluationSheet({
+        enabled: sent.enabled,
+        items: sent.items.map((i) => ({
+          id: i.id ?? idByKey.current[i.key],
+          label: i.label.trim(),
+          scaleMax: i.scaleMax,
+        })),
+      });
+      // Il BE restituisce le voci nell'ordine inviato: le nuove prendono il
+      // loro id e i salvataggi successivi le aggiornano invece di duplicarle.
+      (res?.items ?? []).forEach((row, idx) => {
+        const key = sent.items[idx]?.key;
+        if (key) idByKey.current[key] = row.id;
+      });
+      confirmed.current = {
+        enabled: sent.enabled,
+        items: sent.items.map((i) => ({ ...i, id: i.id ?? idByKey.current[i.key] })),
+      };
+      queryClient.setQueryData(queryKeys.evaluationSheet(activeCompanyId), res);
+    } catch {
+      // Ciò che era in coda poggiava sulla modifica fallita: si scarta anche quello.
+      queued.current = null;
+      current.current = confirmed.current;
+      setEnabled(confirmed.current.enabled);
+      setItems(confirmed.current.items);
+      setFailed(true);
+      if (failTimer.current) clearTimeout(failTimer.current);
+      failTimer.current = setTimeout(() => setFailed(false), FAIL_NOTICE_MS);
+    } finally {
+      inFlight.current = false;
+    }
+    if (queued.current) void pump();
+  }, [queryClient, activeCompanyId]);
+
+  /** Applica una modifica: lista aggiornata subito, salvataggio in coda. */
+  const apply = useCallback(
+    (change: (prev: SheetState) => SheetState) => {
+      const next = change(current.current);
+      if (next === current.current) return;
+      current.current = next;
+      setEnabled(next.enabled);
+      setItems(next.items);
+      setFailed(false);
+      queued.current = next;
+      void pump();
+    },
+    [pump],
+  );
 
   // La mappa delle posizioni segue la lista: si rifà a ogni aggiunta/rimozione.
   useEffect(() => {
@@ -216,16 +287,14 @@ export const EvaluationSheetScreen = () => {
     positions.value = map;
   }, [items, positions]);
 
-  const dirty = savedKey != null && signature(enabled, items) !== savedKey;
-
-  /** Riordino finito: la lista di stato prende l'ordine delle posizioni. */
+  /** Riordino finito: la lista prende l'ordine delle posizioni (e si salva). */
   const commitOrder = useCallback(() => {
     const map = positions.value;
-    setItems((prev) => {
-      const next = [...prev].sort((a, b) => (map[a.key] ?? 0) - (map[b.key] ?? 0));
-      return next.some((it, i) => it.key !== prev[i]?.key) ? next : prev;
+    apply((prev) => {
+      const next = [...prev.items].sort((a, b) => (map[a.key] ?? 0) - (map[b.key] ?? 0));
+      return next.some((it, i) => it.key !== prev.items[i]?.key) ? { ...prev, items: next } : prev;
     });
-  }, [positions]);
+  }, [positions, apply]);
 
   const openItemSheet = useCallback(
     (item: Draft | null) => {
@@ -233,75 +302,40 @@ export const EvaluationSheetScreen = () => {
         initial: item ? { label: item.label, scaleMax: item.scaleMax } : null,
         onSubmit: ({ label, scaleMax }) => {
           setPristine(false);
-          setItems((prev) =>
-            item
-              ? prev.map((i) => (i.key === item.key ? { ...i, label, scaleMax } : i))
-              : [...prev, { key: newKey(), label, scaleMax }],
-          );
+          apply((prev) => {
+            if (!item) {
+              return { ...prev, items: [...prev.items, { key: newKey(), label, scaleMax }] };
+            }
+            const was = prev.items.find((i) => i.key === item.key);
+            // Voce già tolta, o niente di cambiato: nessun salvataggio.
+            if (!was || (was.label === label && was.scaleMax === scaleMax)) return prev;
+            return {
+              ...prev,
+              items: prev.items.map((i) => (i.key === item.key ? { ...i, label, scaleMax } : i)),
+            };
+          });
         },
         onDelete: item
-          ? () => setItems((prev) => prev.filter((i) => i.key !== item.key))
+          ? () =>
+              apply((prev) => ({ ...prev, items: prev.items.filter((i) => i.key !== item.key) }))
           : undefined,
       });
       router.push('/(tabs)/more/evaluation-item');
     },
-    [router],
+    [router, apply],
   );
 
   const useTemplate = useCallback(() => {
     setPristine(false);
-    setEnabled(true);
-    setItems(
-      BASE_EVALUATION_TEMPLATE.map((t) => ({
+    apply(() => ({
+      enabled: true,
+      items: BASE_EVALUATION_TEMPLATE.map((t) => ({
         key: newKey(),
         label: t.label,
         scaleMax: t.scaleMax,
       })),
-    );
-  }, []);
-
-  const save = useCallback(async () => {
-    if (saving) return;
-    setSaving(true);
-    try {
-      const res = await regloApi.saveEvaluationSheet({
-        enabled,
-        items: items.map((i) => ({ id: i.id, label: i.label.trim(), scaleMax: i.scaleMax })),
-      });
-      const fresh = (res?.items ?? []).map((i) => ({
-        key: i.id,
-        id: i.id,
-        label: i.label,
-        scaleMax: asEvaluationScale(i.scaleMax),
-      }));
-      const freshEnabled = res?.enabled ?? enabled;
-      setItems(fresh);
-      setEnabled(freshEnabled);
-      setSavedKey(signature(freshEnabled, fresh));
-      setPristine(false);
-      queryClient.setQueryData(queryKeys.evaluationSheet(activeCompanyId), res);
-      void impactAsync(ImpactFeedbackStyle.Light).catch(() => {});
-    } catch (err) {
-      Alert.alert(
-        'Errore',
-        err instanceof Error ? err.message : 'Impossibile salvare il pagellino.',
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [saving, enabled, items, queryClient, activeCompanyId]);
-
-  // Vale anche per lo swipe-back iOS, non solo per la freccia.
-  usePreventRemove(dirty && !saving, ({ data: ev }) => {
-    Alert.alert('Modifiche non salvate', 'Vuoi uscire senza salvare il pagellino?', [
-      { text: 'Resta', style: 'cancel' },
-      {
-        text: 'Esci',
-        style: 'destructive',
-        onPress: () => navigation.dispatch(ev.action),
-      },
-    ]);
-  });
+    }));
+  }, [apply]);
 
   const listHeight = useMemo(
     () => (items.length ? items.length * STEP - GAP : 0),
@@ -316,7 +350,7 @@ export const EvaluationSheetScreen = () => {
       <ClayLargeTitleScroll
         title="Pagellino" subtitle="Come valuti ogni guida" onBack={() => router.back()}
         scrollEnabled={!dragging}
-        contentContainerStyle={[s.scroll, { paddingBottom: 40 + insets.bottom + (dirty ? 96 : 0) }]}
+        contentContainerStyle={[s.scroll, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
 
@@ -345,12 +379,24 @@ export const EvaluationSheetScreen = () => {
                 value={enabled}
                 onValueChange={(v) => {
                   void impactAsync(ImpactFeedbackStyle.Light).catch(() => {});
-                  setEnabled(v);
+                  apply((prev) => ({ ...prev, enabled: v }));
                 }}
                 accessibilityLabel="Pagellino attivo"
                 testID="evaluation-enabled"
               />
             </ClaySurface>
+
+            {failed ? (
+              <Animated.Text
+                entering={SOFT_SWAP_IN}
+                exiting={SOFT_SWAP_OUT}
+                style={s.failNote}
+                accessibilityLiveRegion="polite"
+                testID="evaluation-save-failed"
+              >
+                Modifica non salvata. Controlla la connessione e riprova.
+              </Animated.Text>
+            ) : null}
 
             {pristine && items.length === 0 ? (
               /* Prima apertura: il modello base pronto da adottare, invece di
@@ -439,17 +485,6 @@ export const EvaluationSheetScreen = () => {
         )}
       </ClayLargeTitleScroll>
 
-      {/* La CTA entra solo quando c'è davvero qualcosa da salvare. */}
-      {dirty ? (
-        <Animated.View
-          entering={softEnter()}
-          exiting={SOFT_CARD_EXIT}
-          style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}
-          pointerEvents="box-none"
-        >
-          <ClayButton title="Salva pagellino" onPress={save} loading={saving} testID="evaluation-save" />
-        </Animated.View>
-      ) : null}
     </View>
   );
 };
@@ -479,6 +514,7 @@ const s = StyleSheet.create({
   toggleSub: { fontSize: 13.5, color: CLAY.ink3, marginTop: 3, lineHeight: 18 },
 
   listCount: { fontSize: 14, color: CLAY.ink3 },
+  failNote: { fontSize: 13.5, color: CLAY.ink2, lineHeight: 18, marginTop: 12, paddingHorizontal: 4 },
 
   row: {
     position: 'absolute',
@@ -510,12 +546,4 @@ const s = StyleSheet.create({
   templateLabel: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '500', color: CLAY.ink },
   templateCtas: { gap: 10, marginTop: 22 },
 
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
 });
