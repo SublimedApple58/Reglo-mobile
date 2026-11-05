@@ -1275,6 +1275,23 @@ da Tiziano il 29/10 ed eliminata.
   bianchi tratteggiati in grigio, senza icona; la pausa tra guide si legge
   «Pausa». Dettagli in [features/agenda-block-colors.md](features/agenda-block-colors.md).
 - **Colori = «Aspetto agenda»**: i blocchi usano **esattamente il colore scelto in «Aspetto agenda»** dall'autoscuola (anche blu/azzurro), a fondo pastello pieno — decisione di Tiziano del 29/10 («i colori devono rispettare i setting Aspetto agenda»). La regola `NEUTRAL_BLUE` provata la notte del 28/10 è stata eliminata.
+- **Creazione dal tocco sulla griglia** (05/11/2026, anteprime W1 + C-b + v3
+  approvate da Tiziano; dettagli in [features/quick-book.md](features/quick-book.md)):
+  - **Bozza**: velo nella tinta del tipo (Guida = giallo delle guide, Di gruppo
+    = verde foglia, Esame/Teoria/Blocca neutri) + contorno sottile 1.5, due
+    pallini bianchi bordati (9 pt) agli angoli opposti: in alto a destra
+    l'inizio, in basso a sinistra la fine. Presa in mano: velo più pieno,
+    contorno più scuro, scala 1.02, il pallino trascinato cresce, compare la
+    durata e a sinistra della griglia l'orario del bordo. Tocco sulla bozza = la
+    toglie. Mai il rettangolo nero/grigio con le maniglie tonde al centro.
+  - **Barra in basso** al posto della tab bar (la tab bar sfuma e scende di 10
+    pt): bianca, filo sottile sopra, niente ombra. A sinistra il tipo «Guida ⌄»
+    (17/600) e sotto «Ven 6 nov · 13:00 – 14:00» (13.5 grigio, fascia nera
+    sottolineata); a destra UNA CTA nera «Continua» alta 44, volume clay
+    leggero. Niente card flottante, niente icone 3D nella barra.
+  - **«Cosa vuoi creare?»**: form sheet adattivo (X, niente grabber), righe
+    alte 76 con l'oggetto 3D in una scatola 52×46, nome 17/600 + spiegazione
+    14 grigia, spunta nera sul tipo scelto; il tocco applica e chiude.
 - **FAB «+»**: cerchio nero 56 col volume della CTA primaria
   (`CLAY_CTA.primary`). Apre il foglio **«Nuovo»** (`home/add-action`,
   FORM_SHEET + `<FormSheet>`): `ClayList` di solo testo (Guida, Guida di
