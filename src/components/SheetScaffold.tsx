@@ -21,6 +21,7 @@ import { usePreventRemove } from '@react-navigation/native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SHEET_BOTTOM, SHEET_SYSTEM_BOTTOM } from '../utils/sheetPresentation';
+import { useSheetPresence } from './sheetPresence';
 import { ClayIconButton } from './clay/ClayIconButton';
 import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
 
@@ -115,6 +116,8 @@ export function FormSheet({
   closeOnGesture?: boolean;
 }) {
   const router = useRouter();
+  // Android: finché il foglio è aperto la tab bar si toglie (non copre la CTA).
+  useSheetPresence();
   const closeFn = onClose ?? (() => router.back());
   const release = useSheetDismissGuard({ busy, dirty, onGesture: closeOnGesture ? closeFn : undefined });
   // La X di un foglio con `closeOnGesture` non deve rientrare nel gesto.
@@ -479,6 +482,7 @@ export function SheetScaffold({
    */
   fill?: boolean;
 }) {
+  useSheetPresence();
   if (isAndroid || fill) {
     return <FillScaffold {...{ footer, style, contentContainerStyle, scrollEnabled, keyboardAware }}>{children}</FillScaffold>;
   }
