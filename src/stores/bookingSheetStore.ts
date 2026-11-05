@@ -5,7 +5,7 @@
  * form + the regloApi create calls. After a create succeeds it calls `onApplied`
  * (parent refreshes its agenda from the BE), then `onDone` (success toast).
  */
-export type BookingStudentOption = { value: string; label: string; subtitle: string | null; licenseCategory?: string | null; transmission?: string | null; defaultLocationId?: string | null; defaultLocationName?: string | null; assignedInstructorId?: string | null };
+export type BookingStudentOption = { value: string; label: string; subtitle: string | null; licenseCategory?: string | null; transmission?: string | null; defaultLocationId?: string | null; defaultLocationName?: string | null; /** REG-705: luoghi dell'allievo (vuoto = tutti). */ locationIds?: string[]; assignedInstructorId?: string | null };
 
 /** Allievo suggerito in «Con chi guidi?» (REG-671), col motivo in una frase. */
 export type BookingSuggestion = { id: string; reason: string };

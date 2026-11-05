@@ -10,6 +10,11 @@ export type LocationPickerData = {
   selectedLocationId: string | null;
   onSelect: (location: AutoscuolaLocation) => void;
   onRequestCreate: () => void;
+  /**
+   * REG-725: luoghi che fanno patente e cambio della guida, da mettere in cima
+   * con il loro titolo («Fanno B manuale»). Assente = elenco unico.
+   */
+  priority?: { ids: string[]; title: string } | null;
 };
 
 let _data: LocationPickerData | null = null;

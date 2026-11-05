@@ -35,6 +35,7 @@ export default function ManageLessonLocationScreen() {
         <InlineLocationPicker
           showSearch={false}
           selectedLocationId={data.selectedLocationId}
+          priority={data.priority ?? null}
           onSelect={(loc) => { data.onSelect(loc); router.back(); }}
         />
       ) : null}

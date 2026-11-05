@@ -329,7 +329,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
   >([]);
-  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null; studentPhase?: AutoscuolaStudentPhase; defaultLocationId?: string | null; defaultLocationName?: string | null }>>([]);
+  const [students, setStudents] = useState<Array<{ id: string; firstName: string; lastName: string; phone?: string | null; assignedInstructorId?: string | null; licenseCategory?: string | null; transmission?: string | null; studentPhase?: AutoscuolaStudentPhase; defaultLocationId?: string | null; defaultLocationName?: string | null; locationIds?: string[] }>>([]);
   const [vehicles, setVehicles] = useState<Array<{ id: string; name: string; color?: string | null; assignedInstructorId?: string | null; poolInstructorIds?: string[] | null; licenseCategory?: string | null; transmission?: string | null }>>([]);
   const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [studentCompletedMinutes, setStudentCompletedMinutes] = useState<Record<string, number>>({});
@@ -724,6 +724,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       // Luogo di default (REG-392): precompila il Luogo alla selezione dell'allievo.
       defaultLocationId: student.defaultLocationId ?? null,
       defaultLocationName: student.defaultLocationName ?? null,
+      // REG-725: i suoi luoghi entrano nella regola del Luogo precompilato.
+      locationIds: student.locationIds ?? [],
       assignedInstructorId: student.assignedInstructorId ?? null,
     });
     if (!clustersActive) {

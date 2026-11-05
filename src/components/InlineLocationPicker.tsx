@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
 import { CLAY } from '../theme/clay';
-import { ClayButton, ClayList, ClayListRow, ClaySearchField } from './clay';
+import { ClayButton, ClayList, ClayListRow, ClaySearchField, ClaySection } from './clay';
 import { regloApi } from '../services/regloApi';
 import type { AutoscuolaLocation } from '../types/regloApi';
 
@@ -18,6 +18,11 @@ type Props = {
   onRequestCreate?: () => void;
   /** Hide the search field (e.g. inside a compact bottom formsheet). */
   showSearch?: boolean;
+  /**
+   * REG-725: luoghi da mettere in cima con un titolo (quelli che fanno patente
+   * e cambio della guida); gli altri vanno sotto «Altri luoghi».
+   */
+  priority?: { ids: string[]; title: string } | null;
 };
 
 export const InlineLocationPicker = ({
@@ -25,6 +30,7 @@ export const InlineLocationPicker = ({
   onSelect,
   onRequestCreate,
   showSearch = true,
+  priority = null,
 }: Props) => {
   const [locations, setLocations] = useState<AutoscuolaLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,22 +91,36 @@ export const InlineLocationPicker = ({
       ) : filtered.length === 0 ? (
         <Text style={styles.empty}>Nessun luogo trovato.</Text>
       ) : (
-        <ClayList>
-          {filtered.map((item) => {
-            const selected = item.id === selectedLocationId;
-            return (
-              <ClayListRow
-                key={item.id}
-                title={item.name}
-                subtitle={item.address || 'Luogo generico'}
-                trailing={selected ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : null}
-                chevron={false}
-                onPress={() => onSelect(item)}
-                testID={`location-option-${item.id}`}
-              />
-            );
-          })}
-        </ClayList>
+        (() => {
+          const row = (item: AutoscuolaLocation) => (
+            <ClayListRow
+              key={item.id}
+              title={item.name}
+              subtitle={item.address || 'Luogo generico'}
+              trailing={item.id === selectedLocationId ? <Ionicons name="checkmark" size={20} color={CLAY.ink} /> : null}
+              chevron={false}
+              onPress={() => onSelect(item)}
+              testID={`location-option-${item.id}`}
+            />
+          );
+          const ids = new Set(priority?.ids ?? []);
+          const top = filtered.filter((l) => ids.has(l.id));
+          const rest = filtered.filter((l) => !ids.has(l.id));
+          // Due sezioni solo quando c'è davvero qualcosa da distinguere.
+          if (!priority || !top.length || !rest.length) {
+            return <ClayList>{filtered.map(row)}</ClayList>;
+          }
+          return (
+            <>
+              <ClaySection title={priority.title} style={styles.firstSection}>
+                <ClayList>{top.map(row)}</ClayList>
+              </ClaySection>
+              <ClaySection title="Altri luoghi">
+                <ClayList>{rest.map(row)}</ClayList>
+              </ClaySection>
+            </>
+          );
+        })()
       )}
 
       {onRequestCreate ? (
@@ -121,4 +141,5 @@ const styles = StyleSheet.create({
   loadingRow: { paddingVertical: 32, alignItems: 'center' },
   empty: { textAlign: 'center', color: CLAY.ink3, fontSize: 14, paddingVertical: 24 },
   add: { marginTop: 22 },
+  firstSection: { marginTop: 0 },
 });

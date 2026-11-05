@@ -17,6 +17,7 @@ import {
 } from '../../stores/followCarConflictStore';
 import { regloApi } from '../../services/regloApi';
 import { useLocations } from '../../hooks/queries/useLocations';
+import { lessonLicense, resolvePrefilledLocation } from '../../utils/locationForLicense';
 import type { CheckInstructorBookingBatchResult, MobileBookingOptions } from '../../types/regloApi';
 import { FormSheet } from '../SheetScaffold';
 import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, ClaySurface, ClayToggle, markClayRow } from '../clay';
@@ -115,6 +116,16 @@ const fmtDurShort = (min: number) => {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return m ? `${h} h ${m}'` : `${h} h`;
+};
+/** «Fanno B manuale» — titolo della sezione dei luoghi compatibili (REG-725). */
+const priorityTitle = (
+  student: { licenseCategory?: string | null; transmission?: string | null } | null | undefined,
+  vehicle: { licenseCategory?: string | null; transmission?: string | null } | null | undefined,
+) => {
+  const license = lessonLicense(student, vehicle);
+  if (!license) return 'Luoghi compatibili';
+  const gear = license.transmission === 'automatic' ? ' automatico' : license.transmission === 'manual' ? ' manuale' : '';
+  return `Fanno ${license.category}${gear}`;
 };
 const WEEKDAY_LONG = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -254,7 +265,38 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
     [locList],
   );
   const resolvedLocation = locationId ? locById.get(locationId) : null;
-  const locationLabel = resolvedLocation?.name ?? locationName ?? "Sede dell'autoscuola";
+
+  // REG-725: il Luogo segue patente e cambio della guida (veicolo scelto,
+  // altrimenti percorso dell'allievo) con la regola del web: principale
+  // dell'allievo se compatibile → l'unico compatibile tra i suoi luoghi →
+  // l'unico compatibile → sede se compatibile, altrimenti nessuno.
+  const locationContext = useMemo(() => {
+    if (!data || !studentId || !locList?.length) return null;
+    const st = data.studentOptions.find((o) => o.value === studentId) ?? null;
+    const veh = data.vehicles.find((v) => v.id === vehicleId) ?? null;
+    return resolvePrefilledLocation({
+      locations: locList,
+      studentDefaultLocationId: st?.defaultLocationId ?? null,
+      studentLocationIds: st?.locationIds ?? [],
+      student: st,
+      vehicle: veh,
+    });
+  }, [data, studentId, vehicleId, locList]);
+  // Si ricalcola a ogni cambio di allievo o veicolo, finché il Luogo non è
+  // stato scelto a mano (cambiare allievo azzera la scelta, come sul web).
+  const locationTouchedRef = useRef(false);
+  useEffect(() => {
+    if (!locationContext || locationTouchedRef.current) return;
+    const next = locationContext.locationId ? locById.get(locationContext.locationId) ?? null : null;
+    setLocationId(next?.id ?? null);
+    setLocationName(next?.name ?? null);
+    setLocationAddress(next?.address ?? null);
+  }, [locationContext, locById]);
+  const locationUnset = !locationId && !!locationContext?.ambiguous;
+
+  const locationLabel = locationUnset
+    ? 'Scegli il luogo'
+    : resolvedLocation?.name ?? locationName ?? "Sede dell'autoscuola";
   const locationSubLabel = resolvedLocation?.address ?? locationAddress ?? null;
 
   if (!data) return <View style={s.empty} />;
@@ -368,8 +410,10 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
     }
     // Luogo di default dell'allievo (REG-392): alla selezione precompila il
     // Luogo col suo default, SOVRASCRIVENDO il valore corrente. Se l'allievo
-    // non ha un default, torna alla sede. Una modifica manuale successiva
-    // resta (questo scatta solo al cambio allievo).
+    // non ha un default, torna alla sede. È il primo valore: appena ci sono i
+    // luoghi lo corregge la regola di REG-725 (`locationContext`). Una modifica
+    // manuale successiva resta finché non si cambia allievo.
+    locationTouchedRef.current = false;
     if (st?.defaultLocationId) {
       setLocationId(st.defaultLocationId);
       setLocationName(st.defaultLocationName ?? null);
@@ -415,8 +459,15 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
 
   const openLocationPicker = () => {
     locationPickerStore.set({
-      selectedLocationId: locationId ?? defaultLocation?.id ?? null,
-      onSelect: (loc) => { setLocationId(loc.id); setLocationName(loc.name); setLocationAddress(loc.address ?? null); },
+      selectedLocationId: locationUnset ? null : locationId ?? defaultLocation?.id ?? null,
+      onSelect: (loc) => {
+        locationTouchedRef.current = true;
+        setLocationId(loc.id); setLocationName(loc.name); setLocationAddress(loc.address ?? null);
+      },
+      // REG-725: i luoghi che fanno patente e cambio della guida in cima.
+      priority: locationContext?.filtered
+        ? { ids: locationContext.compatibleIds, title: priorityTitle(data.studentOptions.find((o) => o.value === studentId), vehicles.find((v) => v.id === vehicleId)) }
+        : null,
       onRequestCreate: () => {
         locationFormStore.set({ initial: null, onSubmit: async (values) => { await regloApi.createLocation(values); } });
         router.push('/(tabs)/home/manage-lesson-location-form');

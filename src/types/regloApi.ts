@@ -288,6 +288,10 @@ export type AutoscuolaLocation = {
   isPrecise: boolean;
   /** REG-639: foto di copertina (solo la sede), URL pubblico; null = segnaposto. */
   coverPhotoUrl?: string | null;
+  /** REG-409: patenti che fa il luogo (vuoto = tutte, o interruttore spento). */
+  licenseCategories?: string[];
+  /** REG-725: cambio per patente, `{ B: "automatic" }`; assente = entrambi. */
+  licenseTransmissions?: Record<string, string> | null;
 };
 
 /**
