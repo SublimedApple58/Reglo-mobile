@@ -1,26 +1,22 @@
 diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMap.m b/node_modules/react-native-maps/ios/AirMaps/AIRMap.m
-index 07a4638..c17ea1b 100644
+index 07a4638..a71a6b9 100644
 --- a/node_modules/react-native-maps/ios/AirMaps/AIRMap.m
 +++ b/node_modules/react-native-maps/ios/AirMaps/AIRMap.m
-@@ -350,6 +350,21 @@ const NSInteger AIRMapMaxZoomLevel = 20;
-     }
- }
- 
-+// Reglo REG-723: su iOS recente `showsPointsOfInterest` (deprecato da iOS 13)
-+// non nasconde più i luoghi e restano toccabili: si usa il filtro nuovo.
-+- (void)setShowsPointsOfInterest:(BOOL)showsPointsOfInterest
-+{
-+    super.showsPointsOfInterest = showsPointsOfInterest;
-+    if (@available(iOS 13.0, *)) {
-+        self.pointOfInterestFilter = showsPointsOfInterest ? nil : [MKPointOfInterestFilter filterExcludingAllCategories];
-+    }
-+    if (@available(iOS 16.0, *)) {
-+        if (!showsPointsOfInterest) {
+@@ -88,7 +88,16 @@ const NSInteger AIRMapMaxZoomLevel = 20;
+         self.minZoomLevel = 0;
+         self.maxZoomLevel = AIRMapMaxZoomLevel;
+         self.compassOffset = CGPointMake(0, 0);
+-        self.legacyZoomConstraintsEnabled = YES;
++        self.legacyZoomConstraintsEnabled = YES; // Reglo REG-723: sotto, i luoghi di Apple Mappe
++        // Su iOS recente `showsPointsOfInterest` (deprecato da iOS 13) non nasconde
++        // più i luoghi e restano toccabili: tutte le mappe di Reglo li spengono,
++        // quindi filtro nuovo e niente tocco sui luoghi fin dalla nascita.
++        if (@available(iOS 13.0, *)) {
++            self.pointOfInterestFilter = [MKPointOfInterestFilter filterExcludingAllCategories];
++        }
++        if (@available(iOS 16.0, *)) {
 +            self.selectableMapFeatures = 0;
 +        }
-+    }
-+}
-+
- - (void)setUserInterfaceStyle:(NSString*)userInterfaceStyle
- {
-     if (@available(iOS 13.0, *)) {
+     }
+     return self;
+ }
