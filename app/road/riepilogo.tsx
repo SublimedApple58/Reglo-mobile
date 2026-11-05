@@ -211,7 +211,7 @@ export default function RiepilogoScreen() {
       </Pressable>
 
       <View style={s.sum}>
-        <ClayStat value={formatKm(summary.distanceMeters)} unit="km" label="Percorsi" />
+        <ClayStat value={formatKm(summary.distanceMeters)} unit="km" label="Distanza" />
         <ClayStat value={formatMinutes(summary.durationSec)} unit="min" label="Di guida" />
         <ClayStat value={summary.markers.length} label="Segnalazioni" />
       </View>

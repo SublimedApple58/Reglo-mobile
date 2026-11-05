@@ -178,6 +178,7 @@ export function RoadRouteMap({
     arrowsRef.current?.hide();
   }, [shown]);
   const placeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const arrowTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settleOverlay = useCallback(async () => {
     const sel = selectedRef.current;
     if (!sel) return;
@@ -198,6 +199,9 @@ export function RoadRouteMap({
       placeTimer.current = setTimeout(() => void settleOverlay(), (animated ? FLY_MS : 0) + 500);
     } else {
       fit(animated);
+      // Le minimappe ferme non sempre avvisano a fine movimento: frecce anche da qui.
+      clearTimeout(arrowTimer.current);
+      arrowTimer.current = setTimeout(() => arrowsRef.current?.place(), (animated ? FLY_MS : 0) + 150);
     }
   };
 
@@ -213,7 +217,13 @@ export function RoadRouteMap({
     place(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, selLat, selLng]);
-  useEffect(() => () => clearTimeout(placeTimer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(placeTimer.current);
+      clearTimeout(arrowTimer.current);
+    },
+    [],
+  );
 
   // Callback stabili per segnaposto (una per chiave, per sempre): i props dei
   // Marker non cambiano mai.

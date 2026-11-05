@@ -108,7 +108,7 @@ export function StudentRoadSheet() {
     ) : (
       <Animated.View entering={ROAD_FADE_IN}>
         <View style={s.stats}>
-          <ClayStat value={formatKm(totals.meters)} unit="km" label="Percorsi" style={{ flex: 1 }} />
+          <ClayStat value={formatKm(totals.meters)} unit="km" label="Distanza" style={{ flex: 1 }} />
           <ClayStat value={hoursOf(totals.sec)} unit={totals.sec < 3600 ? 'min' : 'h'} label="Di guida" style={{ flex: 1 }} />
           <ClayStat value={totals.markers} label="Segnalazioni" style={{ flex: 1 }} />
         </View>

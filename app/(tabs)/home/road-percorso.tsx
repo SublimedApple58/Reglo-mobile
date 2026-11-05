@@ -107,7 +107,7 @@ export default function RoadPercorsoSheet() {
         </Pressable>
 
         <View style={s.sum}>
-          <ClayStat value={formatKm(detail.distanceMeters)} unit="km" label="Percorsi" />
+          <ClayStat value={formatKm(detail.distanceMeters)} unit="km" label="Distanza" />
           <ClayStat value={formatMinutes(detail.durationSec)} unit="min" label="Di guida" />
           <ClayStat value={detail.markers.length} label="Segnalazioni" />
         </View>

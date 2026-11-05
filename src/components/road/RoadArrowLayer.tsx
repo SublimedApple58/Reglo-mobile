@@ -58,12 +58,12 @@ export const RoadArrowLayer = forwardRef<
       if (id !== run.current) return;
       const { w, h } = sizeRef.current;
       const out: Array<{ x: number; y: number; deg: number }> = [];
-      let last: { x: number; y: number } | null = null;
       for (const { p, q } of pts) {
         if (p.x < 0 || p.y < 0 || (w && p.x > w) || (h && p.y > h)) continue;
-        if (last && Math.hypot(p.x - last.x, p.y - last.y) < GAP_PX) continue;
+        // Lontana da TUTTE le frecce già messe: andata e ritorno sulla stessa
+        // strada darebbero coppie «‹›» sovrapposte.
+        if (out.some((o) => Math.hypot(p.x - o.x, p.y - o.y) < GAP_PX)) continue;
         out.push({ x: p.x, y: p.y, deg: (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI });
-        last = p;
       }
       setShown(out);
       k.value = withTiming(1, { duration: 180, easing: SOFT, reduceMotion: ReduceMotion.Never });
