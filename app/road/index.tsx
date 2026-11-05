@@ -29,7 +29,7 @@ import { PLAN_ALERT_MS, PLAN_REACHED_MS } from '../../src/road/planAlerts';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { openRoadNotes, prefetchRoadNotes } from '../../src/road/roadNotes';
 import { markerArt } from '../../src/road/markerArt';
-import { formatHm, formatKm, formatMinutes, formatRange, haversineMeters } from '../../src/road/format';
+import { formatHm, formatKm, formatMinutes, formatRange } from '../../src/road/format';
 import { createLiveMotion, headingDelta, type MotionFix, type MotionSample } from '../../src/road/liveMotion';
 import {
   AUTO_RETURN_MS,
@@ -50,17 +50,15 @@ import {
   placeStops,
   type NavState,
 } from '../../src/road/navGuide';
-import { SentimentBadge } from '../../src/components/road/RoadSentiment';
+import { SentimentBadge, sentimentColor } from '../../src/components/road/RoadSentiment';
 import { Avatar, ClayButton } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import {
+  arrowCovered,
   arrowsAlong,
   chevronCoords,
   RoadEndpointDot,
   RoadMarkerPin,
-  RoadPinBody,
-  ROAD_PIN_BODY_H,
-  ROAD_PIN_POINT_Y,
 } from '../../src/components/road/RoadMapParts';
 import { OsmCredit } from '../../src/components/road/OsmCredit';
 import { RoadGuideOverlay } from '../../src/components/road/RoadGuideOverlay';
@@ -323,33 +321,31 @@ const ARROW_EVERY_M = 200;
 /** La freccia: mezza larghezza e lunghezza in metri (~1 m a punto allo zoom di guida). */
 const ARROW_HALF_M = 2.3;
 const ARROW_LEN_M = 3.4;
-/** Due frecce più vicine di così (passaggi diversi sulla stessa strada) no. */
-const ARROW_APART_M = 80;
 const ARROW_INK = 'rgba(255,255,255,0.9)';
 const ARROW_INK_NIGHT = 'rgba(10,10,10,0.8)';
 
 function useLiveArrows(track: TrackPt[]) {
-  const cache = useRef<{ first: TrackPt | null; every: number; lines: Array<TrackPt[] | null>; at: TrackPt[] }>({
+  const cache = useRef<{ first: TrackPt | null; every: number; arrows: ReturnType<typeof arrowsAlong>; lines: TrackPt[][] }>({
     first: null,
     every: ARROW_EVERY_M,
+    arrows: [],
     lines: [],
-    at: [],
   });
   return useMemo(() => {
     let c = cache.current;
-    if (c.first !== (track[0] ?? null)) c = cache.current = { first: track[0] ?? null, every: ARROW_EVERY_M, lines: [], at: [] };
+    if (c.first !== (track[0] ?? null)) c = cache.current = { first: track[0] ?? null, every: ARROW_EVERY_M, arrows: [], lines: [] };
     let found = arrowsAlong(track, c.every, c.every / 2);
     while (found.length > ARROW_SLOTS) {
-      c = cache.current = { first: c.first, every: c.every * 2, lines: [], at: [] };
+      c = cache.current = { first: c.first, every: c.every * 2, arrows: [], lines: [] };
       found = arrowsAlong(track, c.every, c.every / 2);
     }
     for (let i = c.lines.length; i < found.length; i++) {
-      // Strada già fatta (andata e ritorno, giri): niente freccia accanto a un'altra.
-      const near = c.at.some((p) => haversineMeters(p.latitude, p.longitude, found[i].at.latitude, found[i].at.longitude) < ARROW_APART_M);
-      c.lines.push(near ? null : chevronCoords(found[i], ARROW_HALF_M, ARROW_LEN_M));
-      if (!near) c.at.push(found[i].at);
+      c.arrows.push(found[i]);
+      c.lines.push(chevronCoords(found[i], ARROW_HALF_M, ARROW_LEN_M));
     }
-    return c.lines.slice();
+    // REG-723: dove la linea ripassa sopra (andata e ritorno) resta solo la
+    // freccia del passaggio più nuovo: niente «^» e «v» alternate.
+    return c.lines.map((l, i) => (arrowCovered(track, c.arrows[i]) ? null : l));
     // Ricalcolo solo quando la linea si allunga.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [track.length, track[0]]);
@@ -404,7 +400,7 @@ const LiveGuide = React.memo(function LiveGuide({ center, night }: { center: { l
   );
 });
 
-const LivePins = React.memo(function LivePins({ onPin }: { onPin: (clientId: string) => void }) {
+const LivePins = React.memo(function LivePins({ onPin, openId }: { onPin: (clientId: string) => void; openId: string | null }) {
   const markers = useRoadSelector((s) => s.markers);
   const lastId = markers.length ? markers[markers.length - 1].clientId : null;
   // REG-723: segnalazioni toccabili. Una callback stabile per segnalazione: i
@@ -431,6 +427,8 @@ const LivePins = React.memo(function LivePins({ onPin }: { onPin: (clientId: str
           small={m.clientId !== lastId}
           sentiment={m.sentiment}
           onPress={handlerFor(m.clientId)}
+          // REG-723: la segnalazione aperta si disegna grande sopra la mappa.
+          hidden={m.clientId === openId}
         />
       ))}
     </>
@@ -500,8 +498,10 @@ const LiveMap = React.memo(function LiveMap({
   onRegionDone,
   onPin,
   onMapPress,
+  openPinId,
   night,
 }: {
+  openPinId: string | null;
   /** REG-697: mappa notte (MapKit scura su iOS, stile in grigi su Android). */
   night: boolean;
   /** REG-723: tocco su una segnalazione / sulla mappa fuori dalle segnalazioni. */
@@ -570,7 +570,7 @@ const LiveMap = React.memo(function LiveMap({
       <LiveTrack center={where} night={darkMap} />
       {/* REG-723: partenza e frecce del verso, posti fissi subito dopo la traccia. */}
       <LiveEnds center={where} night={darkMap} />
-      <LivePins onPin={onPin} />
+      <LivePins onPin={onPin} openId={openPinId} />
       <LiveCarMarker following={following} color={carColor} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
     </MapView>
   );
@@ -1112,6 +1112,7 @@ export default function RoadScreen() {
           onRegionDone={onRegionDone}
           onPin={onPin}
           onMapPress={closePin}
+          openPinId={pinSel?.m.clientId ?? null}
           night={night}
         />
       </View>
@@ -1122,7 +1123,7 @@ export default function RoadScreen() {
       </View>
 
       {/* REG-723: la segnalazione toccata, grande, con il dettaglio. */}
-      {pinSel ? <LivePinDetail key={pinSel.m.clientId} sel={pinSel} night={night} /> : null}
+      {pinSel ? <LivePinDetail key={pinSel.m.clientId} sel={pinSel} /> : null}
 
       {carPt ? (
         <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
@@ -1489,38 +1490,47 @@ const SWITCH_SCALE_IN = 0.985;
 const SWITCH_SCALE_OUT = 0.97;
 /** Volo della camera sulla segnalazione toccata. */
 const PIN_FLY_MS = 300;
-const PIN_W = 260;
+const PIN_W = 350;
+/** Il puntino sul punto (uno solo: il pin piccolo sotto è nascosto). */
+const PIN_DOT = 18;
 /** Spazio sopra il punto per scheda + fumetto (il contenuto sta in fondo). */
 const PIN_BOX_H = 420;
 const PIN_IN = ZoomIn.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never);
 const PIN_OUT = FadeOut.duration(140).reduceMotion(ReduceMotion.Never);
 
 /**
- * Sopra la mappa (non un Marker che cambia: crash AIRMap, REG-715): il fumetto
- * grande sul punto e sopra la scheda con ora, via, segno e nota. Si ingrandisce
- * dal punto in 220 ms, senza rimbalzo.
+ * Sopra la mappa (non un Marker che cambia: crash AIRMap, REG-715): UN fumetto
+ * che si allarga dal punto (220 ms, senza rimbalzo) con il nome in grassetto e
+ * sotto, in grigio, segno · ora · via (una riga) e la nota se c'è. Il pin
+ * piccolo sotto è nascosto, così sul punto resta un solo anello.
  */
-const LivePinDetail = React.memo(function LivePinDetail({ sel, night }: { sel: PinSel; night: boolean }) {
+const LivePinDetail = React.memo(function LivePinDetail({ sel }: { sel: PinSel }) {
   const { m } = sel;
-  const sub = [formatHm(m.recordedAt), m.street].filter(Boolean).join(' · ');
   const sign = m.sentiment === 'good' ? 'Fatto bene' : m.sentiment === 'bad' ? 'Da migliorare' : null;
+  const sub = [sign, formatHm(m.recordedAt), m.street].filter(Boolean).join(' · ');
   return (
-    <View
-      pointerEvents="none"
-      style={[s.pinBox, { left: sel.x - PIN_W / 2, top: sel.y + (ROAD_PIN_BODY_H - ROAD_PIN_POINT_Y) - PIN_BOX_H }]}
-    >
-      <Animated.View entering={PIN_IN} exiting={PIN_OUT} style={s.pinInner}>
-        <View style={[s.pinCard, night && ns.surface, CLAY_SHADOW.raiseSm]} testID="road-pin-detail">
-          <Text style={[s.pinSub, night && ns.ink3]} numberOfLines={2}>
-            {sign ? `${sign} · ${sub}` : sub}
-          </Text>
-          {m.note ? (
-            <Text style={[s.pinNote, night && ns.ink]} numberOfLines={3}>
-              {m.note}
+    <View pointerEvents="none" style={[s.pinBox, { left: sel.x - PIN_W / 2, top: sel.y + PIN_DOT / 2 - PIN_BOX_H }]}>
+      <Animated.View entering={PIN_IN} exiting={PIN_OUT} style={s.pinInner} testID="road-pin-detail">
+        <View style={[s.pinBubble, m.sentiment ? { borderColor: sentimentColor(m.sentiment) } : null]}>
+          <Image source={markerArt(m.kind)} style={s.pinImg} resizeMode="contain" />
+          <View style={s.pinText}>
+            <Text style={s.pinTitle} numberOfLines={1}>
+              {m.label}
             </Text>
-          ) : null}
+            <Text style={s.pinSub} numberOfLines={1}>
+              {sub}
+            </Text>
+            {m.note ? (
+              <Text style={s.pinNote} numberOfLines={2}>
+                {m.note}
+              </Text>
+            ) : null}
+          </View>
+          <View style={s.pinTailRow}>
+            <View style={s.pinTail} />
+          </View>
         </View>
-        <RoadPinBody kind={m.kind} label={m.label} sentiment={m.sentiment} />
+        <View style={s.pinDot} />
       </Animated.View>
     </View>
   );
@@ -1829,16 +1839,37 @@ const s = StyleSheet.create({
 
   pinBox: { position: 'absolute', width: PIN_W, height: PIN_BOX_H, justifyContent: 'flex-end', alignItems: 'center' },
   pinInner: { alignItems: 'center', transformOrigin: 'bottom' },
-  pinCard: {
-    maxWidth: PIN_W - 20,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-    backgroundColor: CLAY.surface,
+  pinBubble: {
+    maxWidth: PIN_W - 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingLeft: 8,
+    paddingRight: 16,
+    paddingVertical: 8,
+    borderRadius: 22,
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
+    boxShadow: '0px 6px 14px rgba(0,0,0,0.22)',
   },
-  pinSub: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
-  pinNote: { fontSize: 15, fontWeight: '400', color: CLAY.ink, marginTop: 3, lineHeight: 20 },
+  pinImg: { width: 34, height: 34 },
+  pinText: { flexShrink: 1 },
+  pinTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
+  pinSub: { fontSize: 13, fontWeight: '500', color: CLAY.ink3, marginTop: 1 },
+  pinNote: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink2, marginTop: 3, lineHeight: 18 },
+  pinTailRow: { position: 'absolute', left: 0, right: 0, bottom: -5, alignItems: 'center' },
+  pinTail: { width: 10, height: 10, backgroundColor: '#FFFFFF', borderBottomRightRadius: 3, transform: [{ rotate: '45deg' }] },
+  pinDot: {
+    marginTop: 7,
+    width: PIN_DOT,
+    height: PIN_DOT,
+    borderRadius: PIN_DOT / 2,
+    backgroundColor: '#111111',
+    borderWidth: 3.5,
+    borderColor: '#FFFFFF',
+    boxShadow: '0px 2px 3px rgba(0,0,0,0.25)',
+  },
 
   speed: {
     position: 'absolute',

@@ -88,7 +88,7 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   /** Posto fisso vuoto (REG-652): resta montato ma non si vede. */
   hidden?: boolean;
 }) {
-  const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '', dot]);
+  const tracksViewChanges = useTracksViewChanges([kind, label, small, sentiment ?? '', dot, hidden]);
   // REG-723: la segnalazione piccola è un disco tondo sul punto (come i luoghi
   // di Apple Mappe), non più il fumetto bianco con punta e puntino che copriva
   // la strada. Toccata, si ingrandisce sopra la mappa (`RoadPinBody`).
@@ -102,7 +102,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
         opacity={hidden ? 0 : 1}
         onPress={hidden ? undefined : onPress}
       >
-        <View style={pin.discWrap} pointerEvents="none">
+        {/* Anche la vista: su iOS l'`opacity` del Marker cambiata dopo il montaggio non si vede. */}
+        <View style={[pin.discWrap, hidden ? pin.gone : null]} pointerEvents="none">
           <View style={[pin.disc, sentiment ? { borderColor: sentimentColor(sentiment) } : null]}>
             <Image source={markerArt(kind)} style={pin.discImg} resizeMode="contain" />
           </View>
@@ -151,7 +152,8 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
   a.zIndex === b.zIndex &&
   a.sentiment === b.sentiment &&
   a.onPress === b.onPress &&
-  a.dot === b.dot,
+  a.dot === b.dot &&
+  a.hidden === b.hidden,
 );
 
 /**
@@ -217,7 +219,8 @@ const CHECKER = [1, 0, 1, 0, 1, 0, 1, 0, 1].map(Boolean);
 
 // ─── REG-723: il verso di marcia lungo la linea ─────────────────────────────
 
-type Arrow = { at: LatLng; bearing: number };
+/** `seg` = indice del punto del percorso dopo la freccia. */
+type Arrow = { at: LatLng; bearing: number; seg: number };
 
 /**
  * Punti (con la direzione) ogni `spacingM` metri lungo il percorso, dopo
@@ -243,12 +246,32 @@ export function arrowsAlong(coords: LatLng[], spacingM: number, skipM = spacingM
     const { len, bearing } = seg(a, b);
     while (len > 0 && next <= walked + len && next <= total - skipM) {
       const f = (next - walked) / len;
-      out.push({ at: { latitude: a.latitude + (b.latitude - a.latitude) * f, longitude: a.longitude + (b.longitude - a.longitude) * f }, bearing });
+      out.push({ at: { latitude: a.latitude + (b.latitude - a.latitude) * f, longitude: a.longitude + (b.longitude - a.longitude) * f }, bearing, seg: i });
       next += spacingM;
     }
     walked += len;
   }
   return out;
+}
+
+/**
+ * La linea ripassa più avanti sopra questa freccia (andata e ritorno, giri):
+ * allora la freccia è di un passaggio vecchio e si nasconde. «Sopra» = un punto
+ * dopo la freccia entro `nearM`, una volta che la linea se n'era allontanata.
+ */
+export function arrowCovered(coords: LatLng[], a: Arrow, nearM = 12, leaveM = 40): boolean {
+  const kLat = 111_320;
+  const kLng = 111_320 * Math.cos((a.at.latitude * Math.PI) / 180);
+  let left = false;
+  for (let j = a.seg; j < coords.length; j++) {
+    const d = Math.hypot((coords[j].latitude - a.at.latitude) * kLat, (coords[j].longitude - a.at.longitude) * kLng);
+    if (!left) {
+      if (d > leaveM) left = true;
+    } else if (d < nearM) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Freccia «›» come linea sulla mappa (gira con la mappa, niente ridisegni): punta in avanti. */
@@ -377,6 +400,7 @@ const pin = StyleSheet.create({
     boxShadow: '0px 2px 5px rgba(0,0,0,0.22)',
   },
   discImg: { width: 20, height: 20 },
+  gone: { opacity: 0 },
   label: { fontSize: 13.5, fontWeight: '600', color: '#111111', letterSpacing: -0.1 },
   // REG-723: la punta sta in una riga larga quanto il fumetto e si centra da
   // sola. Prima `left: '50%'` su un fumetto senza larghezza fissa: fuori dai

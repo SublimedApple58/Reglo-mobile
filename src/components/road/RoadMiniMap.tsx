@@ -4,7 +4,7 @@ import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { RoadMarker, RoadStop } from '../../types/regloApi';
-import { arrowsAlong, RoadEndpointDot, RoadMarkerPin, RoadPinBody, RoadStopMarker, RoadTrack, ROAD_PIN_POINT_Y } from './RoadMapParts';
+import { arrowCovered, arrowsAlong, RoadEndpointDot, RoadMarkerPin, RoadPinBody, RoadStopMarker, RoadTrack, ROAD_PIN_POINT_Y } from './RoadMapParts';
 import { RoadArrowLayer, type ArrowLayerHandle } from './RoadArrowLayer';
 import { SOFT } from '../../utils/motion';
 
@@ -124,7 +124,8 @@ export function RoadRouteMap({
       const b = coords[i];
       total += Math.hypot((b.latitude - a.latitude) * 111_320, (b.longitude - a.longitude) * 111_320 * Math.cos((a.latitude * Math.PI) / 180));
     }
-    const arrows = arrowsAlong(coords, Math.max(20, total / 80), Math.max(30, total / 160));
+    // Dove la linea ripassa sopra resta solo il passaggio più nuovo (come dal vivo).
+    const arrows = arrowsAlong(coords, Math.max(20, total / 80), Math.max(30, total / 160)).filter((a) => !arrowCovered(coords, a));
     return { coords, all, markers, stops: stops ?? [], arrows, initialRegion: regionFor(all) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
