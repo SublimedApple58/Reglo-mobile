@@ -800,7 +800,13 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
     submit(false);
   };
 
-  const canConfirm = !pending && !!studentId && !!instructorId && (!vehiclesEnabled || !!vehicleId) && !vehicleIneligible && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);
+  // REG-725: luogo ambiguo e non scelto → la guida non si prenota finché non
+  // lo si sceglie (il server rifiuta con la stessa regola). Gli esami no.
+  const locationRequired = locationUnset && lessonTypes[0] !== 'esame';
+  const locationRequiredText = locationRequired
+    ? `Scegli il luogo: più luoghi ${priorityTitle(selectedStudent, selectedVehicle).replace(/^Fanno /, 'fanno ')}.`
+    : null;
+  const canConfirm = !locationRequired && !pending && !!studentId && !!instructorId && (!vehiclesEnabled || !!vehicleId) && !vehicleIneligible && (!needFollowCar || !!followVehicleId) && (multiMode ? entries.length > 0 : true);
 
   const summaryMain = multiMode
     ? `${entries.length} guid${entries.length === 1 ? 'a' : 'e'}`
@@ -934,7 +940,7 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
       </ClaySection>
 
       {/* Dettagli — priorità inferiore */}
-      <ClaySection title="Dettagli">
+      <ClaySection title="Dettagli" footnote={locationRequiredText ?? undefined}>
         <ClayList>
           <ClayListRow title="Luogo" subtitle={locationValue} onPress={guard(openLocationPicker)} />
           {vehiclesEnabled && studentId ? (
@@ -1037,6 +1043,9 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
             <SettingValueRow title="Tipo" value={typeValue} onPress={guard(openType)} testID="quick-guide-type" />
           ) : null}
         </ClayList>
+        {locationRequiredText ? (
+          <Text style={s.note} testID="booking-location-required">{locationRequiredText}</Text>
+        ) : null}
         {data.outsideAvailability && !pickInstructor ? (
           <Text style={s.note}>
             {`${WEEKDAY_LONG[date.getDay()]} sei fuori dalla tua disponibilità: la guida si prenota lo stesso.`}
