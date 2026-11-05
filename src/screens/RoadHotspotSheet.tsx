@@ -26,6 +26,7 @@ import {
   useHotspotsVersion,
 } from '../road/hotspotsStore';
 import { CLAY } from '../theme';
+import { ANDROID_DAY_STYLE } from '../road/night';
 
 /** Il foglio abbraccia il contenuto: oltre, «e altri N». */
 const MAX_STUDENTS = 5;
@@ -164,6 +165,7 @@ const HotspotMiniMap = React.memo(function HotspotMiniMap({ hotspot, onPress }: 
           style={StyleSheet.absoluteFill}
           initialRegion={region}
           mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+          customMapStyle={ANDROID_DAY_STYLE}
           showsPointsOfInterest={false}
           showsBuildings={false}
           showsCompass={false}

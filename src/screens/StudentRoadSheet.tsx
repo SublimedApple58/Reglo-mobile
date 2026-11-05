@@ -17,6 +17,7 @@ import { retryRoadStudent, useRoadStudentState } from '../road/avvioFlow';
 import type { RoadStudentHotspot, RoadStudentItem } from '../types/regloApi';
 import { CLAY, CLAY_SHADOW } from '../theme';
 import { MORALE_ART } from '../theme/moraleArt';
+import { ANDROID_DAY_STYLE } from '../road/night';
 
 /** Guide mostrate prima di «Tutte le guide». */
 const FIRST_GUIDES = 5;
@@ -250,6 +251,7 @@ const HotspotsMap = React.memo(function HotspotsMap({ hotspots }: { hotspots: Ro
               style={StyleSheet.absoluteFill}
               initialRegion={region}
               mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+              customMapStyle={ANDROID_DAY_STYLE}
               showsPointsOfInterest={false}
               showsCompass={false}
               showsScale={false}

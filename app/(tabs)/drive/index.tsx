@@ -40,6 +40,7 @@ import { RoadPressable } from '../../../src/components/road/RoadPressable';
 import { ROAD_FADE_IN, ROAD_FADE_OUT } from '../../../src/road/motion';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import { useTabBarOverlap } from '../../../src/components/tabBarSpace';
+import { ANDROID_DAY_STYLE } from '../../../src/road/night';
 
 /** Dopo quanto, a app ferma, si monta la schermata (mappa) in sottofondo. */
 const ROAD_WARM_DELAY_MS = 1500;
@@ -539,6 +540,7 @@ const RoadHomeMap = React.memo(function RoadHomeMap({
       // Logo «Maps» e «Legal» sopra il bordo arrotondato del foglio, mai sotto.
       mapPadding={{ top: topInset, right: 0, bottom: COVER_OVERLAP + 18, left: 10 }}
       mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+      customMapStyle={ANDROID_DAY_STYLE}
       showsPointsOfInterest={false}
       showsCompass={false}
       showsScale={false}

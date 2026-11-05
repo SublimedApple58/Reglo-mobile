@@ -7,6 +7,7 @@ import type { RoadMarker, RoadStop } from '../../types/regloApi';
 import { arrowCovered, arrowsAlong, RoadEndpointDot, RoadMarkerPin, RoadPinBody, RoadStopMarker, RoadTrack, ROAD_PIN_POINT_Y } from './RoadMapParts';
 import { RoadArrowLayer, type ArrowLayerHandle } from './RoadArrowLayer';
 import { SOFT } from '../../utils/motion';
+import { ANDROID_DAY_STYLE } from '../../road/night';
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -284,6 +285,7 @@ export function RoadRouteMap({
         onRegionChange={hideOverlay}
         onRegionChangeComplete={onRegionDone}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+        customMapStyle={ANDROID_DAY_STYLE}
         showsPointsOfInterest={false}
         // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
         showsBuildings={false}

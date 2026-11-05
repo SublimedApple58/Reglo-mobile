@@ -28,6 +28,7 @@ import {
   type HotspotPeriod,
 } from '../road/hotspotsStore';
 import { CLAY } from '../theme';
+import { ANDROID_DAY_STYLE } from '../road/night';
 
 const SHEET_ROUTE = '/(tabs)/drive/punto-critico';
 /** Posti fissi sulla mappa (react-native-maps crasha se i figli cambiano numero). */
@@ -280,6 +281,7 @@ export default function RoadHotspotsMapScreen() {
         }}
         mapPadding={{ top: insets.top, right: 0, bottom: sheetVisible - 24, left: 10 }}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+        customMapStyle={ANDROID_DAY_STYLE}
         showsPointsOfInterest={false}
         showsCompass={false}
         showsScale={false}

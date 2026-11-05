@@ -13,6 +13,7 @@ import { SENTIMENT_BAD, SENTIMENT_GOOD } from './RoadSentiment';
 import { RoadTrack } from './RoadMapParts';
 import { regionFor } from './RoadMiniMap';
 import { cachedThumbUri, saveThumbSnapshot, thumbKey } from '../../road/thumbCache';
+import { ANDROID_DAY_STYLE } from '../../road/night';
 
 /**
  * REG-638 Road «mappa corta» — pezzi condivisi da tab Road e foglio «Parti
@@ -167,6 +168,7 @@ export function RouteThumb({
           style={StyleSheet.absoluteFill}
           region={view.region}
           mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+          customMapStyle={ANDROID_DAY_STYLE}
           showsPointsOfInterest={false}
           showsBuildings={false}
           showsCompass={false}

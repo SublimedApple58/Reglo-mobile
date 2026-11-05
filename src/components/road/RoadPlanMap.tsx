@@ -4,6 +4,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 
 import type { RoadPlanStop } from '../../types/regloApi';
 import { regionFor } from './RoadMiniMap';
+import { ANDROID_DAY_STYLE } from '../../road/night';
 
 type Pt = { lat: number; lng: number };
 
@@ -62,6 +63,7 @@ export const RoadPlanMap = React.memo(function RoadPlanMap({
       region={small ? region : undefined}
       onMapReady={fit}
       mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+      customMapStyle={ANDROID_DAY_STYLE}
       showsPointsOfInterest={false}
       showsBuildings={false}
       showsCompass={false}

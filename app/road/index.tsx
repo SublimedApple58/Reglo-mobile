@@ -72,7 +72,7 @@ import { REROUTE_OFF_MS } from '../../src/road/reroute';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
 import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '../../src/road/returnEta';
 import { fixHistory } from '../../src/road/fixHistory';
-import { ANDROID_NIGHT_STYLE, NIGHT, useRoadNight } from '../../src/road/night';
+import { NIGHT, roadMapStyle, useRoadNight } from '../../src/road/night';
 import { roadSounds, useRoadSoundMuted } from '../../src/road/sounds';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
@@ -542,7 +542,7 @@ const LiveMap = React.memo(function LiveMap({
       mapPadding={padding}
       legalLabelInsets={legal}
       mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-      customMapStyle={night ? ANDROID_NIGHT_STYLE : undefined}
+      customMapStyle={roadMapStyle(night)}
       showsPointsOfInterest={false}
       // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
       showsBuildings={false}

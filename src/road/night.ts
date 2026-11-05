@@ -111,6 +111,7 @@ export const ANDROID_NIGHT_STYLE =
         { elementType: 'labels.text.fill', stylers: [{ color: '#8e8e93' }] },
         { elementType: 'labels.text.stroke', stylers: [{ color: '#1d1d1f' }] },
         { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
         { featureType: 'transit', stylers: [{ visibility: 'off' }] },
         { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#3a3a3c' }] },
         { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#48484a' }] },
@@ -118,3 +119,19 @@ export const ANDROID_NIGHT_STYLE =
         { featureType: 'landscape.man_made', elementType: 'geometry', stylers: [{ color: '#252527' }] },
       ]
     : undefined;
+
+/**
+ * Android: Google Maps di giorno senza luoghi (ristoranti, locali, negozi),
+ * come su iOS dove li toglie la patch di AIRMap. `showsPointsOfInterest` su
+ * Android non basta: serve lo stile.
+ */
+export const ANDROID_DAY_STYLE =
+  Platform.OS === 'android'
+    ? [
+        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+      ]
+    : undefined;
+
+/** Lo stile Google della mappa Road (solo Android; su iOS è undefined). */
+export const roadMapStyle = (night: boolean) => (night ? ANDROID_NIGHT_STYLE : ANDROID_DAY_STYLE);
