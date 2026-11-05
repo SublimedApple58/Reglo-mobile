@@ -106,3 +106,6 @@ luoghi) ogni fascia ha un luogo (`TimeRange.locationId`, assente = tutti i luogh
   `more/` (prima solo `home/` e `notes/`): senza, «Luogo della fascia» non si
   apriva dalla tab Istruttore.
 Spenta la funzione gli editor sono identici a prima.
+- REG-724 (05/11): in «A pubblicazione» anche le righe dei giorni mostrano il
+  luogo accanto all'orario (`SwipeRow` riceve `formatRanges` =
+  `rangeLocations.rangesText`). Verificato sul simulatore contro staging.
