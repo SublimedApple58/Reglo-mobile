@@ -32,25 +32,43 @@ export const RoadCompass = React.memo(function RoadCompass({ heading, night }: {
   );
 });
 
+// L'ago ha il perno al centro del quadrante (gira su sé stesso), la «N» sopra la punta.
+const DIAL = 36;
+const HALF = 8;
 const c = StyleSheet.create({
-  dial: { width: 36, height: 36, alignItems: 'center' },
-  n: { fontSize: 11, lineHeight: 12, fontWeight: '600', letterSpacing: 0.2 },
+  dial: { width: DIAL, height: DIAL },
+  n: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 10.5,
+    lineHeight: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
   up: {
+    position: 'absolute',
+    top: DIAL / 2 - HALF,
+    left: DIAL / 2 - 4,
     width: 0,
     height: 0,
-    marginTop: 1,
-    borderLeftWidth: 4.5,
-    borderRightWidth: 4.5,
-    borderBottomWidth: 11,
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderBottomWidth: HALF,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },
   down: {
+    position: 'absolute',
+    top: DIAL / 2,
+    left: DIAL / 2 - 4,
     width: 0,
     height: 0,
-    borderLeftWidth: 4.5,
-    borderRightWidth: 4.5,
-    borderTopWidth: 11,
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderTopWidth: HALF,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },

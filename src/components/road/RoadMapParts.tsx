@@ -134,7 +134,9 @@ export const RoadMarkerPin = React.memo(function RoadMarkerPin({
         >
           <Image source={markerArt(kind)} style={pin.img} resizeMode="contain" />
           <Text style={pin.label} numberOfLines={1}>{label}</Text>
-          <View style={pin.tail} />
+          <View style={pin.tailRow}>
+            <View style={pin.tail} />
+          </View>
         </View>
         {dot ? <View style={pin.dot} /> : null}
       </View>
@@ -168,7 +170,9 @@ export function RoadPinBody({ kind, label, sentiment }: { kind: string; label: s
       <View style={[pin.tag, sentiment ? { borderWidth: 2.5, borderColor: sentimentColor(sentiment) } : null]}>
         <Image source={markerArt(kind)} style={pin.img} resizeMode="contain" />
         <Text style={pin.label} numberOfLines={1}>{label}</Text>
-        <View style={pin.tail} />
+        <View style={pin.tailRow}>
+            <View style={pin.tail} />
+          </View>
       </View>
       <View style={pin.dot} />
     </View>
@@ -286,7 +290,9 @@ export function RoadStopMarker({ coordinate, minutes, labeled }: { coordinate: L
       <View style={pin.wrap} pointerEvents="none">
         <View style={[pin.tag, pin.stopTag]}>
           <Text style={pin.label}>Sosta {minutes} min</Text>
-          <View style={pin.tail} />
+          <View style={pin.tailRow}>
+            <View style={pin.tail} />
+          </View>
         </View>
         <StopGlyph style={{ marginTop: GAP }} />
       </View>
@@ -372,12 +378,12 @@ const pin = StyleSheet.create({
   },
   discImg: { width: 20, height: 20 },
   label: { fontSize: 13.5, fontWeight: '600', color: '#111111', letterSpacing: -0.1 },
+  // REG-723: la punta sta in una riga larga quanto il fumetto e si centra da
+  // sola. Prima `left: '50%'` su un fumetto senza larghezza fissa: fuori dai
+  // Marker (segnaposto grande sopra la mappa) finiva di lato, un quadratino
+  // bianco accanto al fumetto.
+  tailRow: { position: 'absolute', left: 0, right: 0, bottom: -4, alignItems: 'center' },
   tail: {
-    position: 'absolute',
-    bottom: -4,
-    alignSelf: 'center',
-    left: '50%',
-    marginLeft: -5,
     width: 10,
     height: 10,
     backgroundColor: '#FFFFFF',

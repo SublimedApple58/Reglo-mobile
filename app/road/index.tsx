@@ -29,7 +29,7 @@ import { PLAN_ALERT_MS, PLAN_REACHED_MS } from '../../src/road/planAlerts';
 import { openRoadPagellino } from '../../src/road/pagellino';
 import { openRoadNotes, prefetchRoadNotes } from '../../src/road/roadNotes';
 import { markerArt } from '../../src/road/markerArt';
-import { formatHm, formatKm, formatMinutes, formatRange } from '../../src/road/format';
+import { formatHm, formatKm, formatMinutes, formatRange, haversineMeters } from '../../src/road/format';
 import { createLiveMotion, headingDelta, type MotionFix, type MotionSample } from '../../src/road/liveMotion';
 import {
   AUTO_RETURN_MS,
@@ -321,22 +321,34 @@ const LiveTrack = React.memo(function LiveTrack({
 const ARROW_SLOTS = 24;
 const ARROW_EVERY_M = 200;
 /** La freccia: mezza larghezza e lunghezza in metri (~1 m a punto allo zoom di guida). */
-const ARROW_HALF_M = 1.7;
-const ARROW_LEN_M = 2.6;
+const ARROW_HALF_M = 2.3;
+const ARROW_LEN_M = 3.4;
+/** Due frecce più vicine di così (passaggi diversi sulla stessa strada) no. */
+const ARROW_APART_M = 80;
 const ARROW_INK = 'rgba(255,255,255,0.9)';
-const ARROW_INK_NIGHT = 'rgba(10,10,10,0.6)';
+const ARROW_INK_NIGHT = 'rgba(10,10,10,0.8)';
 
 function useLiveArrows(track: TrackPt[]) {
-  const cache = useRef<{ first: TrackPt | null; every: number; lines: TrackPt[][] }>({ first: null, every: ARROW_EVERY_M, lines: [] });
+  const cache = useRef<{ first: TrackPt | null; every: number; lines: Array<TrackPt[] | null>; at: TrackPt[] }>({
+    first: null,
+    every: ARROW_EVERY_M,
+    lines: [],
+    at: [],
+  });
   return useMemo(() => {
     let c = cache.current;
-    if (c.first !== (track[0] ?? null)) c = cache.current = { first: track[0] ?? null, every: ARROW_EVERY_M, lines: [] };
+    if (c.first !== (track[0] ?? null)) c = cache.current = { first: track[0] ?? null, every: ARROW_EVERY_M, lines: [], at: [] };
     let found = arrowsAlong(track, c.every, c.every / 2);
     while (found.length > ARROW_SLOTS) {
-      c = cache.current = { first: c.first, every: c.every * 2, lines: [] };
+      c = cache.current = { first: c.first, every: c.every * 2, lines: [], at: [] };
       found = arrowsAlong(track, c.every, c.every / 2);
     }
-    for (let i = c.lines.length; i < found.length; i++) c.lines.push(chevronCoords(found[i], ARROW_HALF_M, ARROW_LEN_M));
+    for (let i = c.lines.length; i < found.length; i++) {
+      // Strada già fatta (andata e ritorno, giri): niente freccia accanto a un'altra.
+      const near = c.at.some((p) => haversineMeters(p.latitude, p.longitude, found[i].at.latitude, found[i].at.longitude) < ARROW_APART_M);
+      c.lines.push(near ? null : chevronCoords(found[i], ARROW_HALF_M, ARROW_LEN_M));
+      if (!near) c.at.push(found[i].at);
+    }
     return c.lines.slice();
     // Ricalcolo solo quando la linea si allunga.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -348,7 +360,7 @@ const ArrowPiece = React.memo(function ArrowPiece({ pts, still, night }: { pts: 
     <Polyline
       coordinates={pts ?? still}
       strokeColor={pts ? (night ? ARROW_INK_NIGHT : ARROW_INK) : 'rgba(17,17,17,0)'}
-      strokeWidth={1.6}
+      strokeWidth={2}
       lineCap="round"
       lineJoin="round"
       zIndex={2}
@@ -1499,7 +1511,7 @@ const LivePinDetail = React.memo(function LivePinDetail({ sel, night }: { sel: P
     >
       <Animated.View entering={PIN_IN} exiting={PIN_OUT} style={s.pinInner}>
         <View style={[s.pinCard, night && ns.surface, CLAY_SHADOW.raiseSm]} testID="road-pin-detail">
-          <Text style={[s.pinSub, night && ns.ink3]} numberOfLines={1}>
+          <Text style={[s.pinSub, night && ns.ink3]} numberOfLines={2}>
             {sign ? `${sign} · ${sub}` : sub}
           </Text>
           {m.note ? (
@@ -1517,7 +1529,7 @@ const LivePinDetail = React.memo(function LivePinDetail({ sel, night }: { sel: P
 // ─── Controlli: velocità a sinistra, Ricentra e bussola a destra ────────────
 
 /** Quanto sale il cerchio della velocità per lasciare libera la scritta «Mappe». */
-const SPEED_LIFT = 20;
+const SPEED_LIFT = 52;
 
 const LiveControls = React.memo(function LiveControls({
   bottom,
