@@ -24,10 +24,27 @@ export const storeUrl = (): string =>
     : `market://details?id=${ANDROID_PACKAGE}`;
 
 /**
- * Running app version. Under the "appVersion" runtimeVersion policy this equals
- * the marketing version (e.g. "1.1.1", "2.0.0"). null in dev / Expo Go.
+ * Versione NATIVA installata (CFBundleShortVersionString / versionName, es.
+ * "2.4.1"), cioè quella dello store. Non `Updates.runtimeVersion`: dalla 2.4.1
+ * il runtime è fissato a "2.4.0" anche su binari più nuovi (runtimeVersion
+ * pinnata per gli OTA), quindi confrontare il runtime col minimo del backend
+ * bloccherebbe o lascerebbe passare il binario sbagliato.
+ * `expo-application` è nel binario da sempre (dipendenza di expo-notifications):
+ * caricato pigro e protetto, se mancasse si ripiega sul runtime. null in Expo Go.
  */
-export const currentAppVersion = (): string | null => Updates.runtimeVersion ?? null;
+let nativeVersion: string | null | undefined;
+export const currentAppVersion = (): string | null => {
+  if (nativeVersion === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Application = require('expo-application') as typeof import('expo-application');
+      nativeVersion = Application.nativeApplicationVersion ?? null;
+    } catch {
+      nativeVersion = null;
+    }
+  }
+  return nativeVersion ?? Updates.runtimeVersion ?? null;
+};
 
 /**
  * Hard floor for the SYNC legacy block. Any binary below this is blocked

@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { setTabBarBodyHeight } from './tabBarSpace';
 import { RoadMiniBar } from './road/RoadMiniBar';
-import { useAnySheetOpen } from './sheetPresence';
+import { useAnySheetOpen, useTabBarCovered } from './sheetPresence';
 
 /* ── Icon map: outline (inactive) → filled (active) ── */
 
@@ -170,16 +170,21 @@ export const AppTabBar = ({
   const bottomPad = Math.max(insets.bottom, 8);
   // Android: con un form sheet aperto la barra sparisce, come quando su iOS il
   // foglio la copre (altrimenti copriva la CTA del foglio). Vedi sheetPresence.
+  // Agenda: la barra «Guida ⌄ · Continua» del blocco fantasma prende il suo
+  // posto (iOS e Android): sfuma e scende di 10 pt, poi torna.
   const sheetOpen = useAnySheetOpen();
+  const covered = useTabBarCovered();
+  const hidden = sheetOpen || covered;
   const hideStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(sheetOpen ? 0 : 1, { duration: 200, reduceMotion: ReduceMotion.Never }),
+    opacity: withTiming(hidden ? 0 : 1, { duration: hidden ? 150 : 200, reduceMotion: ReduceMotion.Never }),
+    transform: [{ translateY: withTiming(covered ? 10 : 0, { duration: covered ? 150 : 220, reduceMotion: ReduceMotion.Never }) }],
   }));
   return (
     // «B · vetro a tutta larghezza» (Tiziano 28/10): la barra sta sopra le
     // schermate; dietro, su iOS il materiale sfocato di sistema, su Android un
     // bianco quasi pieno (il blur Android costa troppo). Niente riga dura.
     <Animated.View
-      pointerEvents={sheetOpen ? 'none' : 'auto'}
+      pointerEvents={hidden ? 'none' : 'auto'}
       style={[st.bar, { paddingBottom: bottomPad }, hideStyle]}
       onLayout={(e) => setTabBarBodyHeight(e.nativeEvent.layout.height - bottomPad)}
     >

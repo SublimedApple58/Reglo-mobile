@@ -1,5 +1,30 @@
 # Creazione dall'agenda — blocco fantasma (era «Quick-book»)
 
+## 05/11/2026 — bozza W1 + barra «Guida ⌄ · Continua» (anteprime approvate da Tiziano)
+
+Sostituisce il fantasma nero/grigio e la card con i 5 tipi (il resto del flusso
+REG-671 qui sotto resta uguale: stessi fogli, stessi store, nessuna API nuova).
+
+- **Bozza sulla griglia** (`GhostBlock` in `WeeklyAgendaView`): velo nella tinta
+  del tipo scelto + contorno sottile (Guida = giallo delle guide, Di gruppo =
+  verde foglia, Esame/Teoria/Blocca = neutri; `draftLook` in
+  `src/components/agenda/createKinds.ts`), testo «Guida / 13:00–14:00», due
+  pallini bianchi bordati agli angoli opposti (in alto a destra = inizio, in
+  basso a sinistra = fine). Presa in mano: velo più pieno, contorno più scuro,
+  scala 1.02, il pallino trascinato cresce, compare la durata («1 h 15'») e a
+  sinistra della griglia l'orario del bordo che si muove. **Tocco sulla bozza =
+  la toglie** (non c'è più la X della card); su Android anche «indietro».
+- **Barra in basso** (`GhostBar`): prende il posto della tab bar (che sfuma e
+  scende di 10 pt, `useTabBarCover` in `sheetPresence.ts`); per il titolare puro,
+  dove la griglia non passa sotto la tab bar, sta sopra la tab bar. A sinistra
+  «Guida ⌄» + «Ven 6 nov · 13:00 – 14:00» (seguono la bozza dal vivo), a destra
+  una sola CTA nera «Continua» (44 pt) che apre il foglio del tipo
+  (`onCreateAt`, invariato).
+- **«Cosa vuoi creare?»** (`app/(tabs)/home/create-kind.tsx`, FORM_SHEET,
+  `createKindSheetStore`): righe alte 76 con l'oggetto 3D in una scatola fissa
+  52×46, nome + riga di spiegazione, spunta nera sul tipo scelto; il tocco
+  applica e chiude. Il tipo torna al primo offerto quando la bozza sparisce.
+
 ## REG-671 (30/10/2026) — il flusso di oggi
 
 Approvato da Tiziano sulle anteprime (`/tmp/hiro-anteprime/agenda-crea/`).

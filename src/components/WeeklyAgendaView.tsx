@@ -10,14 +10,14 @@ import Animated, {
   Easing,
   ReduceMotion,
   FadeIn,
+  FadeInDown,
   FadeOut,
+  FadeOutDown,
   type SharedValue,
 } from 'react-native-reanimated';
 import {
   View,
   Text,
-  Image,
-  type ImageSourcePropType,
   Pressable,
   ScrollView,
   FlatList,
@@ -26,6 +26,7 @@ import {
   useWindowDimensions,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
+  BackHandler,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -44,11 +45,13 @@ import { sharedWithNames, unionCoInstructors } from '../utils/coInstructors';
 import { EXAM_LOOK as CLAY_EXAM, GROUP_LOOK as CLAY_GROUP, GROUP_MOTO_LOOK as CLAY_GROUP_MOTO, blockLabel, guideLook } from '../utils/agendaLook';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { SOFT } from '../utils/motion';
-import { ClayIconButton } from './clay/ClayIconButton';
 import { ClayPressable } from './clay/ClayPressable';
 import { useTabBarOverlap } from './tabBarSpace';
-import { VITA_ART } from '../theme/vitaArt';
-import { car34Art } from '../road/markerArt';
+import { useTabBarCover } from './sheetPresence';
+import { createKindSheetStore } from '../stores/createKindSheetStore';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CREATE_LABEL, draftLook } from './agenda/createKinds';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -205,8 +208,12 @@ function freeSegStart(pos: number, free: number[]): number {
 // REG-671: il fantasma compare in dissolvenza e scivola dove si tocca (mai di botto, niente rimbalzo).
 const GHOST_IN = FadeIn.duration(200).easing(SOFT).reduceMotion(ReduceMotion.Never);
 const GHOST_GLIDE = { duration: 220, easing: SOFT, reduceMotion: ReduceMotion.Never } as const;
-const CARD_IN = FadeIn.duration(220).easing(SOFT).reduceMotion(ReduceMotion.Never);
-const CARD_OUT = FadeOut.duration(150).easing(SOFT).reduceMotion(ReduceMotion.Never);
+const GHOST_OUT = FadeOut.duration(150).easing(SOFT).reduceMotion(ReduceMotion.Never);
+// Barra in basso (C-b): entra salendo di 14 pt in dissolvenza mentre la tab bar
+// sfuma via (150 ms), così a metà le due si sovrappongono e non c'è mai un vuoto.
+const BAR_IN = FadeInDown.duration(240).delay(60).easing(SOFT).reduceMotion(ReduceMotion.Never)
+  .withInitialValues({ opacity: 0, transform: [{ translateY: 14 }] });
+const BAR_OUT = FadeOutDown.duration(160).easing(SOFT).reduceMotion(ReduceMotion.Never);
 
 // Horizontal week carousel: half a year of swipe each way, centered on "today".
 const WEEK_SPAN = 26;
@@ -253,6 +260,9 @@ const fmtLongDay = (d: Date) => {
   const t = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
+const DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+/** «Ven 6 nov». */
+const fmtShortDay = (d: Date) => `${DAY_SHORT[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()].toLowerCase()}`;
 const fmtDur = (min: number) => {
   if (min % 60 === 0) return `${min / 60} h`;
   if (min > 60) return `${Math.floor(min / 60)} h ${min % 60}'`;
@@ -276,9 +286,15 @@ const makeTextStore = () => {
 };
 const ghostTimeLabel = makeTextStore();
 const ghostDurLabel = makeTextStore();
-// Card in basso (REG-671): giorno e fascia seguono il fantasma dal vivo.
+// Barra in basso e foglio dei tipi: giorno e fascia seguono il fantasma dal vivo.
 const ghostDayLabel = makeTextStore();
+const ghostShortDayLabel = makeTextStore();
 const ghostRangeLabel = makeTextStore();
+// Dentro la bozza: «13:00–14:00» (stretto, come gli altri blocchi) e il tipo scelto.
+const ghostTightRangeLabel = makeTextStore();
+const ghostKindStore = makeTextStore();
+// A sinistra della griglia, all'altezza del bordo che si trascina (Calendario di Apple).
+const ghostEdgeLabel = makeTextStore();
 const useTextStore = (store: ReturnType<typeof makeTextStore>) =>
   useSyncExternalStore(store.subscribe, store.get);
 
@@ -514,22 +530,37 @@ type GhostBlockProps = GhostSharedValues & {
   onLift: () => void;
   onStep: (start: number, dur: number) => void;
   onPlace: (col: number, start: number, dur: number) => void;
+  /** Tocco sulla bozza: la toglie. */
+  onDismiss: () => void;
 };
 
+const KNOB = 9;
+const setGhostEdge = (min: number) => ghostEdgeLabel.set(fmtMin(min));
+
 // The ghost lives entirely on shared values: position/size animate on the UI
-// thread (zero React re-renders while dragging); the time/duration labels go
-// through the tiny ghost*Label stores (re-render just two <Text>).
-const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift, onStep, onPlace }: GhostBlockProps) => {
+// thread (zero React re-renders while dragging); the labels go through the
+// tiny ghost*Label stores (re-render just a few <Text>).
+//
+// Aspetto (anteprima W1 approvata da Tiziano, 05/11/2026): bozza a contorno
+// nella tinta del tipo scelto (Guida = giallo delle guide), due pallini bianchi
+// bordati agli angoli opposti (in alto a destra, in basso a sinistra) come il
+// blocco in creazione di Calendario. Preso in mano: velo più pieno, contorno
+// più scuro, scala appena sopra 1, il pallino trascinato cresce e a sinistra
+// della griglia compare l'orario del bordo che si muove.
+const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift, onStep, onPlace, onDismiss }: GhostBlockProps) => {
   const baseStart = useSharedValue(0);
   const baseCol = useSharedValue(0);
   const baseEnd = useSharedValue(0);
+  /** Bordo in mano: 0 nessuno (o tutto il blocco), 1 inizio, 2 fine. */
+  const gEdge = useSharedValue(0);
 
-  const timeText = useTextStore(ghostTimeLabel);
+  const kind = (useTextStore(ghostKindStore) || 'lesson') as AgendaCreateKind;
+  const look = draftLook(kind);
+  const rangeText = useTextStore(ghostTightRangeLabel);
   const durText = useTextStore(ghostDurLabel);
+  const edgeText = useTextStore(ghostEdgeLabel);
 
-  /* — knobs: drag the edges to resize (30' – 4h, 15' steps) —
-   * No finger bubble here: the block stays under the eye and already shows
-   * the live range/duration — the bubble would just cover the grid.
+  /* — knobs: drag the edges to resize (15' steps) —
    * Generous hitSlop: the knobs must be the EASY target near the edges. */
   const makeKnobPan = (edge: 'top' | 'bottom') =>
     Gesture.Pan()
@@ -538,7 +569,9 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
       .onStart(() => {
         baseStart.value = gStart.value;
         baseEnd.value = gStart.value + gDur.value;
+        gEdge.value = edge === 'top' ? 1 : 2;
         gLive.value = withTiming(1, { duration: 140 });
+        runOnJS(setGhostEdge)(edge === 'top' ? gStart.value : gStart.value + gDur.value);
         runOnJS(onLift)();
       })
       .onUpdate((e) => {
@@ -553,6 +586,7 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
           const ns = baseEnd.value - nd;
           if (ns !== gStart.value) {
             gStart.value = ns; gDur.value = nd;
+            runOnJS(setGhostEdge)(ns);
             runOnJS(onStep)(ns, nd);
           }
         } else {
@@ -562,17 +596,20 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
           const nd = snapDurFree(rawDur, maxEnd - baseStart.value);
           if (nd !== gDur.value) {
             gDur.value = nd;
+            runOnJS(setGhostEdge)(baseStart.value + nd);
             runOnJS(onStep)(baseStart.value, nd);
           }
         }
       })
       .onEnd(() => {
         gLive.value = withTiming(0, { duration: 180 });
+        gEdge.value = 0;
         runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
       })
       .onFinalize((_e, success) => {
         if (!success && gLive.value > 0) {
           gLive.value = withTiming(0, { duration: 180 });
+          gEdge.value = 0;
           runOnJS(onPlace)(gCol.value, gStart.value, gDur.value);
         }
       });
@@ -583,12 +620,13 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
   /* — body: hold (160ms) and drag the whole block, also across days —
    * Defers to the knobs: a touch landing in their (large) hit area can NEVER
    * move the block, so a missed resize doesn't turn into an accidental move.
-   * No finger bubble here either — the block itself is the feedback. */
+   * A quick tap on the body removes the draft. */
   const movePan = useMemo(() => Gesture.Pan()
     .activateAfterLongPress(160)
     .requireExternalGestureToFail(topKnobPan, botKnobPan)
     .onStart(() => {
       baseStart.value = gStart.value; baseCol.value = gCol.value;
+      gEdge.value = 0;
       gLive.value = withTiming(1, { duration: 140 });
       runOnJS(onLift)();
     })
@@ -621,31 +659,77 @@ const GhostBlock = ({ colW, allowedDur, gCol, gStart, gDur, gLive, gFree, onLift
       }
     }), [topKnobPan, botKnobPan, colW]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const tapBody = useMemo(() => Gesture.Tap()
+    .maxDuration(250)
+    .requireExternalGestureToFail(topKnobPan, botKnobPan)
+    .onEnd((_e, success) => {
+      if (success) runOnJS(onDismiss)();
+    }), [topKnobPan, botKnobPan, onDismiss]);
+  const bodyGesture = useMemo(() => Gesture.Exclusive(movePan, tapBody), [movePan, tapBody]);
+
   const frameStyle = useAnimatedStyle(() => ({
     top: ((gStart.value - DAY_MIN) / 60) * ROW_H,
     height: (gDur.value / 60) * ROW_H,
     left: GUTTER_W + gCol.value * (colW + COL_GAP) + 2,
     width: colW - 4,
-    // REG-671: bordo nero pieno e velo leggero; preso in mano si scurisce appena.
-    backgroundColor: interpolateColor(gLive.value, [0, 1], ['rgba(17,17,17,0.055)', 'rgba(17,17,17,0.11)']),
+    transform: [{ scale: interpolate(gLive.value, [0, 1], [1, 1.02]) }],
   }));
-  const knobStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(gLive.value, [0, 1], [1, 0]),
+  // Velo e contorno: più pieni presi in mano (colori, non ombre: l'ombra resta ferma).
+  const skinStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(gLive.value, [0, 1], [look.fill, look.fillLive]),
+    borderColor: interpolateColor(gLive.value, [0, 1], [look.ring, look.ringLive]),
   }));
+  const topKnobStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withTiming(gEdge.value === 1 ? 1.33 : 1, { duration: 140, reduceMotion: ReduceMotion.Never }) }],
+  }));
+  const botKnobStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: withTiming(gEdge.value === 2 ? 1.33 : 1, { duration: 140, reduceMotion: ReduceMotion.Never }) }],
+  }));
+  // La durata compare solo mentre si allunga o si sposta.
+  const durStyle = useAnimatedStyle(() => ({ opacity: gLive.value }));
+  // Orario del bordo in mano, nella colonna delle ore.
+  const edgeStyle = useAnimatedStyle(() => {
+    const edgeMin = gEdge.value === 1 ? gStart.value : gStart.value + gDur.value;
+    return {
+      top: ((edgeMin - DAY_MIN) / 60) * ROW_H - 7,
+      opacity: gEdge.value > 0 ? gLive.value : 0,
+    };
+  });
 
   return (
-    <GestureDetector gesture={movePan}>
-      <Animated.View entering={GHOST_IN} style={[styles.ghost, frameStyle]} testID="agenda-ghost">
-        <Text style={styles.ghostTime} numberOfLines={1}>{timeText}</Text>
-        <Text style={styles.ghostDur} numberOfLines={1}>{durText}</Text>
-        <GestureDetector gesture={topKnobPan}>
-          <Animated.View style={[styles.ghostKnob, { top: -8 }, knobStyle]} hitSlop={{ top: 14, bottom: 10, left: 18, right: 18 }} />
-        </GestureDetector>
-        <GestureDetector gesture={botKnobPan}>
-          <Animated.View style={[styles.ghostKnob, { bottom: -8 }, knobStyle]} hitSlop={{ top: 10, bottom: 14, left: 18, right: 18 }} />
-        </GestureDetector>
+    <>
+      <GestureDetector gesture={bodyGesture}>
+        <Animated.View
+          entering={GHOST_IN}
+          exiting={GHOST_OUT}
+          style={[styles.ghost, { boxShadow: [{ offsetX: 0, offsetY: 6, blurRadius: 14, spreadDistance: -8, color: look.glow }] }, frameStyle]}
+          testID="agenda-ghost"
+          accessibilityRole="button"
+          accessibilityLabel={`${CREATE_LABEL[kind]} ${rangeText}. Tocca per togliere.`}
+        >
+          <Animated.View style={[styles.ghostSkin, skinStyle]}>
+            <Text style={styles.ghostKind} numberOfLines={1}>{CREATE_LABEL[kind]}</Text>
+            <Text style={styles.ghostRange}>{rangeText}</Text>
+            <Animated.Text style={[styles.ghostDur, durStyle]} numberOfLines={1}>{durText}</Animated.Text>
+          </Animated.View>
+          <GestureDetector gesture={topKnobPan}>
+            <Animated.View
+              style={[styles.ghostKnob, { top: -KNOB / 2, right: 6, borderColor: look.dot }, topKnobStyle]}
+              hitSlop={{ top: 14, bottom: 10, left: 18, right: 18 }}
+            />
+          </GestureDetector>
+          <GestureDetector gesture={botKnobPan}>
+            <Animated.View
+              style={[styles.ghostKnob, { bottom: -KNOB / 2, left: 6, borderColor: look.dot }, botKnobStyle]}
+              hitSlop={{ top: 10, bottom: 14, left: 18, right: 18 }}
+            />
+          </GestureDetector>
+        </Animated.View>
+      </GestureDetector>
+      <Animated.View pointerEvents="none" style={[styles.ghostEdge, edgeStyle]}>
+        <Text style={styles.ghostEdgeText} numberOfLines={1}>{edgeText}</Text>
       </Animated.View>
-    </GestureDetector>
+    </>
   );
 };
 
@@ -679,8 +763,10 @@ type WeekPageProps = {
   defaultDur: number;
   /** Ghost placed (info) or lifted/dismissed (null) → parent drives the CTA. */
   onGhostChange: (info: { date: Date; startMin: number; durMin: number } | null) => void;
-  /** Parent bumps this to clear the ghost (CTA ✕ / confirm / week swipe). */
+  /** Parent bumps this to clear the ghost (tap on the draft / confirm / week swipe). */
   ghostDismissTick: number;
+  /** Tocco sulla bozza: la toglie (il genitore spegne anche la barra). */
+  onGhostDismiss: () => void;
   /** Più istruttori sulla griglia: il fantasma non si ferma sugli eventi. */
   ghostIgnoresEvents: boolean;
   /** Pull-to-refresh on the vertical grid scroll. */
@@ -692,7 +778,7 @@ const WeekPage = React.memo(function WeekPage({
   monday, pageWidth, pageHeight, colW, today, appointments, instructorBlocks, holidays,
   weekAvailabilityByDate, readOnly, loading,
   onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, myInstructorId,
-  canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick, ghostIgnoresEvents,
+  canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick, onGhostDismiss, ghostIgnoresEvents,
   refreshing, onRefresh,
 }: WeekPageProps) {
   // Tab bar in vetro sopra la griglia: l'ultima ora resta raggiungibile.
@@ -727,8 +813,12 @@ const WeekPage = React.memo(function WeekPage({
     ghostTimeLabel.set(fmtMin(start));
     ghostDurLabel.set(fmtDur(dur));
     ghostRangeLabel.set(`${fmtMin(start)} – ${fmtMin(start + dur)}`);
+    ghostTightRangeLabel.set(`${fmtMin(start)}–${fmtMin(start + dur)}`);
     const day = weekDays[Math.max(0, Math.min(5, Math.round(col)))];
-    if (day) ghostDayLabel.set(fmtLongDay(day));
+    if (day) {
+      ghostDayLabel.set(fmtLongDay(day));
+      ghostShortDayLabel.set(fmtShortDay(day));
+    }
   }, [weekDays]);
 
   const ghostArm = useCallback((col: number, start: number, dur: number) => {
@@ -1335,6 +1425,7 @@ const WeekPage = React.memo(function WeekPage({
             allowedDur={allowedDur}
             gCol={gCol} gStart={gStart} gDur={gDur} gLive={gLive} gFree={gFree}
             onLift={ghostLift} onStep={ghostStep} onPlace={ghostPlace}
+            onDismiss={onGhostDismiss}
           />
         )}
 
@@ -1354,87 +1445,49 @@ const WeekPage = React.memo(function WeekPage({
 });
 
 /* ------------------------------------------------------------------ */
-/*  Card «crea» — giorno, fascia e i tipi in 3D (REG-671)              */
+/*  Barra «crea» — tipo + giorno e fascia, una CTA (anteprima C-b)     */
 /* ------------------------------------------------------------------ */
 
-const PERSONE_ART = require('../../assets/icons3d-ai/persone.png') as ImageSourcePropType;
-
-const CREATE_LABEL: Record<AgendaCreateKind, string> = {
-  lesson: 'Guida',
-  group: 'Di gruppo',
-  exam: 'Esame',
-  theory: 'Teoria',
-  block: 'Blocca',
-};
-
-const createArt = (kind: AgendaCreateKind, carColor: string | null | undefined): ImageSourcePropType => {
-  switch (kind) {
-    case 'lesson': return car34Art(carColor ?? 'rosso');
-    case 'group': return PERSONE_ART;
-    case 'exam': return VITA_ART.esame;
-    case 'theory': return VITA_ART.edificio;
-    default: return VITA_ART.calendario;
-  }
-};
-
 /**
- * Sotto il fantasma: giorno e fascia (seguono il fantasma dal vivo, anche
- * mentre lo si trascina) e una riga di tipi con il loro oggetto 3D. Niente
- * pillole: solo l'oggetto e la parola. Il tocco su un tipo apre il suo foglio;
- * il fantasma resta dov'è finché la guida non è creata.
+ * Al posto della tab bar mentre c'è la bozza (anteprima C-b approvata da
+ * Tiziano, 05/11/2026; come la barra di prenotazione di Airbnb): a sinistra il
+ * tipo scelto «Guida ⌄» (il tocco apre «Cosa vuoi creare?») e sotto giorno e
+ * fascia, che seguono la bozza dal vivo; a destra una sola CTA «Continua» che
+ * apre il foglio del tipo.
  */
-const GhostCreateCard = React.memo(function GhostCreateCard({
-  kinds,
-  carColor,
-  bottom,
-  onPick,
-  onClose,
+const GhostBar = React.memo(function GhostBar({
+  bottomPad,
+  onChangeKind,
+  onContinue,
 }: {
-  kinds: AgendaCreateKind[];
-  carColor?: string | null;
-  bottom: number;
-  onPick: (kind: AgendaCreateKind) => void;
-  onClose: () => void;
+  bottomPad: number;
+  onChangeKind: () => void;
+  onContinue: () => void;
 }) {
-  const day = useTextStore(ghostDayLabel);
+  const kind = (useTextStore(ghostKindStore) || 'lesson') as AgendaCreateKind;
+  const day = useTextStore(ghostShortDayLabel);
   const range = useTextStore(ghostRangeLabel);
-  const dur = useTextStore(ghostDurLabel);
   return (
-    <Animated.View
-      entering={CARD_IN}
-      exiting={CARD_OUT}
-      style={[styles.createCard, CLAY_SHADOW.raise, { bottom }]}
-      testID="agenda-create-card"
-    >
-      <View style={styles.createHead}>
-        <View style={styles.createWhen}>
-          <Text style={styles.createDay} numberOfLines={1}>{day}</Text>
-          <Text style={styles.createTime} numberOfLines={1}>
-            {range}
-            <Text style={styles.createDur}>{'  '}{dur}</Text>
-          </Text>
+    <Animated.View entering={BAR_IN} exiting={BAR_OUT} style={[styles.bar, { paddingBottom: bottomPad }]} testID="agenda-create-bar">
+      <Pressable
+        onPress={onChangeKind}
+        style={({ pressed }) => [styles.barWhen, pressed && { opacity: 0.55 }]}
+        hitSlop={{ top: 10, bottom: 10 }}
+        accessibilityRole="button"
+        accessibilityLabel={`${CREATE_LABEL[kind]}, ${day} ${range}. Cambia tipo`}
+        testID="agenda-create-kind"
+      >
+        <View style={styles.barKindRow}>
+          <Text style={styles.barKind} numberOfLines={1}>{CREATE_LABEL[kind]}</Text>
+          <Ionicons name="chevron-down" size={15} color={CLAY.ink} />
         </View>
-        <ClayIconButton icon="close" onPress={onClose} accessibilityLabel="Annulla" testID="agenda-create-close" style={styles.createClose} />
-      </View>
-      <View style={styles.createTypes}>
-        {kinds.map((k) => (
-          <ClayPressable
-            key={k}
-            kind="small"
-            onPress={() => {
-              Haptics.selectionAsync();
-              onPick(k);
-            }}
-            style={styles.createType}
-            accessibilityRole="button"
-            accessibilityLabel={CREATE_LABEL[k]}
-            testID={`agenda-create-${k}`}
-          >
-            <Image source={createArt(k, carColor)} style={k === 'lesson' ? styles.createCar : styles.createArt} resizeMode="contain" />
-            <Text style={styles.createLabel} numberOfLines={1}>{CREATE_LABEL[k]}</Text>
-          </ClayPressable>
-        ))}
-      </View>
+        <Text style={styles.barDay} numberOfLines={1}>
+          {day} · <Text style={styles.barRange}>{range}</Text>
+        </Text>
+      </Pressable>
+      <ClayPressable kind="cta" onPress={onContinue} style={styles.barCta} accessibilityRole="button" testID="agenda-create-continue">
+        <Text style={styles.barCtaText}>Continua</Text>
+      </ClayPressable>
     </Animated.View>
   );
 });
@@ -1513,15 +1566,50 @@ export default function WeeklyAgendaView({
   }, [ghostInfo]);
   // Unmount (e.g. switching to the day view): release the parent's FAB.
   useEffect(() => () => { onGhostActiveChangeRef.current?.(false); }, []);
-  // Tocco su un tipo: apre il suo foglio con il giorno e la fascia del
-  // fantasma, che resta sulla griglia (sparisce a creazione riuscita).
-  const pickKind = useCallback((kind: AgendaCreateKind) => {
+  // Tipo della bozza: il primo offerto (Guida, se l'istruttore può prenotare);
+  // si cambia da «Cosa vuoi creare?» e torna al primo quando la bozza sparisce.
+  const firstKind = createKinds[0] ?? 'block';
+  const [draftKind, setDraftKind] = useState<AgendaCreateKind>(firstKind);
+  useEffect(() => { ghostKindStore.set(draftKind); }, [draftKind]);
+  useEffect(() => { if (!ghostInfo) setDraftKind(firstKind); }, [ghostInfo, firstKind]);
+
+  const router = useRouter();
+  const openKindSheet = useCallback(() => {
+    if (!ghostInfo) return;
+    createKindSheetStore.set({
+      kinds: createKinds,
+      selected: draftKind,
+      subtitle: `${ghostDayLabel.get()} · ${ghostRangeLabel.get()}`,
+      carColor,
+      onPick: setDraftKind,
+    });
+    router.push('/(tabs)/home/create-kind');
+  }, [ghostInfo, createKinds, draftKind, carColor, router]);
+
+  // «Continua»: apre il foglio del tipo con il giorno e la fascia della bozza,
+  // che resta sulla griglia (sparisce a creazione riuscita).
+  const continueCreate = useCallback(() => {
     if (!ghostInfo || !onCreateAt) return;
     const { date, startMin, durMin } = ghostInfo;
     const wins = weekAvailabilityByDate[toDateKey(date)] ?? [];
     const outsideAvailability = !wins.some((w) => w.startMinutes <= startMin && w.endMinutes >= startMin + durMin);
-    onCreateAt(kind, { date, startMin, durMin, outsideAvailability });
-  }, [ghostInfo, onCreateAt, weekAvailabilityByDate]);
+    Haptics.selectionAsync();
+    onCreateAt(draftKind, { date, startMin, durMin, outsideAvailability });
+  }, [ghostInfo, onCreateAt, weekAvailabilityByDate, draftKind]);
+
+  // La barra prende il posto della tab bar dove la griglia ci passa sotto
+  // (istruttore); altrimenti (titolare) sta sopra la tab bar, che resta.
+  const insets = useSafeAreaInsets();
+  const barActive = !!ghostInfo && !!onCreateAt;
+  useTabBarCover(barActive && barOverlap > 0);
+  const barBottomPad = barOverlap > 0 ? Math.max(insets.bottom, 12) : 12;
+
+  // Android: «indietro» toglie la bozza prima di uscire dalla schermata.
+  useEffect(() => {
+    if (!barActive) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { dismissGhost(); return true; });
+    return () => sub.remove();
+  }, [barActive, dismissGhost]);
   const firstReset = useRef(true);
   useEffect(() => {
     if (firstReset.current) { firstReset.current = false; return; }
@@ -1579,13 +1667,14 @@ export default function WeeklyAgendaView({
       defaultDur={defaultDur}
       onGhostChange={handleGhostChange}
       ghostDismissTick={ghostDismissTick}
+      onGhostDismiss={dismissGhost}
       ghostIgnoresEvents={ghostIgnoresEvents}
       refreshing={refreshing}
       onRefresh={onRefresh}
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
       studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
-      myInstructorId, onCreateAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, ghostIgnoresEvents, refreshing, onRefresh]);
+      myInstructorId, onCreateAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, dismissGhost, ghostIgnoresEvents, refreshing, onRefresh]);
 
   return (
     <View style={styles.container}>
@@ -1626,14 +1715,12 @@ export default function WeeklyAgendaView({
         )}
       </View>
 
-      {/* ── Card «crea»: giorno, fascia e tipi (REG-671) ── */}
-      {ghostInfo && onCreateAt ? (
-        <GhostCreateCard
-          kinds={createKinds}
-          carColor={carColor}
-          bottom={12 + barOverlap}
-          onPick={pickKind}
-          onClose={dismissGhost}
+      {/* ── Barra «crea»: tipo, giorno e fascia, «Continua» (C-b) ── */}
+      {barActive ? (
+        <GhostBar
+          bottomPad={barBottomPad}
+          onChangeKind={openKindSheet}
+          onContinue={continueCreate}
         />
       ) : null}
     </View>
@@ -1685,59 +1772,75 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 10,
   },
-  /* ── Ghost block (REG-671: bordo nero pieno, velo leggero, maniglie tonde) ── */
+  /* ── Bozza (anteprima W1, 05/11/2026): contorno + velo nella tinta del tipo, pallini agli angoli ── */
   ghost: {
     position: 'absolute',
     zIndex: 7,
     borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#111111',
-    paddingHorizontal: 6,
-    paddingTop: 5,
     overflow: 'visible',
   },
-  ghostTime: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#111111',
-    letterSpacing: -0.1,
-    fontVariant: ['tabular-nums'],
+  ghostSkin: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    paddingHorizontal: 5,
+    paddingTop: 5,
+    overflow: 'hidden',
   },
-  ghostDur: { fontSize: 10, fontWeight: '500', color: CLAY.ink3, marginTop: 1 },
+  ghostKind: { fontSize: 11, fontWeight: '600', lineHeight: 14, color: 'rgba(17,17,17,0.86)' },
+  ghostRange: { fontSize: 9, fontWeight: '500', marginTop: 2, color: 'rgba(17,17,17,0.62)', fontVariant: ['tabular-nums'] },
+  ghostDur: { fontSize: 9, fontWeight: '600', marginTop: 2, color: 'rgba(17,17,17,0.78)', fontVariant: ['tabular-nums'] },
   ghostKnob: {
     position: 'absolute',
-    left: '50%',
-    marginLeft: -8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: KNOB,
+    height: KNOB,
+    borderRadius: KNOB / 2,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
     zIndex: 9,
-    ...CLAY_SHADOW.raiseSm,
+    boxShadow: [{ offsetX: 0, offsetY: 1, blurRadius: 3, spreadDistance: 0, color: 'rgba(17,17,17,0.18)' }],
   },
-  /* ── Card «crea» ── */
-  createCard: {
+  // Orario del bordo in mano, sopra l'etichetta dell'ora nella colonna a sinistra.
+  // «14:15» è più largo delle etichette «14» della colonna: carattere un filo più
+  // piccolo e stretto, su una riga sola, così non va mai a capo.
+  ghostEdge: { position: 'absolute', left: 0, width: GUTTER_W, zIndex: 12, backgroundColor: '#FFFFFF', paddingLeft: 1 },
+  ghostEdgeText: { fontSize: 9.5, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
+  /* ── Barra «Guida ⌄ · Continua» (anteprima C-b approvata, 05/11/2026) ── */
+  bar: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingTop: 12,
+    paddingHorizontal: 20,
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    paddingTop: 16,
-    paddingBottom: 14,
-    paddingHorizontal: 16,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(17,17,17,0.10)',
   },
-  createHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  createWhen: { flex: 1, minWidth: 0 },
-  createDay: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
-  createTime: { fontSize: 20, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, marginTop: 1, fontVariant: ['tabular-nums'] },
-  createDur: { fontSize: 15, fontWeight: '500', color: CLAY.ink4, letterSpacing: 0 },
-  createClose: { width: 34, height: 34, borderRadius: 17 },
-  createTypes: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 },
-  createType: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 2 },
-  createArt: { width: 48, height: 48 },
-  createCar: { width: 58, height: 48 },
-  createLabel: { fontSize: 12.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.1 },
+  barWhen: { flex: 1, minWidth: 0 },
+  barKindRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  barKind: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, lineHeight: 22 },
+  barDay: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3, marginTop: 1, lineHeight: 18 },
+  barRange: { color: CLAY.ink, textDecorationLine: 'underline', fontVariant: ['tabular-nums'] },
+  // CTA nera fine (anteprima v2): 44 di altezza, volume clay leggero.
+  barCta: {
+    height: 44,
+    paddingHorizontal: 22,
+    borderRadius: 22,
+    backgroundColor: '#161616',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: [
+      { offsetX: 0, offsetY: 6, blurRadius: 14, spreadDistance: -6, color: 'rgba(17,17,17,0.42)' },
+      { offsetX: 0, offsetY: 1, blurRadius: 0, spreadDistance: 0, color: 'rgba(255,255,255,0.16)', inset: true },
+      { offsetX: 0, offsetY: -2, blurRadius: 4, spreadDistance: 0, color: 'rgba(0,0,0,0.45)', inset: true },
+    ],
+  },
+  barCtaText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
   // Fondo pieno pastello, niente bordo; l'ombra morbida in tinta è inline (`tintShadow`).
   lesson: {
     position: 'absolute',

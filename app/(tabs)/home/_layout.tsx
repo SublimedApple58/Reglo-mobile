@@ -19,6 +19,8 @@ export default function HomeLayout() {
       <Stack.Screen name="quick-student" options={FORM_SHEET} />
       <Stack.Screen name="quick-guide" options={FORM_SHEET} />
       <Stack.Screen name="quick-block" options={FORM_SHEET} />
+      {/* Barra del blocco fantasma «Guida ⌄» → «Cosa vuoi creare?» (05/11/2026). */}
+      <Stack.Screen name="create-kind" options={FORM_SHEET} />
       <Stack.Screen name="manage-lesson" options={FORM_SHEET} />
       <Stack.Screen name="exam-manage" options={FORM_SHEET} />
       <Stack.Screen name="manage-group-lesson" options={FORM_SHEET} />

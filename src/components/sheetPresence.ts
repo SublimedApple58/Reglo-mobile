@@ -35,3 +35,28 @@ export function useSheetPresence(): void {
 export function useAnySheetOpen(): boolean {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
+
+/**
+ * Agenda, creazione dal blocco fantasma: la barra in basso («Guida ⌄ ·
+ * Continua») prende il posto della tab bar, su iOS e su Android. Chi la monta
+ * chiama `useTabBarCover(true)`; la tab bar sfuma via finché ce n'è una.
+ */
+let covers = 0;
+const coverSnapshot = () => covers > 0;
+
+export function useTabBarCover(active: boolean): void {
+  useEffect(() => {
+    if (!active) return undefined;
+    covers += 1;
+    emit();
+    return () => {
+      covers = Math.max(0, covers - 1);
+      emit();
+    };
+  }, [active]);
+}
+
+/** `true` se qualcosa ha preso il posto della tab bar. */
+export function useTabBarCovered(): boolean {
+  return useSyncExternalStore(subscribe, coverSnapshot, coverSnapshot);
+}
