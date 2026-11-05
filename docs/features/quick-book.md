@@ -279,3 +279,23 @@ Gemello web: `reglo/components/pages/Autoscuole/dialogs/FollowCarConflictPane.ts
 ## Preview di design
 
 `plans/frontend/quick-book-redesign.html` (interattiva).
+
+## Luogo da patente e cambio (REG-725, 05/11/2026)
+
+Il campo **Luogo** del `BookingForm` (foglio completo e «Con chi guidi?») segue la
+stessa regola del web: `src/utils/locationForLicense.ts` è la **copia 1:1** di
+`reglo/lib/autoscuole/location-for-license.ts` (cambiarla in entrambi; la suite
+di test del web gira anche sulla copia).
+
+- Patente e cambio della guida = veicolo scelto, altrimenti percorso dell'allievo.
+- Principale dell'allievo se compatibile → l'unico compatibile tra i suoi luoghi
+  (`locationIds`, REG-705, in `BookingStudentOption`) → l'unico compatibile →
+  sede se compatibile, altrimenti **nessuno**: la riga mostra «Scegli il luogo».
+- Si ricalcola a ogni cambio di allievo o veicolo finché il Luogo non è scelto a
+  mano (`locationTouchedRef`, azzerato al cambio allievo). Senza la lista luoghi
+  (`useLocations`) vale il valore di prima: default dell'allievo, poi sede.
+- Foglio «Cambia luogo» (`InlineLocationPicker`, prop `priority` passata da
+  `locationPickerStore`): con patenti assegnate ai luoghi, sezione «Fanno B
+  automatico» in cima e «Altri luoghi» sotto (`ClaySection`, nessuna ScrollView
+  interna: scorre il foglio).
+- Verificato sul simulatore «Reglo Vita (Claude)» contro staging il 05/11.
