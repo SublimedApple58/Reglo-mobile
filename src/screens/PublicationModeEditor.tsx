@@ -28,6 +28,7 @@ import { useSession } from '../context/SessionContext';
 import { usePublishedWeeks } from '../hooks/queries/usePublishedWeeks';
 import { usePublicationWeek, DayState } from '../hooks/queries/usePublicationWeek';
 import { queryKeys } from '../hooks/queries/queryKeys';
+import { useRangeLocations } from '../hooks/useRangeLocations';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ const SwipeRow = ({
   isToday,
   onToggle,
   onEdit,
+  formatRanges = rangesText,
   divider,
   first,
   last,
@@ -97,6 +99,8 @@ const SwipeRow = ({
   isToday: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  /** REG-724: con la disponibilità per luogo accesa aggiunge il nome del luogo. */
+  formatRanges?: (ranges: TimeRange[]) => string;
   /** Li imposta `ClayList`. */
   divider?: boolean;
   first?: boolean;
@@ -125,7 +129,7 @@ const SwipeRow = ({
   }));
 
   const title = dayLongLabel(day.date, index);
-  const state = day.available ? rangesText(day.ranges) : 'Riposo';
+  const state = day.available ? formatRanges(day.ranges) : 'Riposo';
 
   return (
     <View style={styles.dayRow}>
@@ -160,6 +164,8 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
   const router = useRouter();
   // I fogli si aprono nello stack corrente (`home/` o `role/`).
   const stackBase = useStackBase();
+  // REG-724: «08:00–13:00 Sede» nelle righe, come nella settimana tipo (spenta = solo orari).
+  const rangeLocations = useRangeLocations();
   const queryClient = useQueryClient();
   const { activeCompanyId } = useSession();
   const [selectedOffset, setSelectedOffset] = useState(0);
@@ -333,6 +339,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
                   isToday={day.date === todayStr}
                   onToggle={() => toggleDayInline(i)}
                   onEdit={() => openDaySheet(i)}
+                  formatRanges={rangeLocations.rangesText}
                 />
               ))}
             </ClayList>
