@@ -11,7 +11,8 @@
     "ios:staging": "EXPO_PUBLIC_API_URL=https://staging.reglo.it/api EXPO_PUBLIC_VERCEL_BYPASS=$(cat .staging-bypass 2>/dev/null) expo run:ios",
     "android:staging": "EXPO_PUBLIC_API_URL=https://staging.reglo.it/api EXPO_PUBLIC_VERCEL_BYPASS=$(cat .staging-bypass 2>/dev/null) expo run:android",
     "ios:prod": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/ui": "0.2.0-beta.9",
@@ -63,6 +64,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "babel-preset-expo": "^54.0.10",
+    "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true
