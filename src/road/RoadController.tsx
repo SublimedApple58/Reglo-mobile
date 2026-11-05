@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import { AppState, StyleSheet } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useRouter, useSegments } from 'expo-router';
 import { useSession } from '../context/SessionContext';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
@@ -13,7 +13,8 @@ import { isRoadTrackingActive, stopRoadTracking } from './tracking';
 import { roadUploader } from './uploader';
 import { loadQueue, roadQueue } from './queue';
 import { onRoadCheckRequest, ROAD_INVITE_ROUTE, ROAD_ROUTE, roadEntryStore, roadInviteOpen } from './entryFlow';
-import { roadMiniStore, useRoadMinimized } from './miniStore';
+import { ROAD_COVER_MS, ROAD_SWITCH_MS, roadMiniStore, useRoadMinimized } from './miniStore';
+import { roadNightNow } from './night';
 
 /** Mentre l'app resta aperta: l'invito deve comparire quando si apre la finestra (15 min prima). */
 const RECHECK_MS = 60_000;
@@ -42,7 +43,8 @@ export function RoadController() {
   const rootRef = useRef(root);
   rootRef.current = root;
   const checking = useRef(false);
-  const [veil, setVeil] = useState({ n: 0, color: ROAD_VEIL_OUT });
+  const veil = useRef<RouteVeilHandle>(null);
+  const switching = useRef(false);
 
   const check = useCallback(async (opts: { force?: boolean } = {}) => {
     if (!allowed || checking.current) return;
@@ -139,40 +141,73 @@ export function RoadController() {
 
   // Instradamento: Road a tutto schermo finché c'è una sessione, salvo Road
   // ridotta (REG-700): allora si sta nelle tab e «Torna in Road» riporta qui.
+  // REG-723: il velo prima SALE in dissolvenza sulla schermata di partenza,
+  // poi si cambia e il velo scende sulla nuova (prima compariva pieno di colpo).
   useEffect(() => {
-    if (status !== 'ready') return;
+    if (status !== 'ready' || switching.current) return;
     const inRoad = root === 'road';
     const reduced = phase === 'active' && minimized;
+    const go = (to: typeof ROAD_ROUTE | '/(tabs)/home', color: string) => {
+      switching.current = true;
+      veil.current?.cover(color, () => {
+        router.replace(to);
+        veil.current?.reveal();
+        switching.current = false;
+      });
+    };
     if (phase !== 'idle' && !reduced && !inRoad) {
-      setVeil((v) => ({ n: v.n + 1, color: ROAD_VEIL_IN }));
-      router.replace(ROAD_ROUTE);
+      go(ROAD_ROUTE, roadNightNow() ? ROAD_VEIL_IN_NIGHT : ROAD_VEIL_IN);
     } else if ((phase === 'idle' || reduced) && inRoad) {
-      setVeil((v) => ({ n: v.n + 1, color: ROAD_VEIL_OUT }));
-      router.replace('/(tabs)/home');
+      go('/(tabs)/home', ROAD_VEIL_OUT);
     }
   }, [phase, minimized, root, router, status]);
 
-  return <RouteVeil trigger={veil.n} color={veil.color} />;
+  return <RouteVeil ref={veil} />;
 }
 
-/** Colore del velo: entrando quello della mappa, uscendo il bianco delle tab. */
+/** Colore del velo: entrando quello della mappa (di notte scura), uscendo il bianco delle tab. */
 const ROAD_VEIL_IN = '#F2F0EB';
+const ROAD_VEIL_IN_NIGHT = '#1C1C1E';
 const ROAD_VEIL_OUT = '#FFFFFF';
-/** Durata del passaggio tab ↔ Road (Tiziano 28/10: corto, 200-250 ms, niente rimbalzo). */
-export const ROAD_SWITCH_MS = 240;
+/** Un attimo perché la schermata nuova sia montata prima che il velo scenda. */
+const REVEAL_DELAY_MS = 40;
+
+type RouteVeilHandle = { cover: (color: string, then: () => void) => void; reveal: () => void };
 
 /**
  * Passaggio tab ↔ Road: invece di vedere la tab bar sparire/ricomparire e i
- * fogli scivolare via, un velo del colore della schermata copre lo scambio e
- * si dissolve in 240 ms con easing morbido. Non intercetta i tocchi.
+ * fogli scivolare via, un velo del colore della schermata d'arrivo copre lo
+ * scambio: sale in 180 ms, si cambia schermata sotto, scende in 240 ms
+ * (easing morbido, niente rimbalzo, mai uno scatto). Non intercetta i tocchi.
  */
-function RouteVeil({ trigger, color }: { trigger: number; color: string }) {
+const RouteVeil = forwardRef<RouteVeilHandle>(function RouteVeil(_, ref) {
   const opacity = useSharedValue(0);
-  useEffect(() => {
-    if (!trigger) return;
-    opacity.value = 1;
-    opacity.value = withTiming(0, { duration: ROAD_SWITCH_MS, easing: Easing.out(Easing.cubic) });
-  }, [trigger, opacity]);
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: color }, style]} />;
-}
+  const color = useSharedValue(ROAD_VEIL_OUT);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      cover(c, then) {
+        color.value = c;
+        opacity.value = withTiming(
+          1,
+          { duration: ROAD_COVER_MS, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.Never },
+          // Anche se interrotto si cambia schermata: mai restare a metà.
+          () => {
+            runOnJS(then)();
+          },
+        );
+      },
+      reveal() {
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => {
+          opacity.value = withTiming(0, { duration: ROAD_SWITCH_MS, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never });
+        }, REVEAL_DELAY_MS);
+      },
+    }),
+    [color, opacity],
+  );
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value, backgroundColor: color.value }));
+  return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]} />;
+});

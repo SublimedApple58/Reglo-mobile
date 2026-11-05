@@ -46,6 +46,9 @@ function currentNight(): boolean {
   return isNight(Date.now(), p.lat, p.lng);
 }
 
+/** Notte adesso (per chi non è un componente: il velo del passaggio in Road). */
+export const roadNightNow = currentNight;
+
 /** Notte sì/no per la schermata live, aggiornata ogni minuto. */
 export function useRoadNight(): boolean {
   const [night, setNight] = useState(currentNight);

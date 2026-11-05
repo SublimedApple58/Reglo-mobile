@@ -4,7 +4,8 @@ import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import MapView from 'react-native-maps';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { RoadMarker, RoadStop } from '../../types/regloApi';
-import { RoadEndpointDot, RoadMarkerPin, RoadPinBody, RoadStopMarker, RoadTrack, ROAD_PIN_POINT_Y } from './RoadMapParts';
+import { arrowsAlong, RoadEndpointDot, RoadMarkerPin, RoadPinBody, RoadStopMarker, RoadTrack, ROAD_PIN_POINT_Y } from './RoadMapParts';
+import { RoadArrowLayer, type ArrowLayerHandle } from './RoadArrowLayer';
 import { SOFT } from '../../utils/motion';
 
 type LatLng = { latitude: number; longitude: number };
@@ -115,7 +116,16 @@ export function RoadRouteMap({
   const frozen = useMemo(() => {
     const coords = track.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
     const all = [...coords, ...markers.map((m) => ({ latitude: m.lat, longitude: m.lng }))];
-    return { coords, all, markers, stops: stops ?? [], initialRegion: regionFor(all) };
+    // REG-723: i punti candidati per le frecce del verso (~80 lungo il percorso;
+    // a schermo se ne tengono solo alcune, distanziate).
+    let total = 0;
+    for (let i = 1; i < coords.length; i++) {
+      const a = coords[i - 1];
+      const b = coords[i];
+      total += Math.hypot((b.latitude - a.latitude) * 111_320, (b.longitude - a.longitude) * 111_320 * Math.cos((a.latitude * Math.PI) / 180));
+    }
+    const arrows = arrowsAlong(coords, Math.max(20, total / 80), Math.max(30, total / 160));
+    return { coords, all, markers, stops: stops ?? [], arrows, initialRegion: regionFor(all) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
@@ -162,8 +172,10 @@ export function RoadRouteMap({
   const [overlay, setOverlay] = useState<{ x: number; y: number; m: RoadMarker } | null>(null);
   const shown = useSharedValue(0);
   const overlayStyle = useAnimatedStyle(() => ({ opacity: shown.value }));
+  const arrowsRef = useRef<ArrowLayerHandle>(null);
   const hideOverlay = useCallback(() => {
     shown.value = withTiming(0, { duration: 100, easing: SOFT });
+    arrowsRef.current?.hide();
   }, [shown]);
   const placeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settleOverlay = useCallback(async () => {
@@ -234,6 +246,7 @@ export function RoadRouteMap({
   const onRegionDone = useCallback(() => {
     clearTimeout(placeTimer.current);
     void settleOverlay();
+    arrowsRef.current?.place();
   }, [settleOverlay]);
 
   return (
@@ -274,8 +287,8 @@ export function RoadRouteMap({
         userInterfaceStyle="light"
       >
         <RoadTrack coordinates={frozen.coords} width={interactive ? 6 : 5} />
-        {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[0]} /> : null}
-        {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[frozen.coords.length - 1]} /> : null}
+        {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[0]} kind="start" /> : null}
+        {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[frozen.coords.length - 1]} kind="end" /> : null}
         {frozen.stops.map((st) => (
           <RoadStopMarker
             key={`stop-${st.startMs}`}
@@ -299,6 +312,8 @@ export function RoadRouteMap({
           );
         })}
       </MapView>
+
+      <RoadArrowLayer key={sig} ref={arrowsRef} mapRef={ref} arrows={frozen.arrows} sizeRef={size} />
 
       {/* REG-722: la linea è agganciata alle strade OSM */}
       {track.length > 1 ? <OsmCredit style={[styles.credit, { bottom: 6 + insetBottom }]} /> : null}

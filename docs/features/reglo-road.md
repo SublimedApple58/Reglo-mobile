@@ -150,11 +150,11 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   delle tappe nel foglio «Il giro», elenco segnalazioni non toccabile (allievo). Nel riepilogo
   la nota intera è nel menu della segnalazione. Gotcha iOS: il testo aperto va in posizione
   assoluta ancorata ai due lati (con larghezza «auto» restava su una riga) e i margini stanno
-  sul contenitore. La riga sotto il nome è corta («12 min · fine 11:04») per i tre tasti.
+  sul contenitore. La riga sotto il nome è corta («Fine 11:04 · 12 min», REG-723: l'orario prima, si restringe fino all'85% invece di tagliarsi) per i tre tasti.
 - **REG-697 — notte e suoni**: `src/road/night.ts` calcola alba e tramonto dal fix (NOAA,
   fallback Torino) ed è «notte» da 15 min prima del tramonto a 15 min dopo l'alba
-  (`useRoadNight`, ogni minuto). Di notte: su iOS la mappa scura di Apple è blu e non si ricolora,
-  quindi resta quella chiara in grigi sotto un velo nero al 70%; su Android stile in grigi
+  (`useRoadNight`, ogni minuto). Di notte: su iOS lo stile notte nativo di Apple (REG-723, 05/11: tolto il
+  velo nero al 70% che spegneva pin, segnalazioni e linea); su Android stile in grigi
   `ANDROID_NIGHT_STYLE` con linea del giro chiara col bordo scuro e traccia chiara;
   pannello / controlli / card in `NIGHT` (grigi `#1C1C1E`/`#2C2C2E`, testo `#F2F2F2`, mai blu),
   `ClayButton night` (primario chiaro, secondario grigio scuro, solo ombra esterna). Suoni
@@ -566,8 +566,20 @@ Piano approvato da Tiziano (04/11): il ripasso è un bottone, non parte da solo;
   - `src/road/osmStore.ts` — celle da `GET /autoscuole/road/osm/v1/<cella>` con `FileSystem.downloadAsync` (`apiDownloadInfo` in `apiClient.ts`: Bearer, autoscuola, bypass), salvate in `documentDirectory/road-osm/v1/` (`.none` = zona non coperta; dopo 35 giorni si riscaricano in sottofondo). Un grafo per avvio dell'app: `prefetchRoadsAround` (sede, 20 km, da `warmRoadFree`), `ensureRoadsNear` (3 km attorno all'auto, ogni 1 km percorso), `createLiveMatcher`.
   - `src/road/roadStore.ts` — `ingestPoints` dà ogni fix accettato anche alla calamita della sessione: `snapTrack` (confermata, cresce solo in coda) e `snapTail` (ultimi ~4 s provvisori). `track` resta il GPS grezzo (km, giro, avvisi, riepilogo locale). Dopo un kill `hydrateFromDetail` mette la traccia del server davanti anche a `snapTrack`.
   - `app/road/index.tsx › LiveTrack` — i 10 pezzi fissi prendono `snapTrack`; l'ultimo posto la coda confermata + la provvisoria (`joinTail`). Se la coda provvisoria cambia forma (punti vecchi a più di 1,5 m dalla nuova, `tailStillOn`) la forma vecchia sfuma in 240 ms in un **posto fisso in più** (`useTailFade`, 4 passi agganciati ai fotogrammi, come `RoadGuideOverlay`): niente salti. Sempre 12 Polyline montate (crash AIRMap).
-  - **Notte su iOS** (velo nero al 70% sopra la mappa): la traccia grigia al 30% spariva. `NIGHT_TRACK_STYLE` in `app/road/index.tsx`: `'piena'` (quasi nera piena, la più leggibile sotto il velo) o `'chiara'` (bianca con bordo scuro: sotto il velo il bianco diventa grigio come la mappa e resta un doppio bordo). Ogni pezzo ha due Polyline fisse (bordo + linea), sempre montate. Scelta di Tiziano in sospeso (anteprime 6 e 7 del 04/11).
+  - **Notte**: REG-723 ha tolto il velo; la linea è una Polyline per pezzo, chiara al 60% di notte (`TRACK_INK_NIGHT`), grigia al 30% di giorno.
   - `src/components/road/OsmCredit.tsx` — «© OpenStreetMap» (10 pt, grigio; chiaro di notte): in guida al centro sopra il pannello, fra velocità e audio; in `RoadRouteMap` (riepilogo, percorso, segnalazioni, ripasso) in basso a destra quando c'è una linea.
 - **Comportamento**: zona senza celle (o celle non ancora scaricate) = la linea resta il GPS, come prima. Ritardo dal vivo 4 s (`LIVE_LAG_MS`): misurato sulla guida vera di Teramo, con 4 s la linea dal vivo coincide con quella di fine guida. Costo per fix ~0,03 ms.
 - **Niente moduli nativi**: `expo-file-system` c'era già. OTA 2.4.0.
 - **Provato**: simulatore contro staging, GPS simulato sul giro reale di Teramo (con la laterale e l'inversione), celle di Teramo caricate a mano su R2.
+
+## REG-723 — correzioni dalle prove in auto del 4/11 (05/11/2026)
+
+- **Notte**: stile notte nativo su iOS (`userInterfaceStyle="dark"`), niente velo. Linee chiare su entrambe le piattaforme.
+- **Bussola** (`src/components/road/RoadCompass.tsx`): «N» e ago che ruotano con la mappa (220 ms, via più corta); «Ricentra» ha l'icona mirino e compare solo a mappa libera.
+- **Pagellino da Road**: niente scritte sopra le voci.
+- **Partenza senza zig-zag** (`src/road/trackFilter.ts`): nella linea (e nella calamita) solo punti buoni: si parte da un fix ≤ 15 m (≤ 25 m dopo 30 s), fuori i fix oltre 25 m e quelli senza velocità oltre 15 m, da fermi uno spostamento più piccolo della precisione non allunga la linea. Distanza e avvisi usano tutti i fix (come il server). Sulla guida del 4/11: 0 inversioni alla partenza.
+- **Passaggio Road ↔ barra** (`RoadController` `RouteVeil`): il velo sale in 180 ms, si cambia schermata, scende in 240 ms; Road si stringe al 97% riducendo e si allarga dal 98,5% tornando.
+- **Capi e verso**: partenza = cerchio bianco col centro nero, arrivo = bandierina a scacchi (`RoadEndpointDot kind`). Dal vivo frecce «›» come Polyline ogni 200 m sulla linea agganciata (24 posti fissi, `useLiveArrows`); nel riepilogo frecce sopra la mappa proiettate a mappa ferma (`RoadArrowLayer`), sempre piccole.
+- **Segnalazioni**: le piccole sono dischi tondi (niente fumetto con punta e puntino). Dal vivo si toccano: camera sulla segnalazione (300 ms) e fumetto grande con scheda (ora, via, segno, nota) sopra la mappa (`LivePinDetail`, si ingrandisce in 220 ms); si chiude toccando la mappa o trascinandola, e finché è aperta la camera non torna da sola sull'auto.
+- **Dettagli**: «Percorsi» → «Distanza»; cerchio della velocità sopra la scritta di Apple Mappe.
+- **POI di Apple Mappe**: `showsPointsOfInterest={false}` su iOS recente non basta (serve `pointOfInterestFilter` nativo): patch nativa solo nella build.

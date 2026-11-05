@@ -9,6 +9,7 @@ import type {
   RoadSessionWithLesson,
 } from '../types/regloApi';
 import { bearingDeg, haversineMeters } from './format';
+import { keepOnLine, LINE_FILTER_START, type LineFilter } from './trackFilter';
 import { FALLBACK_BASE_CATALOG } from './markerArt';
 import {
   EMPTY_PROGRESS,
@@ -106,6 +107,8 @@ type State = {
   distanceMeters: number;
   /** Salti impossibili di fila rispetto all'ultimo fix (REG-693). */
   spikes: number;
+  /** REG-723: stato del filtro dei punti della linea (avvio preciso). */
+  lineFilter: LineFilter;
   fix: RoadFix | null;
   street: string | null;
   markers: RoadLocalMarker[];
@@ -163,6 +166,7 @@ const INITIAL: State = {
   snapTail: [],
   distanceMeters: 0,
   spikes: 0,
+  lineFilter: LINE_FILTER_START,
   fix: null,
   street: null,
   markers: [],
@@ -299,6 +303,7 @@ export const roadStore = {
             snapTrack: [],
             snapTail: [],
             spikes: 0,
+            lineFilter: LINE_FILTER_START,
             distanceMeters: session.distanceMeters ?? 0,
             fix: session.last
               ? {
@@ -373,7 +378,7 @@ export const roadStore = {
 
   ingestPoints(points: RoadPoint[]) {
     if (state.phase !== 'active' && state.phase !== 'ending') return;
-    let { fix, distanceMeters, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes } = state;
+    let { fix, distanceMeters, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes, lineFilter } = state;
     const hotspots = state.guide?.hotspots ?? [];
     let request: RerouteRequest | null = null;
     const track = state.track.slice();
@@ -384,6 +389,15 @@ export const roadStore = {
       const u = matcherFor(sessionId, p[1], p[2]).push({ t: p[0], lat: p[1], lng: p[2], speed: p[3], heading });
       if (u.committed.length) snapTrack = [...snapTrack, ...u.committed.map(toPt)];
       snapTail = u.provisional.map(toPt);
+    };
+    // REG-723: nella linea (e nella calamita) solo i punti buoni: avvio preciso, niente tremolio da fermi.
+    const draw = (p: RoadPoint, heading: number | null) => {
+      const [t, lat, lng, speed, , accuracy] = p;
+      const r = keepOnLine(lineFilter, track[track.length - 1] ?? null, { t, lat, lng, speed, accuracy });
+      lineFilter = r.filter;
+      if (!r.keep) return;
+      track.push({ latitude: lat, longitude: lng });
+      snap(p, heading);
     };
     // Le tappe nell'ordine della linea (REG-652), così il numero dell'avviso è quello sulla mappa.
     // Le tappe raggiunte si contano anche con gli avvisi spenti (servono al riaggancio, REG-654).
@@ -407,8 +421,7 @@ export const roadStore = {
           if (spikes < MAX_SPIKES) continue;
           spikes = 0;
           fix = { lat, lng, speed, heading: heading ?? null, accuracy, t };
-          track.push({ latitude: lat, longitude: lng });
-          snap(p, heading ?? null);
+          draw(p, heading ?? null);
           continue;
         }
         spikes = 0;
@@ -416,8 +429,7 @@ export const roadStore = {
         if ((h == null || h < 0) && d > 3) h = bearingDeg(fix.lat, fix.lng, lat, lng);
       }
       fix = { lat, lng, speed, heading: h ?? fix?.heading ?? null, accuracy, t };
-      track.push({ latitude: lat, longitude: lng });
-      snap(p, h ?? null);
+      draw(p, h ?? null);
       // La finestra «com'è andata» si misura con l'orologio del telefono (lo
       // stesso del timer della schermata): il tempo dei punti GPS può essere
       // su un'altra base (punti arrivati in ritardo, simulatore).
@@ -448,7 +460,7 @@ export const roadStore = {
         }
       }
     }
-    set({ fix, distanceMeters, track, snapTrack, snapTail, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes });
+    set({ fix, distanceMeters, track, snapTrack, snapTail, planProgress, planAlert, guidePassed, reroute, hotspotWatch, spikes, lineFilter });
     if (request) rerouteHandler?.(request);
   },
 

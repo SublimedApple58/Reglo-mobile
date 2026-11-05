@@ -309,8 +309,8 @@ export default function ManageLessonDetailsScreen() {
       }
     >
       <View style={s.body}>
-        {/* Da Road al massimo la riga discreta «resti in Road». */}
-        {road?.showStayChip ? <Text style={s.roadStay}>Resti in Road: il percorso continua.</Text> : null}
+        {/* REG-723: da Road niente scritte sopra le voci (né «resti in Road», né
+            conteggio, né istruzioni): il foglio parte dalle stelline. */}
 
         {/* Tipo guida + esito — si chiudono mentre si scrivono le note, così il
             foglio si accorcia e il campo resta sopra la tastiera. */}
@@ -379,7 +379,7 @@ export default function ManageLessonDetailsScreen() {
               title={road ? undefined : 'Pagellino'}
               style={s.sec}
               action={
-                evalRows.length > 0 ? (
+                !road && evalRows.length > 0 ? (
                   <Animated.Text
                     key={ratedCount}
                     entering={FadeIn.duration(180).reduceMotion(ReduceMotion.Never)}
@@ -392,7 +392,7 @@ export default function ManageLessonDetailsScreen() {
                 ) : undefined
               }
             >
-              {editable && evalRows.length > 0 ? (
+              {!road && editable && evalRows.length > 0 ? (
                 <Text style={s.pagellinoLead}>
                   Tocca le stelline delle voci che vuoi valutare. Le altre restano «non valutate».
                 </Text>
@@ -551,5 +551,4 @@ const s = StyleSheet.create({
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   pagellinoEmpty: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, textAlign: 'center' },
   pagellinoValue: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
-  roadStay: { fontSize: 14, fontWeight: '400', color: CLAY.ink3 },
 });
