@@ -330,6 +330,7 @@ export default function ManageLessonScreen() {
       lesson,
       isDetailsEditable: data.isDetailsEditable,
       onSaveDetails: data.onSaveDetails,
+      onEvaluationAutosaved: data.onEvaluationAutosaved,
     });
     router.push('/(tabs)/home/manage-lesson-details');
   };

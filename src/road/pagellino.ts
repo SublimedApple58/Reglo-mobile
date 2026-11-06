@@ -42,6 +42,7 @@ export function openRoadPagellino(
       subtitle: `${lessonStudentName(lesson)} · ${day} ${formatRange(lesson.startsAt, lesson.endsAt)}`,
       showStayChip: opts.showStayChip,
     },
+    onEvaluationAutosaved: opts.onSaved,
     onSaveDetails: async ({ evaluations }) => {
       if (evaluations === undefined) return true; // niente di cambiato
       try {

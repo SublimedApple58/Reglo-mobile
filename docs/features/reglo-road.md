@@ -168,10 +168,12 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   minuti alla fine («Alla fine» / «Oltre la fine»). La stima parte col lotto di punti (`eta`) per
   «Dal vivo». A 5 minuti dalla fine e a fine orario un avviso in alto per 8 s con vibrazione
   (`useEndAlert`), una volta per soglia.
-- **Guida avviata in anticipo** (segnalazione Ricca, 06/11): residuo, orario «Fine» e avvisi usano
-  `effectiveLessonEnd` (`returnEta.ts`): partita prima dell'inizio prenotato = la fine scala dello
-  stesso anticipo (arrotondato ai 5'), la durata resta quella. In ritardo nulla cambia. A fine
-  guida il backend sposta davvero inizio e fine in agenda (`roadLessonStart`, `lesson-end.ts`).
+- **Guida avviata in anticipo** (REG-728, segnalazione Ricca 06/11): durante la guida residuo,
+  orario «Fine» e avvisi restano sulla fine PRENOTATA (la fine vera la decide la chiusura). A fine
+  guida il backend porta l'inizio all'avvio reale (se in anticipo, arrotondato ai 5') e la fine
+  all'orario reale di chiusura (`roadLessonStart` / `roadLessonEnd`, `reglo/lib/autoscuole/road/lesson-end.ts`):
+  9:00–10:00 avviata alle 8:45 e chiusa alle 9:50 → 8:45–9:50. È questa durata che conta nelle ore
+  obbligatorie (REG-726).
 - **REG-698 — batteria e fluidità**: provata una sola fonte GPS (solo il task di tracking), scartata: su iOS il task consegna i fix in ritardo e a gruppi (anche 20 s), la mappa resta sull'ascolto a 1 Hz della schermata. La camera non manda `setCamera` se la posa non cambia (2 cm, 0,05°, 0,2 m) e,
   dopo ~1 s ferma o a mappa libera, il loop scende a 10 Hz. Android: l'auto-marker ruota con
   `rotation` nativa e rifà la bitmap solo ~1 s dopo un cambio di colore. La dissolvenza della

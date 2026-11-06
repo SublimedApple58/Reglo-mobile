@@ -1572,6 +1572,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       pendingAction,
       menuOptions: ownerMode ? [] : menuOptions,
       onSaveDetails: (input) => saveLessonDetails(lesson, input),
+      onEvaluationAutosaved: () => void refreshAndSyncDrawer(lesson.id),
       onChangeInstructor: (instructor) => changeLessonInstructor(lesson, instructor),
       // Uses the captured `lesson` (not sheetLesson): the route closes itself
       // first, which nulls sheetLesson before this fires.

@@ -108,6 +108,8 @@ export type ManageLessonData = {
   // callbacks (owned by the parent screen)
   /** Save tipo/voto/note from the details sub-sheet. Returns true on success. */
   onSaveDetails: (payload: ManageLessonDetailsPayload) => Promise<boolean>;
+  /** REG-727: inoltrato al foglio «Dettagli guida» (pagellino salvato da solo). */
+  onEvaluationAutosaved?: () => void;
   /** Reassign instructor — checks availability and auto-saves (optimistic). */
   onChangeInstructor: (instructor: AutoscuolaInstructor) => void;
   onStatus: (action: 'checked_in' | 'no_show') => void;

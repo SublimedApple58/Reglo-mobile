@@ -27,6 +27,7 @@ import { roadQueue } from '../../../src/road/queue';
 import type { EvaluationItem } from '../../../src/types/regloApi';
 import { isMotoLicenseCategory } from '../../../src/utils/license';
 import { FormSheet } from '../../../src/components/SheetScaffold';
+import { useEvaluationAutosave } from '../../../src/hooks/useEvaluationAutosave';
 import { ClayButton, ClayField, ClayList, ClayListRow, ClaySection } from '../../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
 import { SOFT_LAYOUT } from '../../../src/utils/motion';
@@ -84,6 +85,8 @@ export default function ManageLessonDetailsScreen() {
   /** true = questa guida ha già punteggi salvati: il pagellino resta visibile
    *  (in sola lettura se non è più modificabile) per la consultazione. */
   const [hasSavedScores, setHasSavedScores] = useState(false);
+  /** Pagellino letto dal server: prima non si salva niente in automatico. */
+  const [evalLoaded, setEvalLoaded] = useState(false);
   // Esito (Presente/Assente) — mostrato solo quando data.showEsito (storico
   // allievo): segnare effettuata sblocca la valutazione. Nel flusso home resta
   // nascosto (l'esito è nel foglio padre).
@@ -171,6 +174,7 @@ export default function ManageLessonDetailsScreen() {
             })),
           ),
         );
+        setEvalLoaded(true);
       } catch {
         // Il pagellino non deve impedire di salvare tipo/voto/note: se la
         // chiamata fallisce la sezione semplicemente non compare.
@@ -187,6 +191,43 @@ export default function ManageLessonDetailsScreen() {
     setNotes(lesson.notes ?? '');
     setEsito(outcomeFromStatus(lesson.status));
   }, [lesson]);
+
+  // REG-727: il pagellino si salva da solo mentre si compila (e alla chiusura
+  // o in background). Righe e firma calcolate qui, prima del return anticipato
+  // (regola degli hook); le stesse servono a Salva e a `dirty` più sotto.
+  const evalRows = evalItems.filter((item) => !item.archived || evalAdded.includes(item.id));
+  const nextEvalRows = evalRows
+    .filter((item) => legacyNa[item.id] || scores[item.id] != null)
+    .map((item) =>
+      legacyNa[item.id]
+        ? { itemId: item.id, score: null, notApplicable: true }
+        : { itemId: item.id, score: scores[item.id]!, notApplicable: false },
+    );
+  const currentEvalKey = evalKeyOf(nextEvalRows);
+  const evalPayload = nextEvalRows.map(({ itemId, score, notApplicable }) =>
+    notApplicable ? { itemId, score: null, notApplicable: true } : { itemId, score },
+  );
+  // Il BE accetta voti solo su guide effettuate: da Road sì, altrove se
+  // l'esito salvato è già «effettuata».
+  const evalAutosave =
+    !!lesson &&
+    !!data?.isDetailsEditable &&
+    evalLoaded &&
+    !saving &&
+    (fromRoad || outcomeFromStatus(lesson.status) === 'checked_in');
+  const autosave = useEvaluationAutosave({
+    appointmentId: lesson?.id ?? null,
+    enabled: evalAutosave,
+    fromRoad,
+    currentKey: currentEvalKey,
+    savedKey: savedEvalKey,
+    payload: evalPayload,
+    onSaved: (key) => {
+      setSavedEvalKey(key);
+      setHasSavedScores(true);
+    },
+    onClosedAfterSave: data?.onEvaluationAutosaved,
+  });
 
   if (!data || !lesson) {
     return <View style={s.empty} />;
@@ -216,7 +257,6 @@ export default function ManageLessonDetailsScreen() {
    * altre restano «non valutate». Le voci archiviate compaiono solo se questa
    * guida le aveva già votate.
    */
-  const evalRows = evalItems.filter((item) => !item.archived || evalAdded.includes(item.id));
   const ratedCount = evalRows.filter((item) => legacyNa[item.id] || scores[item.id] != null).length;
   const showTypes =
     !road &&
@@ -225,19 +265,14 @@ export default function ManageLessonDetailsScreen() {
 
   const handleSave = async () => {
     if (!editable || locked) return;
-    const nextRows = evalRows
-      .filter((item) => legacyNa[item.id] || scores[item.id] != null)
-      .map((item) =>
-        legacyNa[item.id]
-          ? { itemId: item.id, score: null, notApplicable: true }
-          : { itemId: item.id, score: scores[item.id]!, notApplicable: false },
-      );
-    const evalChangedPayload =
-      evalKeyOf(nextRows) === savedEvalKey
-        ? undefined
-        : nextRows.map(({ itemId, score, notApplicable }) =>
-            notApplicable ? { itemId, score: null, notApplicable: true } : { itemId, score },
-          );
+    // Il pagellino in attesa parte con questa PATCH, non col timer.
+    autosave.cancelPending();
+    // Già tutto salvato (in automatico): il Salva chiude e basta.
+    if (!dirty && currentEvalKey === savedEvalKey) {
+      router.back();
+      return;
+    }
+    const evalChangedPayload = currentEvalKey === savedEvalKey ? undefined : evalPayload;
     setSaving(true);
     let ok = false;
     try {
@@ -264,18 +299,14 @@ export default function ManageLessonDetailsScreen() {
   // col gesto o con la X compare la conferma. Durante il salvataggio no: dopo
   // `onSaveDetails` riuscito il foglio si chiude da sé.
   const typesKey = (list: string[]) => [...list].sort().join('|');
-  const currentEvalKey = evalKeyOf(
-    evalRows
-      .filter((item) => legacyNa[item.id] || scores[item.id] != null)
-      .map((item) => ({ itemId: item.id, score: legacyNa[item.id] ? null : scores[item.id]!, notApplicable: !!legacyNa[item.id] })),
-  );
   const dirty =
     editable &&
     !locked &&
     (typesKey(types) !== typesKey(resolveInitialLessonTypes(lesson)) ||
       notes !== (lesson.notes ?? '') ||
       esito !== outcomeFromStatus(lesson.status) ||
-      currentEvalKey !== savedEvalKey);
+      // Il pagellino che si salva da solo non chiede conferma: chiudendo parte.
+      (!evalAutosave && currentEvalKey !== savedEvalKey));
 
   const toggleType = (value: string) => {
     if (!editable || locked) return;

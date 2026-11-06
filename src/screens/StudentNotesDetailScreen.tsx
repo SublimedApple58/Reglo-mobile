@@ -288,6 +288,7 @@ export const StudentNotesDetailScreen = () => {
         lesson: appt,
         showEsito: canSetOutcome,
         isDetailsEditable: true,
+        onEvaluationAutosaved: () => void loadData(),
         onSaveDetails: async ({ lessonTypes, notes, esito, evaluations }) => {
           try {
             // 1. Esito PRIMA (il BE accetta il rating solo su guide effettuate).

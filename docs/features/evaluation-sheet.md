@@ -4,8 +4,8 @@ Le voci del pagellino si configurano **dal web** (Impostazioni → Pagellino) **
 (Altro → Pagellino, vedi in fondo); l'app le mostra **dentro il foglio "Dettagli guida"**,
 sotto la valutazione complessiva.
 Nessuna schermata nuova: l'istruttore apre il foglio, tocca le stelline che vuole
-correggere e usa il "Salva" sticky già presente (lì il salvataggio resta esplicito: tipo,
-note, esito e pagellino partono insieme; la configurazione in Altro → Pagellino invece si salva da sola).
+correggere: **il pagellino si salva da solo** (REG-727, 06/11/2026), mentre tipo, note ed esito
+restano sul "Salva" sticky (la configurazione in Altro → Pagellino si salva da sola anch'essa).
 
 ## File
 
@@ -17,8 +17,18 @@ note, esito e pagellino partono insieme; la configurazione in Altro → Pagellin
 | Punteggio di partenza + dimensione stelline | `src/utils/evaluationSheet.ts` |
 | Tipi + chiamata | `src/types/regloApi.ts` (`EvaluationItem`, `AppointmentEvaluation`), `src/services/regloApi.ts` (`getAppointmentEvaluation`) |
 | Salvataggio | `ManageLessonDetailsPayload.evaluations` → `IstruttoreHomeScreen.saveLessonDetails` e `StudentNotesDetailScreen` |
+| Salvataggio automatico (REG-727) | `src/hooks/useEvaluationAutosave.ts`; chi apre il foglio passa `onEvaluationAutosaved` (rilettura alla chiusura) |
 
 ## Comportamento
+
+- **Salvataggio automatico del pagellino (REG-727, segnalazione Ricca)**: ogni giro di stelline
+  parte da solo dopo 0,7 s (`PATCH { evaluations }`, sostituzione integrale come il Salva); chiusura
+  del foglio (X, gesto, tocco fuori) e app in background mandano subito quello in attesa. Da Road
+  senza rete va in coda (REG-714). Niente indicatori a schermo: se il salvataggio fallisce la
+  modifica resta «non salvata» e valgono Salva e la conferma di chiusura come prima. Il pagellino
+  salvato da solo non chiede più conferma alla chiusura; tipo/note/esito sì. Si salva in automatico
+  solo su guide già effettuate (da Road sempre): nello storico allievo con l'esito ancora da
+  scegliere resta il Salva. Con tutto già salvato, «Salva» chiude e basta.
 
 - Il foglio carica pagellino e punteggi in **una sola chiamata** all'apertura
   (`GET /api/autoscuole/appointments/:id/evaluation`).

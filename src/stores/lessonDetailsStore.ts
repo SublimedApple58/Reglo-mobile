@@ -16,6 +16,8 @@ export type LessonDetailsData = {
   isDetailsEditable: boolean;
   /** Save tipo/pagellino/note (+esito). Returns true on success. */
   onSaveDetails: (payload: ManageLessonDetailsPayload) => Promise<boolean>;
+  /** REG-727: il pagellino si è salvato da solo; alla chiusura chi ha aperto rilegge. */
+  onEvaluationAutosaved?: () => void;
   /**
    * REG-638 Reglo Road: il foglio aperto da Road mostra SOLO il pagellino
    * (titolo «Pagellino», niente tipo/esito/note) con CTA nera.
