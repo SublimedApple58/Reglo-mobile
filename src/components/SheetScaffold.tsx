@@ -20,7 +20,7 @@ import { useNavigation, useRouter } from 'expo-router';
 import { usePreventRemove } from '@react-navigation/native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SHEET_BOTTOM, SHEET_SYSTEM_BOTTOM } from '../utils/sheetPresentation';
+import { IS_PAD, SHEET_BOTTOM, SHEET_SYSTEM_BOTTOM } from '../utils/sheetPresentation';
 import { useSheetPresence } from './sheetPresence';
 import { ClayIconButton } from './clay/ClayIconButton';
 import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
@@ -214,7 +214,7 @@ export function FormSheet({
     // diretti del foglio o lungo la catena delle prime viste e gli forza il
     // frame nativo a tutto il foglio (lo scroll finiva sotto la CTA o alto
     // pochi punti). Così non lo trova e decide solo il layout.
-    <View style={[fs.sheet, isAndroid && fs.sheetFill]} testID={testID} collapsable={false}>
+    <View style={[fs.sheet, fillSheet && fs.sheetFill]} testID={testID} collapsable={false}>
       {/* Testata FISSA e opaca: titolo e X non scorrono mai. */}
       <View style={[fs.head, headerStyle]} onLayout={(e) => setHeadH(e.nativeEvent.layout.height)}>
         {leading}
@@ -242,13 +242,13 @@ export function FormSheet({
         </View>
       ) : null}
 
-      <View collapsable={false} style={isAndroid && fs.scrollFill} testID="sheet-body">
+      <View collapsable={false} style={fillSheet && fs.scrollFill} testID="sheet-body">
       {list ? (
         <FlatList
           {...list}
           ref={listRef}
           testID="sheet-scroll"
-          style={isAndroid ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
+          style={fillSheet ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
           contentContainerStyle={[fs.body, cta ? null : fs.bodyLast]}
           contentInsetAdjustmentBehavior="never"
           keyboardShouldPersistTaps="handled"
@@ -276,7 +276,7 @@ export function FormSheet({
       ) : (
       <ScrollView
         testID="sheet-scroll"
-        style={isAndroid ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
+        style={fillSheet ? fs.scrollFill : scrollH !== undefined ? { height: scrollH } : { maxHeight: scrollMaxH }}
         contentContainerStyle={[fs.body, cta ? null : fs.bodyLast]}
         // La safe area la gestisce il foglio: iOS non deve aggiungerla sotto.
         contentInsetAdjustmentBehavior="never"
@@ -324,7 +324,7 @@ export function FormSheet({
 
       {/* CTA FISSA nel footer del foglio: bianco, niente fascia grigia (§13.2.1). */}
       {cta ? (
-        <View style={fs.foot} testID="sheet-foot" onLayout={(e) => setFootH(e.nativeEvent.layout.height)}>
+        <View style={[fs.foot, IS_PAD && { paddingBottom: insets.bottom + PAD_FOOT_GAP }]} testID="sheet-foot" onLayout={(e) => setFootH(e.nativeEvent.layout.height)}>
           <Animated.View pointerEvents="none" style={[fs.footLine, footLine]} />
           {cta}
         </View>
@@ -402,6 +402,12 @@ const PULL_TO_CLOSE = 64;
 const BODY_PAD_TOP = 4;
 const BODY_PAD_BOTTOM = 18;
 const BODY_PAD_BOTTOM_LAST = 22 + SHEET_BOTTOM;
+/**
+ * iPad: il page sheet arriva al bordo dello schermo (niente respiro di
+ * sistema come il form sheet flottante) e, aperto sopra un altro foglio,
+ * scende di ~17pt: sotto la CTA servono indicatore home + margine.
+ */
+const PAD_FOOT_GAP = 30;
 
 /** Margine di sicurezza sotto il bordo alto massimo del form sheet nativo. */
 const SHEET_TOP_GAP = 0;
@@ -441,6 +447,14 @@ const fs = StyleSheet.create({
  */
 
 const isAndroid = Platform.OS === 'android';
+
+/**
+ * iPad (segnalazione Ricca, 06/11): lì `FORM_SHEET` è un page sheet (vedi
+ * `utils/sheetPresentation`), alto quanto la scheda e non quanto il contenuto.
+ * Come su Android il foglio la riempie: il centro scorre e la CTA resta fissa
+ * in fondo, sempre toccabile.
+ */
+const fillSheet = isAndroid || IS_PAD;
 
 /**
  * Body wrapper for native form sheets that use `TALL_SHEET` (see

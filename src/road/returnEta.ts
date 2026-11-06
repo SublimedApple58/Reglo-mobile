@@ -38,6 +38,31 @@ export function estimateReturn(opts: {
   return opts.now + (opts.leftMeters / v) * 1000;
 }
 
+const STEP_MS = 5 * 60_000;
+
+/**
+ * Segnalazione Ricca (06/11): la guida 9:00–10:00 avviata alle 8:45 contava 75
+ * minuti fino alle 10:00. Se si parte PRIMA dell'inizio prenotato la guida
+ * scala in avanti e mantiene la durata: fine = fine prenotata − anticipo
+ * (anticipo arrotondato ai 5 minuti, 8:47 → 8:45). In ritardo nulla cambia:
+ * il residuo ridotto è giusto così. Gemello del backend:
+ * `reglo/lib/autoscuole/road/lesson-end.ts` (`roadLessonStart`), che a fine
+ * guida sposta davvero l'inizio in agenda.
+ */
+export function effectiveLessonEnd(opts: {
+  startsAt: string | number | null | undefined;
+  endsAt: string | number | null | undefined;
+  startedAt: string | number | null | undefined;
+}): number | null {
+  if (opts.endsAt == null) return null;
+  const end = new Date(opts.endsAt).getTime();
+  if (opts.startsAt == null || opts.startedAt == null) return end;
+  const start = new Date(opts.startsAt).getTime();
+  const started = Math.floor(new Date(opts.startedAt).getTime() / STEP_MS) * STEP_MS;
+  if (!(started < start)) return end;
+  return end - (start - started);
+}
+
 export type ReturnView =
   /** Con il giro: «10:52» e quanto prima/dopo la fine. */
   | { kind: 'eta'; eta: number; deltaMin: number }

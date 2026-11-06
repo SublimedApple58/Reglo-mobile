@@ -70,7 +70,7 @@ import { RoadCompass } from '../../src/components/road/RoadCompass';
 import { fetchReroute, loadRoadGuide } from '../../src/road/roadGuide';
 import { REROUTE_OFF_MS } from '../../src/road/reroute';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
-import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '../../src/road/returnEta';
+import { deltaLabel, effectiveLessonEnd, END_WARN_MS, estimateReturn, returnView, roadEta } from '../../src/road/returnEta';
 import { fixHistory } from '../../src/road/fixHistory';
 import { NIGHT, roadMapStyle, useRoadNight } from '../../src/road/night';
 import { roadSounds, useRoadSoundMuted } from '../../src/road/sounds';
@@ -1233,7 +1233,13 @@ function LiveTop({
   const alert = watch.alert;
   const hasNav = !!(nav.step || nav.stop || nav.offLine);
   const below = hasNav ? top + topH + 10 : top;
-  const endAlert = useEndAlert(session?.lesson?.endsAt ?? null);
+  // Partita in anticipo: avvisi sulla fine spostata (durata mantenuta).
+  const effEnd = effectiveLessonEnd({
+    startsAt: session?.lesson?.startsAt,
+    endsAt: session?.lesson?.endsAt,
+    startedAt: session?.startedAt,
+  });
+  const endAlert = useEndAlert(effEnd != null ? new Date(effEnd).toISOString() : null);
 
   // ── Punto critico (REG-681) ──
   const [decision, setDecision] = useState<{ key: string; clientId: string; outcome: RoadHotspotOutcome } | null>(null);
@@ -1679,7 +1685,8 @@ const LivePanel = React.memo(function LivePanel({
   if (!session || !lesson) return null;
   const elapsedSec = Math.max(0, (now - new Date(session.startedAt).getTime()) / 1000);
   const left = nav.left;
-  const endsAtMs = lesson.endsAt ? new Date(lesson.endsAt).getTime() : null;
+  // Partita in anticipo = la fine scala con lei (segnalazione Ricca).
+  const endsAtMs = effectiveLessonEnd({ startsAt: lesson.startsAt, endsAt: lesson.endsAt, startedAt: session.startedAt });
   const eta = estimateReturn({ now, leftMeters: left, doneMeters: distance, startedAt: new Date(session.startedAt).getTime() });
   const ret = returnView({ now, endsAt: endsAtMs, eta });
   // L'uploader la manda col prossimo lotto (vista «Dal vivo» del titolare).
@@ -1694,7 +1701,7 @@ const LivePanel = React.memo(function LivePanel({
         <Avatar userId={lesson.student?.id} name={lessonName} size={42} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[s.name, night && ns.ink]} numberOfLines={1}>{lessonName}</Text>
-          <LiveStatusRow range={lesson.endsAt ? formatHm(lesson.endsAt) : formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} night={night} />
+          <LiveStatusRow range={endsAtMs != null ? formatHm(endsAtMs) : formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} night={night} />
         </View>
         {/* Giro Road (Tiziano 28/10): le note si prendono anche durante la guida. */}
         <Pressable

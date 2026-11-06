@@ -168,6 +168,10 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
   minuti alla fine («Alla fine» / «Oltre la fine»). La stima parte col lotto di punti (`eta`) per
   «Dal vivo». A 5 minuti dalla fine e a fine orario un avviso in alto per 8 s con vibrazione
   (`useEndAlert`), una volta per soglia.
+- **Guida avviata in anticipo** (segnalazione Ricca, 06/11): residuo, orario «Fine» e avvisi usano
+  `effectiveLessonEnd` (`returnEta.ts`): partita prima dell'inizio prenotato = la fine scala dello
+  stesso anticipo (arrotondato ai 5'), la durata resta quella. In ritardo nulla cambia. A fine
+  guida il backend sposta davvero inizio e fine in agenda (`roadLessonStart`, `lesson-end.ts`).
 - **REG-698 — batteria e fluidità**: provata una sola fonte GPS (solo il task di tracking), scartata: su iOS il task consegna i fix in ritardo e a gruppi (anche 20 s), la mappa resta sull'ascolto a 1 Hz della schermata. La camera non manda `setCamera` se la posa non cambia (2 cm, 0,05°, 0,2 m) e,
   dopo ~1 s ferma o a mappa libera, il loop scende a 10 Hz. Android: l'auto-marker ruota con
   `rotation` nativa e rifà la bitmap solo ~1 s dopo un cambio di colore. La dissolvenza della
@@ -202,6 +206,10 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
 un dettaglio (il server applica setting `studentNotesEnabled` e permessi) mostra «Il tuo
 percorso» fra orario e righe istruttore/veicolo: minimappa non interattiva con chip vetro
 «Mappa», «6,3 km · 54 min», elenco segnalazioni. Tocco → `road-map` a tutto schermo.
+Ci si arriva dalla home (guide in programma) e, dal 06/11 (segnalazione Ricca), dalla tab **Note**
+(`StudentMyNotesScreen`): ogni guida completata ha «Dettagli e percorso ›» e apre il dettaglio in
+sola lettura. Prima una guida completata non portava mai a `lesson-detail` e il percorso non si
+vedeva. La tab Note elenca solo guide con nota o pagellino.
 
 ## Permessi e config nativa (`app.json`)
 - Plugin `expo-location` con testi italiani, `isIosBackgroundLocationEnabled: true`,

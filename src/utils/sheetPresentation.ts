@@ -70,11 +70,21 @@ export const SCROLL_SHEET = {
  * quando il gesto non chiude o chiede conferma. Android (non ancora
  * rilasciato): detent alto, la radice scrolla lo stesso.
  */
+export const IS_PAD = Platform.OS === 'ios' && Platform.isPad;
+
+/*
+ * iPad (segnalazione Ricca, 06/11): il form sheet è una scheda centrata con
+ * un'altezza massima decisa da iOS (~650pt sull'iPad 10,9") che ignora
+ * `fitToContents`, e React Native non la conosce: il contenuto veniva
+ * impaginato più alto della scheda e la CTA («Salva» del pagellino) restava
+ * fuori, non toccabile. Su iPad si usa il page sheet, alto quanto lo schermo:
+ * `FormSheet` lo riempie (centro che scorre, CTA fissa in fondo).
+ */
 export const FORM_SHEET = {
-  presentation: 'formSheet',
+  presentation: (IS_PAD ? 'pageSheet' : 'formSheet') as 'formSheet',
   sheetGrabberVisible: false,
   headerShown: false,
-  sheetAllowedDetents: (Platform.OS === 'android' ? [0.92] : 'fitToContents') as number[] | 'fitToContents',
+  sheetAllowedDetents: (Platform.OS === 'android' ? [0.92] : IS_PAD ? [1] : 'fitToContents') as number[] | 'fitToContents',
   contentStyle: { backgroundColor: '#FFFFFF' },
 } as const;
 

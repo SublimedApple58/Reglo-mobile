@@ -24,6 +24,8 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { lessonDetailStore } from '../stores/lessonDetailStore';
 import { StarRating } from '../components/StarRating';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { useSession } from '../context/SessionContext';
@@ -87,6 +89,25 @@ const findLinkedStudent = (
 
 export const StudentMyNotesScreen = () => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  /**
+   * Segnalazione Ricca (06/11): il dettaglio guida dell'allievo (con il
+   * percorso Road, REG-638) si apriva solo dalla home, che elenca le guide IN
+   * PROGRAMMA: una guida completata non ci arrivava mai e il percorso non si
+   * vedeva. Da qui si apre in sola lettura (niente scambio né annullo).
+   */
+  const openLessonDetail = useCallback((lesson: AutoscuolaAppointmentWithRelations) => {
+    lessonDetailStore.set({
+      lesson,
+      canSwap: false,
+      canCancel: false,
+      vehiclesEnabled: true,
+      activeSwapOfferId: null,
+      onSwap: () => undefined,
+      onCancel: () => undefined,
+    });
+    router.push('/(tabs)/home/lesson-detail');
+  }, [router]);
   const { user } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,6 +307,19 @@ export const StudentMyNotesScreen = () => {
               {appt.vehicle?.name ? ` · ${appt.vehicle.name}` : ''}
             </Text>
           </View>
+
+          {/* Guida fatta: dettaglio con il percorso Road (se c'è). */}
+          {!isGroup && !isExam && (appt.status ?? '').trim().toLowerCase() === 'completed' ? (
+            <Pressable
+              onPress={() => openLessonDetail(appt)}
+              accessibilityRole="button"
+              testID={`student-note-detail-${appt.id}`}
+              style={({ pressed }) => [st.detailRow, pressed && { opacity: 0.6 }]}
+            >
+              <Text style={st.detailText}>Dettagli e percorso</Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+            </Pressable>
+          ) : null}
         </View>
       </Animated.View>
     );
@@ -445,6 +479,16 @@ export const StudentMyNotesScreen = () => {
 };
 
 const st = StyleSheet.create({
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(17,17,17,0.10)',
+  },
+  detailText: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
   root: { flex: 1, backgroundColor: colors.background },
   center: { paddingTop: 80, alignItems: 'center' },
 

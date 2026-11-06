@@ -2169,6 +2169,12 @@ in entrambi gli stack (`role/` e `more/`).
 
 **Testata fissa (28/10 notte):** in `<FormSheet>` titolo, sottotitolo e X sono uno sticky header (`stickyHeaderIndices={[0]}`): restano in alto mentre il contenuto scorre sotto, così il foglio si chiude sempre con la X.
 
+**iPad** (segnalazione Ricca, 06/11): lì il form sheet è una scheda centrata ad altezza massima
+fissa (~650pt sull'iPad 10,9") che ignora `fitToContents`, e RN non la conosce: il contenuto
+sforava e la CTA restava fuori (pagellino senza «Salva»). Su iPad `FORM_SHEET` è un **page sheet**
+e `FormSheet` lo riempie come su Android (centro che scorre, CTA fissa in fondo con indicatore
+home + 30pt). I fogli legacy (`SheetScaffold`) su iPad restano in alto nel page sheet.
+
 ### 13.2.1 Layout interno di un form sheet — respiro e CTA in fondo
 
 > **Regola Reglo (Tiziano, 27/10/2026) — vale per OGNI foglio.**
