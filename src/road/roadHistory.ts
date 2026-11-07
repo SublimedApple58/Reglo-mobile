@@ -60,6 +60,7 @@ let shown = false;
 const listeners = new Set<() => void>();
 
 export const roadHistoryToggle = {
+  get: () => shown,
   set(next: boolean) {
     if (next === shown) return;
     shown = next;
