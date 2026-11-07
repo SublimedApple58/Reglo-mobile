@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { SHEET_NIGHT, useSheetNight } from '../../theme/night';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -47,13 +48,14 @@ export function SentimentCounts({
   bad: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  const night = useSheetNight();
   if (!good && !bad) return null;
   return (
     <View style={[s.counts, style]}>
       {good ? (
         <View style={s.count}>
           <View style={[s.dot, { backgroundColor: SENTIMENT_GOOD }]} />
-          <Text style={s.countTx}>
+          <Text style={[s.countTx, night && n.ink2]}>
             {good} {good === 1 ? 'positiva' : 'positive'}
           </Text>
         </View>
@@ -61,7 +63,7 @@ export function SentimentCounts({
       {bad ? (
         <View style={s.count}>
           <View style={[s.dot, { backgroundColor: SENTIMENT_BAD }]} />
-          <Text style={s.countTx}>{bad} da migliorare</Text>
+          <Text style={[s.countTx, night && n.ink2]}>{bad} da migliorare</Text>
         </View>
       ) : null}
     </View>
@@ -84,4 +86,12 @@ const s = StyleSheet.create({
   count: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   countTx: { fontSize: 13.5, fontWeight: '400', color: '#3A3A3C', letterSpacing: -0.1 },
+});
+
+const n = StyleSheet.create({
+  ink: { color: SHEET_NIGHT.ink },
+  ink2: { color: SHEET_NIGHT.ink2 },
+  ink3: { color: SHEET_NIGHT.ink3 },
+  sep: { borderTopColor: SHEET_NIGHT.hair },
+  pressed: { backgroundColor: SHEET_NIGHT.pressed },
 });

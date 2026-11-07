@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { roadStore } from './roadStore';
+import { roadNightMode, useRoadNightMode } from './nightMode';
 import { CLAY } from '../theme';
 
 /**
@@ -40,23 +41,36 @@ export function isNight(at: number, lat: number, lng: number): boolean {
   return at < t.rise + EDGE_MS || at > t.set - EDGE_MS;
 }
 
-function currentNight(): boolean {
+/** Notte del sole (modalità «Auto»). */
+function sunNight(): boolean {
   const fix = roadStore.get().fix;
   const p = fix ?? FALLBACK;
   return isNight(Date.now(), p.lat, p.lng);
 }
 
+/** Ricca 7: la scelta Auto / Giorno / Notte dell'istruttore vince sul sole. */
+function currentNight(): boolean {
+  const mode = roadNightMode.get();
+  return mode === 'auto' ? sunNight() : mode === 'night';
+}
+
 /** Notte adesso (per chi non è un componente: il velo del passaggio in Road). */
 export const roadNightNow = currentNight;
 
+/** Ricca 7: avvisi e menu nativi dentro Road, scuri di notte (`Alert.alert(…, …, …, roadAlertStyle())`). */
+export const roadAlertStyle = () => ({ userInterfaceStyle: currentNight() ? ('dark' as const) : ('light' as const) });
+
 /** Notte sì/no per la schermata live, aggiornata ogni minuto. */
 export function useRoadNight(): boolean {
-  const [night, setNight] = useState(currentNight);
+  const mode = useRoadNightMode();
+  const [sun, setSun] = useState(sunNight);
   useEffect(() => {
-    const t = setInterval(() => setNight(currentNight()), 60_000);
+    if (mode !== 'auto') return;
+    setSun(sunNight());
+    const t = setInterval(() => setSun(sunNight()), 60_000);
     return () => clearInterval(t);
-  }, []);
-  return night;
+  }, [mode]);
+  return mode === 'auto' ? sun : mode === 'night';
 }
 
 /**

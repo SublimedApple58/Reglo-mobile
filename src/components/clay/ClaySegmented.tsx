@@ -4,6 +4,7 @@ import Animated, { SharedValue, useAnimatedStyle, useSharedValue, withTiming } f
 import * as Haptics from 'expo-haptics';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
 import { FIELD_HEIGHT } from '../../theme/spacing';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../../theme/night';
 import { SEGMENT_TIMING } from '../../utils/motion';
 
 const PAD = 4;
@@ -31,6 +32,8 @@ export function ClaySegmented<T extends string | number>({
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }) {
+  // Ricca 7: di notte binario scuro, cursore chiaro col testo scuro.
+  const night = useSheetNight();
   const [w, setW] = useState(0);
   const idx = Math.max(0, options.findIndex((o) => o.value === value));
   const segW = options.length ? (w - PAD * 2) / options.length : 0;
@@ -58,12 +61,12 @@ export function ClaySegmented<T extends string | number>({
 
   return (
     <View
-      style={[s.track, CLAY_SHADOW.sink, style]}
+      style={[s.track, night ? [n.track, SHEET_NIGHT_SHADOW.sink] : CLAY_SHADOW.sink, style]}
       onLayout={(e) => setW(e.nativeEvent.layout.width)}
       accessibilityRole="tablist"
       testID={testID}
     >
-      {segW > 0 ? <Animated.View style={[s.thumb, CLAY_SHADOW.ink, { width: segW }, thumb]} /> : null}
+      {segW > 0 ? <Animated.View style={[s.thumb, night ? n.thumb : CLAY_SHADOW.ink, { width: segW }, thumb]} /> : null}
       {options.map((o, i) => (
         <Pressable
           key={String(o.value)}
@@ -74,7 +77,7 @@ export function ClaySegmented<T extends string | number>({
           accessibilityLabel={o.label}
           testID={o.testID}
         >
-          <SegmentLabel label={o.label} index={i} pos={pos} />
+          <SegmentLabel label={o.label} index={i} pos={pos} night={night} />
         </Pressable>
       ))}
     </View>
@@ -82,17 +85,17 @@ export function ClaySegmented<T extends string | number>({
 }
 
 /** Etichetta grigia + etichetta bianca sovrapposte, in dissolvenza incrociata. */
-function SegmentLabel({ label, index, pos }: { label: string; index: number; pos: SharedValue<number> }) {
+function SegmentLabel({ label, index, pos, night }: { label: string; index: number; pos: SharedValue<number>; night: boolean }) {
   // 1 quando il cursore è sulla voce, 0 da tre quarti di voce in là: la
   // dissolvenza dura ~150 ms dei 200 dello scivolamento.
   const onStyle = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - Math.abs(pos.value - index) / 0.75) }));
   const offStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.abs(pos.value - index) / 0.75) }));
   return (
     <View>
-      <Animated.Text style={[s.tx, offStyle]} numberOfLines={1}>
+      <Animated.Text style={[s.tx, night && n.tx, offStyle]} numberOfLines={1}>
         {label}
       </Animated.Text>
-      <Animated.Text style={[s.tx, s.txOn, s.overlay, onStyle]} numberOfLines={1} importantForAccessibility="no">
+      <Animated.Text style={[s.tx, s.txOn, night && n.txOn, s.overlay, onStyle]} numberOfLines={1} importantForAccessibility="no">
         {label}
       </Animated.Text>
     </View>
@@ -119,4 +122,11 @@ const s = StyleSheet.create({
   tx: { fontSize: 15, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.2, textAlign: 'center' },
   txOn: { color: '#FFFFFF', fontWeight: '600' },
   overlay: { position: 'absolute', left: -4, right: -4, top: 0 },
+});
+
+const n = StyleSheet.create({
+  track: { backgroundColor: SHEET_NIGHT.surface },
+  thumb: { backgroundColor: SHEET_NIGHT.ink },
+  tx: { color: SHEET_NIGHT.ink3 },
+  txOn: { color: '#111111' },
 });

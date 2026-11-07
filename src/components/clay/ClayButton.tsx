@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleProp, StyleSheet, Text, View, ViewStyle } from 
 import { CLAY, CLAY_CTA, CLAY_SHADOW } from '../../theme/clay';
 import { CTA_HEIGHT, CTA_RADIUS } from '../../theme/spacing';
 import { ClayPressable } from './ClayPressable';
+import { useSheetNight } from '../../theme/night';
 
 /**
  * CTA clay (§0): capsula alta `CTA_HEIGHT`, la più tonda.
@@ -25,9 +26,9 @@ export function ClayButton({
   children,
   testID,
   accessibilityLabel,
-  night,
+  night: nightProp,
 }: {
-  /** REG-697 (guida Road di notte): primario chiaro, secondario grigio scuro. */
+  /** REG-697 (guida Road di notte): primario chiaro, secondario grigio scuro. Default: notte dei fogli di Road. */
   night?: boolean;
   title?: string;
   onPress?: () => void;
@@ -43,6 +44,8 @@ export function ClayButton({
   testID?: string;
   accessibilityLabel?: string;
 }) {
+  const sheetNight = useSheetNight();
+  const night = nightProp ?? sheetNight;
   const [pressed, setPressed] = useState(false);
   const primary = variant === 'primary';
   const off = disabled && !loading;
@@ -56,7 +59,7 @@ export function ClayButton({
       : pressed
         ? CLAY_CTA.secondaryPressed
         : CLAY_SHADOW.raise;
-  const fg = off ? CLAY.ink4 : night ? (primary ? '#111111' : '#F2F2F2') : primary ? '#FFFFFF' : CLAY.ink;
+  const fg = off ? (night ? 'rgba(242,242,242,0.38)' : CLAY.ink4) : night ? (primary ? '#111111' : '#F2F2F2') : primary ? '#FFFFFF' : CLAY.ink;
   // Di notte il volume clay (ombre interne scure) sporcherebbe il bottone chiaro: solo l'ombra esterna.
   const nightLook = night && !off ? { backgroundColor: primary ? '#F2F2F2' : '#2C2C2E', ...CLAY_SHADOW.raise } : null;
 
@@ -74,7 +77,7 @@ export function ClayButton({
       style={[
         s.base,
         { height, borderRadius: compact ? height / 2 : CTA_RADIUS },
-        { backgroundColor: off ? '#F1F1F1' : primary ? CLAY.ink : CLAY.surface },
+        { backgroundColor: off ? (night ? '#2C2C2E' : '#F1F1F1') : primary ? CLAY.ink : CLAY.surface },
         nightLook ?? volume,
         style,
       ]}

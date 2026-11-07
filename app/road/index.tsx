@@ -14,7 +14,7 @@ import {
 import MapView, { Polyline, type Camera } from 'react-native-maps';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing, ReduceMotion, ZoomIn, FadeOut } from 'react-native-reanimated';
 import * as Location from 'expo-location';
@@ -72,7 +72,7 @@ import { REROUTE_OFF_MS } from '../../src/road/reroute';
 import { liveStatus, liveStatusLine, useLiveStatus } from '../../src/road/liveStatus';
 import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '../../src/road/returnEta';
 import { fixHistory } from '../../src/road/fixHistory';
-import { NIGHT, roadMapStyle, useRoadNight } from '../../src/road/night';
+import { NIGHT, roadAlertStyle, roadMapStyle, useRoadNight } from '../../src/road/night';
 import { roadSounds, useRoadSoundMuted } from '../../src/road/sounds';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
@@ -1163,7 +1163,7 @@ export default function RoadScreen() {
                 if (ok) router.push('/road/riepilogo');
               },
             },
-          ]);
+          ], roadAlertStyle());
         }}
         onNotes={() => void openRoadNotes(router, lesson)}
         onPagellino={() => openRoadPagellino(router, lesson, { showStayChip: true })}
@@ -1719,6 +1719,17 @@ const LivePanel = React.memo(function LivePanel({
             <Ionicons name="star-outline" size={20} color={night ? NIGHT.ink : CLAY.ink} />
           </Pressable>
         ) : null}
+        {/* Ricca 7: aspetto della mappa e dei fogli (Auto / Giorno / Notte). */}
+        <Pressable
+          onPress={() => router.push('/road/aspetto' as never)}
+          style={({ pressed }) => [s.iconBtn, night && ns.surface2, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.95 }] }]}
+          accessibilityRole="button"
+          accessibilityLabel="Aspetto: automatico, giorno o notte"
+          hitSlop={4}
+          testID="road-aspetto"
+        >
+          <Ionicons name="contrast-outline" size={20} color={night ? NIGHT.ink : CLAY.ink} />
+        </Pressable>
         {/* REG-700: Road ridotta, la guida continua e si usa il resto dell'app. */}
         <Pressable
           onPress={minimizeRoad}

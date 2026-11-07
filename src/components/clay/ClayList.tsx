@@ -3,6 +3,7 @@ import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-n
 import { Ionicons } from '@expo/vector-icons';
 import { CLAY } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
+import { SHEET_NIGHT, useSheetNight } from '../../theme/night';
 import { ClaySurface } from './ClaySurface';
 
 /** Respiro in più sopra la prima riga e sotto l'ultima (dentro la riga, così
@@ -100,26 +101,28 @@ export function ClayListRow({
   testID?: string;
 }) {
   const showChevron = chevron ?? !!onPress;
+  // Ricca 7: fogli di Road di notte.
+  const night = useSheetNight();
   const body = (
     <>
-      {divider ? <View style={[s.divider, { left: leading ? 78 : 18 }]} /> : null}
+      {divider ? <View style={[s.divider, { left: leading ? 78 : 18 }, night && n.divider]} /> : null}
       {leading ? <View style={dimmed && s.dim}>{leading}</View> : null}
       <View style={[s.main, dimmed && s.dim]}>
-        <Text style={s.title} numberOfLines={1}>
+        <Text style={[s.title, night && n.title]} numberOfLines={1}>
           {title}
         </Text>
         {subtitle && typeof subtitle !== 'string' ? (
           <View style={s.subRow}>{subtitle}</View>
         ) : subtitle ? (
           <View style={s.subRow}>
-            <Text style={s.sub} numberOfLines={1}>
+            <Text style={[s.sub, night && n.sub]} numberOfLines={1}>
               {subtitle}
             </Text>
           </View>
         ) : null}
       </View>
       {trailing}
-      {showChevron ? <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} /> : null}
+      {showChevron ? <Ionicons name="chevron-forward" size={17} color={night ? SHEET_NIGHT.chevron : CLAY.chevron} /> : null}
     </>
   );
   if (!onPress) {
@@ -133,7 +136,7 @@ export function ClayListRow({
     <Pressable
       onPress={onPress}
       disabled={dimmed}
-      style={({ pressed }) => [s.row, clayRowPadding({ first, last }, ROW_PAD), pressed && CLAY_ROW_PRESSED]}
+      style={({ pressed }) => [s.row, clayRowPadding({ first, last }, ROW_PAD), pressed && (night ? n.pressed : CLAY_ROW_PRESSED)]}
       accessibilityRole="button"
       accessibilityLabel={typeof subtitle === 'string' ? `${title}, ${subtitle}` : title}
       testID={testID}
@@ -156,6 +159,13 @@ const s = StyleSheet.create({
   title: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
   sub: { flexShrink: 1, fontSize: 13.5, color: CLAY.ink3 },
+});
+
+const n = StyleSheet.create({
+  divider: { backgroundColor: SHEET_NIGHT.hair },
+  title: { color: SHEET_NIGHT.ink },
+  sub: { color: SHEET_NIGHT.ink3 },
+  pressed: { backgroundColor: SHEET_NIGHT.pressed },
 });
 
 markClayRow(ClayListRow);

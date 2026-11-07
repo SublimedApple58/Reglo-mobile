@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { CLAY } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
+import { SHEET_NIGHT, useSheetNight } from '../../theme/night';
 import { ClaySurface } from './ClaySurface';
 
 /**
@@ -20,13 +21,15 @@ export function ClayStat({
   label: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  // Ricca 7: fogli di Road di notte.
+  const night = useSheetNight();
   return (
     <ClaySurface radius={CLAY_RADIUS.tile} padded={false} style={[s.tile, style]}>
-      <Text style={s.value}>
+      <Text style={[s.value, night && n.ink]}>
         {value}
-        {unit ? <Text style={s.unit}> {unit}</Text> : null}
+        {unit ? <Text style={[s.unit, night && n.ink3]}> {unit}</Text> : null}
       </Text>
-      <Text style={s.label} numberOfLines={1}>
+      <Text style={[s.label, night && n.ink3]} numberOfLines={1}>
         {label}
       </Text>
     </ClaySurface>
@@ -54,4 +57,12 @@ const s = StyleSheet.create({
   hero: { fontSize: 46, fontWeight: '600', color: CLAY.ink, letterSpacing: -1.8, fontVariant: ['tabular-nums'] },
   heroUnit: { fontSize: 22, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.5 },
   caption: { fontSize: 14.5, color: CLAY.ink3, marginTop: 6 },
+});
+
+const n = StyleSheet.create({
+  ink: { color: SHEET_NIGHT.ink },
+  ink2: { color: SHEET_NIGHT.ink2 },
+  ink3: { color: SHEET_NIGHT.ink3 },
+  sep: { borderTopColor: SHEET_NIGHT.hair },
+  pressed: { backgroundColor: SHEET_NIGHT.pressed },
 });
