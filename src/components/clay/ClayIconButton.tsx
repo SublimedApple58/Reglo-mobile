@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../../theme/night';
 import { ClayPressable } from './ClayPressable';
 
 const GLYPH = { close: 'close', back: 'chevron-back', add: 'add' } as const;
@@ -28,8 +29,10 @@ export function ClayIconButton({
   accessibilityLabel: string;
   testID?: string;
 }) {
+  // Ricca 7: nei fogli di Road di notte il tondo chiaro diventa grigio scuro.
+  const night = useSheetNight() && tone === 'light';
   const d = size === 'lg' ? 50 : 40;
-  const color = tone === 'ink' ? '#FFFFFF' : CLAY.ink;
+  const color = night ? SHEET_NIGHT.ink : tone === 'ink' ? '#FFFFFF' : CLAY.ink;
   const glyph =
     typeof icon === 'string' && icon in GLYPH ? (
       <Ionicons name={GLYPH[icon as keyof typeof GLYPH]} size={size === 'lg' ? 24 : 20} color={color} />
@@ -48,6 +51,7 @@ export function ClayIconButton({
         s.base,
         { width: d, height: d, borderRadius: d / 2, backgroundColor: tone === 'ink' ? CLAY.ink : CLAY.surface },
         tone === 'ink' ? CLAY_SHADOW.ink : CLAY_SHADOW.raiseSm,
+        night && [{ backgroundColor: SHEET_NIGHT.surface }, SHEET_NIGHT_SHADOW.raise],
         style,
       ]}
     >

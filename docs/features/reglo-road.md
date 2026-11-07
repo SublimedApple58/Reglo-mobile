@@ -593,3 +593,11 @@ Piano approvato da Tiziano (04/11): il ripasso è un bottone, non parte da solo;
 - **Segnalazioni**: le piccole sono dischi tondi (niente fumetto con punta e puntino). Dal vivo si toccano: camera sulla segnalazione (300 ms) e fumetto grande con scheda (ora, via, segno, nota) sopra la mappa (`LivePinDetail`, si ingrandisce in 220 ms); si chiude toccando la mappa o trascinandola, e finché è aperta la camera non torna da sola sull'auto.
 - **Dettagli**: «Percorsi» → «Distanza»; cerchio della velocità sopra la scritta di Apple Mappe.
 - **POI di Apple Mappe**: `showsPointsOfInterest={false}` su iOS recente non basta: `patches/react-native-maps+1.20.1.patch` mette `pointOfInterestFilter` (nessun luogo) e `selectableMapFeatures = 0` nell'init di `AIRMap` (tutte le mappe dell'app spengono i luoghi). Solo nella build nativa 2.4.1. La patch cambia una riga esistente, così non si riapplica due volte (la prima versione aggiungeva un metodo e nella build EAS finiva doppia: «duplicate declaration»).
+
+## Ricca 7 — fogli scuri di notte e «Aspetto» (07/11/2026)
+
+- **Aspetto** (`app/road/aspetto.tsx`, icona «contrast» nel pannello accanto a note e pagellino): Automatico (dal tramonto all'alba, come prima) / Giorno / Notte. Preferenza del telefono, salvata (`src/road/nightMode.ts`, AsyncStorage `reglo.road.nightMode`); `useRoadNight` e `roadNightNow` la rispettano (mappa, pannello, velo del passaggio, fogli).
+- **Fogli scuri**: `app/road/_layout.tsx` fornisce `SheetNightContext` e di notte dà ai fogli `contentStyle` scuro. Diventano scuri da soli FormSheet e componenti clay (vedi design-system §13.2); in più, a mano: `segnala` (tessere, nota, `Alert.prompt` scuro), pagellino (`manage-lesson-details`, card voci), riepilogo (righe, testi, mappa `RoadRouteMap` scura con `RoadTrack night`; la firma della mappa include la notte, quindi si rimonta), `RoadMarkersSheet`, `RoadMarkerList`, `RoadCheckList`, `SentimentCounts`.
+- **Avvisi nativi**: dentro Road di notte conferma «Terminare la guida?», errori di pagellino/note/segnalazioni e menu «⋯» della segnalazione sono scuri (`roadAlertStyle()`, `userInterfaceStyle`). Gli avvisi prima di entrare in Road (permessi, avvio) restano chiari.
+- Non toccato: il ripasso a tutto schermo (`/road/ripasso`).
+

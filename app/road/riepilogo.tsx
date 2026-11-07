@@ -27,6 +27,7 @@ import { planOutcomeLine } from '../../src/road/planAlerts';
 import { roadQueue } from '../../src/road/queue';
 import { cachedRoadEvaluation } from '../../src/road/offlineLesson';
 import type { AppointmentEvaluation, RoadLesson } from '../../src/types/regloApi';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../../src/theme/night';
 
 /**
  * REG-694 (1.7): il pagellino non sparisce più se la lettura fallisce. Se in
@@ -60,6 +61,8 @@ const MAX_MARKERS = 3;
  */
 export default function RiepilogoScreen() {
   const router = useRouter();
+  // Ricca 7: di notte il riepilogo è scuro come Road.
+  const night = useSheetNight();
   const summary = useRoadSelector((s) => s.summary);
   const syncing = useRoadSelector((s) => s.summarySyncing);
   const provisional = useRoadSelector((s) => s.summaryProvisional);
@@ -140,7 +143,7 @@ export default function RiepilogoScreen() {
     }, [openPagellino]),
   );
 
-  if (!summary) return <View style={s.root} />;
+  if (!summary) return <View style={[s.root, night && n.root]} />;
 
   const lesson = summary.lesson;
   const hasMarkers = summary.markers.length > 0;
@@ -205,7 +208,7 @@ export default function RiepilogoScreen() {
         accessibilityRole={hasMarkers ? 'button' : undefined}
         accessibilityLabel={hasMarkers ? 'Apri tutte le segnalazioni sulla mappa' : undefined}
         testID="road-summary-map"
-        style={({ pressed }) => [s.miniWrap, CLAY_SHADOW.raise, pressed && s.mapPressed]}
+        style={({ pressed }) => [s.miniWrap, night ? [n.surface, SHEET_NIGHT_SHADOW.raise] : CLAY_SHADOW.raise, pressed && s.mapPressed]}
       >
         <RoadRouteMap track={summary.track} markers={summary.markers} stops={summary.stops} style={s.mini} />
       </Pressable>
@@ -218,12 +221,12 @@ export default function RiepilogoScreen() {
 
       {/* REG-714: chiusa senza rete, numeri del telefono finché la chiusura non arriva. */}
       {provisional ? (
-        <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={s.syncTx} testID="road-summary-offline">
+        <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={[s.syncTx, night && n.ink3]} testID="road-summary-offline">
           Chiusa senza rete. Km e minuti sono quelli del telefono: si confermano appena torna la connessione.
         </Animated.Text>
       ) : syncing ? (
         /* REG-691: gli ultimi punti partono dopo la chiusura; i km si aggiornano da soli. */
-        <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={s.syncTx} testID="road-summary-syncing">
+        <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={[s.syncTx, night && n.ink3]} testID="road-summary-syncing">
           Ultimi metri del percorso in invio: i km si aggiornano da soli.
         </Animated.Text>
       ) : null}
@@ -248,11 +251,11 @@ export default function RiepilogoScreen() {
               accessibilityHint={ev?.status === 'error' ? 'Riprova a leggere lo stato' : 'Apri il pagellino'}
             >
               {pgLine == null ? (
-                <View style={s.skel} testID="road-summary-pagellino-loading" />
+                <View style={[s.skel, night && n.skel]} testID="road-summary-pagellino-loading" />
               ) : (
-                <Animated.Text key={pgLine} entering={ROAD_TEXT_IN} style={s.rowSub} numberOfLines={1}>
+                <Animated.Text key={pgLine} entering={ROAD_TEXT_IN} style={[s.rowSub, night && n.ink3]} numberOfLines={1}>
                   {pgLine}
-                  {ev?.status === 'error' ? <Text style={s.retry}> · Riprova</Text> : null}
+                  {ev?.status === 'error' ? <Text style={[s.retry, night && n.ink]}> · Riprova</Text> : null}
                 </Animated.Text>
               )}
             </SummaryRow>
@@ -260,7 +263,7 @@ export default function RiepilogoScreen() {
         ) : null}
         <NotesRow lesson={lesson} onPress={() => void openRoadNotes(router, lesson, '/road/note')} />
         {lessonQueued ? (
-          <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={s.queuedTx} testID="road-summary-queued">
+          <Animated.Text entering={ROAD_TEXT_IN} exiting={ROAD_EXIT} style={[s.queuedTx, night && n.ink3]} testID="road-summary-queued">
             Salvato sul telefono: parte appena torna la rete.
           </Animated.Text>
         ) : null}
@@ -269,7 +272,7 @@ export default function RiepilogoScreen() {
       {/* REG-650: l'esito del giro, dal server (tappa entro 40 m, percorso d'esame al 60%). */}
       {planOutcomeLine(summary.planReached) ? (
         <Animated.View entering={roadEnter(100)} layout={ROAD_LAYOUT} style={s.agendaLine}>
-          <Text style={s.planTx} testID="road-summary-plan">{planOutcomeLine(summary.planReached)}</Text>
+          <Text style={[s.planTx, night && n.ink]} testID="road-summary-plan">{planOutcomeLine(summary.planReached)}</Text>
         </Animated.View>
       ) : null}
 
@@ -282,7 +285,7 @@ export default function RiepilogoScreen() {
 
       {freeStarted && freeStarted.sessionId === summary.id ? (
         <Animated.View entering={roadEnter(120)} layout={ROAD_LAYOUT} style={s.agendaLine}>
-          <Text style={s.agendaTx}>
+          <Text style={[s.agendaTx, night && n.ink3]}>
             In agenda diventa {formatHm(lesson.startsAt)}–{formatHm(lesson.endsAt)}. Prezzo e crediti restano quelli
             dei {freeStarted.bookedMinutes} minuti scelti.
           </Text>
@@ -302,12 +305,12 @@ export default function RiepilogoScreen() {
           {more > 0 ? (
             <Pressable
               onPress={openAll}
-              style={({ pressed }) => [s.allRow, pressed && { opacity: 0.6 }]}
+              style={({ pressed }) => [s.allRow, night && n.sep, pressed && { opacity: 0.6 }]}
               accessibilityRole="button"
               testID="road-summary-all"
             >
-              <Text style={s.allTx}>Tutte le {summary.markers.length} segnalazioni</Text>
-              <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} />
+              <Text style={[s.allTx, night && n.ink]}>Tutte le {summary.markers.length} segnalazioni</Text>
+              <Ionicons name="chevron-forward" size={17} color={night ? SHEET_NIGHT.chevron : CLAY.chevron} />
             </Pressable>
           ) : null}
         </View>
@@ -330,20 +333,21 @@ function SummaryRow({
   testID?: string;
   accessibilityHint?: string;
 }) {
+  const night = useSheetNight();
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
+      style={({ pressed }) => [s.row, night && n.sep, pressed && { opacity: 0.6 }]}
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityHint={accessibilityHint}
       testID={testID}
     >
       <View style={s.rowTx}>
-        <Text style={s.rowTitle}>{title}</Text>
+        <Text style={[s.rowTitle, night && n.ink]}>{title}</Text>
         {children}
       </View>
-      <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} />
+      <Ionicons name="chevron-forward" size={17} color={night ? SHEET_NIGHT.chevron : CLAY.chevron} />
     </Pressable>
   );
 }
@@ -351,12 +355,13 @@ function SummaryRow({
 /** «Note sulla guida»: l'inizio della nota o l'invito a scriverla. */
 function NotesRow({ lesson, onPress }: { lesson: RoadLesson; onPress: () => void }) {
   const note = useRoadNotes(lesson);
+  const night = useSheetNight();
   return (
     <SummaryRow title="Note sulla guida" onPress={onPress} testID="road-notes-card">
       {note === undefined ? (
-        <View style={s.skel} />
+        <View style={[s.skel, night && n.skel]} />
       ) : (
-        <Animated.Text key={note ?? '-'} entering={ROAD_TEXT_IN} style={s.rowSub} numberOfLines={1}>
+        <Animated.Text key={note ?? '-'} entering={ROAD_TEXT_IN} style={[s.rowSub, night && n.ink3]} numberOfLines={1}>
           {note || 'Cosa ricordare di questa guida'}
         </Animated.Text>
       )}
@@ -401,4 +406,14 @@ const s = StyleSheet.create({
   },
   allTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
   sum: { flexDirection: 'row', gap: 10, marginTop: 16 },
+});
+
+/** Ricca 7: il riepilogo sopra Road di notte. */
+const n = StyleSheet.create({
+  root: { backgroundColor: SHEET_NIGHT.bg },
+  surface: { backgroundColor: SHEET_NIGHT.surface },
+  ink: { color: SHEET_NIGHT.ink },
+  ink3: { color: SHEET_NIGHT.ink3 },
+  sep: { borderTopColor: SHEET_NIGHT.hair },
+  skel: { backgroundColor: SHEET_NIGHT.pressed },
 });
