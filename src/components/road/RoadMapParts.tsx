@@ -24,13 +24,14 @@ function useTracksViewChanges(deps: unknown[] = []) {
   return Platform.OS === 'android' ? tracks : undefined;
 }
 
-export const RoadTrack = React.memo(function RoadTrack({ coordinates, width = 7 }: { coordinates: LatLng[]; width?: number }) {
+/** `night` (Ricca 7): linea chiara col bordo scuro, come la guida dal vivo di notte. */
+export const RoadTrack = React.memo(function RoadTrack({ coordinates, width = 7, night = false }: { coordinates: LatLng[]; width?: number; night?: boolean }) {
   if (coordinates.length < 2) return null;
   return (
     <>
       <Polyline
         coordinates={coordinates}
-        strokeColor="#FFFFFF"
+        strokeColor={night ? '#0A0A0A' : '#FFFFFF'}
         strokeWidth={width + 5}
         lineCap="round"
         lineJoin="round"
@@ -38,7 +39,7 @@ export const RoadTrack = React.memo(function RoadTrack({ coordinates, width = 7 
       />
       <Polyline
         coordinates={coordinates}
-        strokeColor="#111111"
+        strokeColor={night ? '#F2F2F2' : '#111111'}
         strokeWidth={width}
         lineCap="round"
         lineJoin="round"

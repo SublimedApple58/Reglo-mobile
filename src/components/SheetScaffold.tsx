@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IS_PAD, SHEET_BOTTOM, SHEET_SYSTEM_BOTTOM } from '../utils/sheetPresentation';
 import { useSheetPresence } from './sheetPresence';
 import { ClayIconButton } from './clay/ClayIconButton';
+import { SHEET_NIGHT, useSheetNight } from '../theme/night';
 import { SOFT_LAYOUT, SOFT_TEXT_IN, SOFT_TEXT_OUT, softEnter } from '../utils/motion';
 
 /**
@@ -116,6 +117,8 @@ export function FormSheet({
   closeOnGesture?: boolean;
 }) {
   const router = useRouter();
+  // Ricca 7: sopra Road di notte il foglio è scuro (`SheetNightContext`).
+  const night = useSheetNight();
   // Android: finché il foglio è aperto la tab bar si toglie (non copre la CTA).
   useSheetPresence();
   const closeFn = onClose ?? (() => router.back());
@@ -214,31 +217,31 @@ export function FormSheet({
     // diretti del foglio o lungo la catena delle prime viste e gli forza il
     // frame nativo a tutto il foglio (lo scroll finiva sotto la CTA o alto
     // pochi punti). Così non lo trova e decide solo il layout.
-    <View style={[fs.sheet, fillSheet && fs.sheetFill]} testID={testID} collapsable={false}>
+    <View style={[fs.sheet, fillSheet && fs.sheetFill, night && fn.bg]} testID={testID} collapsable={false}>
       {/* Testata FISSA e opaca: titolo e X non scorrono mai. */}
-      <View style={[fs.head, headerStyle]} onLayout={(e) => setHeadH(e.nativeEvent.layout.height)}>
+      <View style={[fs.head, night && fn.bg, headerStyle]} onLayout={(e) => setHeadH(e.nativeEvent.layout.height)}>
         {leading}
         <View style={fs.titles}>
           {typeof title === 'string' ? (
-            <Text style={fs.title} numberOfLines={2}>{title}</Text>
+            <Text style={[fs.title, night && fn.title]} numberOfLines={2}>{title}</Text>
           ) : (
             title
           )}
           {typeof subtitle === 'string' ? (
-            <Text style={fs.subtitle} numberOfLines={2}>{subtitle}</Text>
+            <Text style={[fs.subtitle, night && fn.subtitle]} numberOfLines={2}>{subtitle}</Text>
           ) : (
             subtitle
           )}
         </View>
         <SheetCloseButton onPress={close} />
-        {fixedTop ? null : <Animated.View pointerEvents="none" style={[fs.headLine, headLine]} />}
+        {fixedTop ? null : <Animated.View pointerEvents="none" style={[fs.headLine, night && fn.line, headLine]} />}
       </View>
 
       {fixedTop ? (
-        <View style={fs.fixedTop} onLayout={(e) => setTopH(e.nativeEvent.layout.height)}>
+        <View style={[fs.fixedTop, night && fn.bg]} onLayout={(e) => setTopH(e.nativeEvent.layout.height)}>
           {fixedTop}
           {/* La linea «contenuto sotto» sta sotto la parte fissa, non sotto il titolo. */}
-          <Animated.View pointerEvents="none" style={[fs.headLine, headLine]} />
+          <Animated.View pointerEvents="none" style={[fs.headLine, night && fn.line, headLine]} />
         </View>
       ) : null}
 
@@ -324,8 +327,8 @@ export function FormSheet({
 
       {/* CTA FISSA nel footer del foglio: bianco, niente fascia grigia (§13.2.1). */}
       {cta ? (
-        <View style={[fs.foot, IS_PAD && { paddingBottom: insets.bottom + PAD_FOOT_GAP }]} testID="sheet-foot" onLayout={(e) => setFootH(e.nativeEvent.layout.height)}>
-          <Animated.View pointerEvents="none" style={[fs.footLine, footLine]} />
+        <View style={[fs.foot, night && fn.bg, IS_PAD && { paddingBottom: insets.bottom + PAD_FOOT_GAP }]} testID="sheet-foot" onLayout={(e) => setFootH(e.nativeEvent.layout.height)}>
+          <Animated.View pointerEvents="none" style={[fs.footLine, night && fn.line, footLine]} />
           {cta}
         </View>
       ) : null}
@@ -438,6 +441,14 @@ const fs = StyleSheet.create({
   bodyLast: { paddingBottom: BODY_PAD_BOTTOM_LAST },
   foot: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: SHEET_BOTTOM, backgroundColor: '#FFFFFF' },
   footLine: { position: 'absolute', left: 0, right: 0, top: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)' },
+});
+
+/** Ricca 7: il foglio sopra Road di notte. */
+const fn = StyleSheet.create({
+  bg: { backgroundColor: SHEET_NIGHT.bg },
+  title: { color: SHEET_NIGHT.ink },
+  subtitle: { color: SHEET_NIGHT.ink3 },
+  line: { backgroundColor: SHEET_NIGHT.hair },
 });
 
 /**

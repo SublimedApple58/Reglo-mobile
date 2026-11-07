@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ImpactFeedbackStyle, impactAsync } from '../utils/haptics';
+import { useSheetNight } from '../theme/night';
 
 type StarRatingProps = {
   value: number | null;
@@ -127,7 +128,9 @@ export const StarRating = ({
   tone = 'navy',
 }: StarRatingProps) => {
   const filledColor = tone === 'gold' ? STAR_COLOR_GOLD : STAR_COLOR;
-  const emptyColor = tone === 'gold' ? STAR_EMPTY_COLOR_GOLD : STAR_EMPTY_COLOR;
+  // Ricca 7: nei fogli di Road di notte la stella vuota è un grigio chiaro tenue.
+  const night = useSheetNight();
+  const emptyColor = night ? 'rgba(242,242,242,0.24)' : tone === 'gold' ? STAR_EMPTY_COLOR_GOLD : STAR_EMPTY_COLOR;
   const stars = Array.from({ length: Math.max(1, total) }, (_, i) => i + 1);
   const currentValue = value ?? 0;
   const interactive = !readOnly && !!onChange;

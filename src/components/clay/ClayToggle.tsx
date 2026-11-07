@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { CLAY_SHADOW } from '../../theme/clay';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../../theme/night';
 import { SEGMENT_TIMING } from '../../utils/motion';
 
 const W = 50;
@@ -29,6 +30,8 @@ export function ClayToggle({
   accessibilityLabel?: string;
   testID?: string;
 }) {
+  // Ricca 7: di notte binario scuro che si riempie di chiaro, pallino scuro.
+  const night = useSheetNight();
   const p = useSharedValue(value ? 1 : 0);
   useEffect(() => {
     p.value = withTiming(value ? 1 : 0, SEGMENT_TIMING);
@@ -51,9 +54,9 @@ export function ClayToggle({
       testID={testID}
       style={disabled && s.off}
     >
-      <View style={[s.track, CLAY_SHADOW.sink]}>
-        <Animated.View style={[StyleSheet.absoluteFill, s.fill, CLAY_SHADOW.ink, fill]} />
-        <Animated.View style={[s.knob, CLAY_SHADOW.raiseSm, knob]} />
+      <View style={[s.track, night ? [n.track, SHEET_NIGHT_SHADOW.sink] : CLAY_SHADOW.sink]}>
+        <Animated.View style={[StyleSheet.absoluteFill, s.fill, night ? n.fill : CLAY_SHADOW.ink, fill]} />
+        <Animated.View style={[s.knob, night ? n.knob : CLAY_SHADOW.raiseSm, knob]} />
       </View>
     </Pressable>
   );
@@ -64,4 +67,10 @@ const s = StyleSheet.create({
   fill: { borderRadius: H / 2, backgroundColor: '#1E1E1E' },
   knob: { width: KNOB, height: KNOB, borderRadius: KNOB / 2, backgroundColor: '#FFFFFF' },
   off: { opacity: 0.45 },
+});
+
+const n = StyleSheet.create({
+  track: { backgroundColor: SHEET_NIGHT.surface },
+  fill: { backgroundColor: SHEET_NIGHT.ink },
+  knob: { backgroundColor: '#3A3A3C' },
 });

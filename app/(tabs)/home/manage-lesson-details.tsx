@@ -31,6 +31,7 @@ import { useEvaluationAutosave } from '../../../src/hooks/useEvaluationAutosave'
 import { ClayButton, ClayField, ClayList, ClayListRow, ClaySection } from '../../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../../src/theme/clay';
 import { SOFT_LAYOUT } from '../../../src/utils/motion';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../../../src/theme/night';
 
 /**
  * Transizione di posizione condivisa da tutto il blocco pagellino: quando una
@@ -241,6 +242,8 @@ export default function ManageLessonDetailsScreen() {
   const locked = saving;
   // REG-638: aperto da Reglo Road = solo pagellino, CTA nera.
   const road = data.road ?? null;
+  // Ricca 7: aperto da Road di notte il foglio è scuro (fuori da Road sempre false).
+  const night = useSheetNight();
   const showEsito = data.showEsito === true && !road;
   // Il tipo cambierebbe il `type` dell'appuntamento: nascosto su esami/gruppi
   // (ne romperebbe la categoria). Nel flusso home questo foglio si apre solo per
@@ -318,7 +321,7 @@ export default function ManageLessonDetailsScreen() {
       return [...prev, value];
     });
   };
-  const check = <Ionicons name="checkmark" size={22} color={CLAY.ink} accessibilityLabel="Selezionato" />;
+  const check = <Ionicons name="checkmark" size={22} color={night ? SHEET_NIGHT.ink : CLAY.ink} accessibilityLabel="Selezionato" />;
 
   return (
     // IL form sheet (FORM_SHEET + FormSheet, §13.2) sia da Road (solo
@@ -443,11 +446,11 @@ export default function ManageLessonDetailsScreen() {
                         layout={LAYOUT}
                         entering={FadeInDown.duration(240).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never)}
                         exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.Never)}
-                        style={[s.voiceCard, CLAY_SHADOW.raise]}
+                        style={[s.voiceCard, night ? [n.card, SHEET_NIGHT_SHADOW.raise] : CLAY_SHADOW.raise]}
                       >
                         <View style={s.pagellinoItemTop}>
                           <Text
-                            style={[s.pagellinoLabel, (isNa || !scores[item.id]) && s.pagellinoLabelOff]}
+                            style={[s.pagellinoLabel, night && n.ink, (isNa || !scores[item.id]) && (night ? n.ink3 : s.pagellinoLabelOff)]}
                             numberOfLines={2}
                           >
                             {item.label}
@@ -461,15 +464,15 @@ export default function ManageLessonDetailsScreen() {
                             <Animated.Text
                               key={scores[item.id]}
                               entering={FadeIn.duration(150).reduceMotion(ReduceMotion.Never)}
-                              style={s.scoreNum}
+                              style={[s.scoreNum, night && n.ink]}
                             >
                               {scores[item.id]}
-                              <Text style={s.scoreMax}>/{item.scaleMax}</Text>
+                              <Text style={[s.scoreMax, night && n.ink3]}>/{item.scaleMax}</Text>
                             </Animated.Text>
                           )}
                         </View>
                         {isNa ? (
-                          <Text style={s.pagellinoValue}>{EVALUATION_NOT_APPLICABLE_LABEL}</Text>
+                          <Text style={[s.pagellinoValue, night && n.ink3]}>{EVALUATION_NOT_APPLICABLE_LABEL}</Text>
                         ) : null}
                         {isNa && !editable ? null : (
                           <View style={s.pagellinoScaleRow}>
@@ -515,7 +518,7 @@ export default function ManageLessonDetailsScreen() {
                   layout={LAYOUT}
                   entering={FadeIn.duration(200).reduceMotion(ReduceMotion.Never)}
                   exiting={FadeOut.duration(120).reduceMotion(ReduceMotion.Never)}
-                  style={s.pagellinoEmpty}
+                  style={[s.pagellinoEmpty, night && n.ink3]}
                 >
                   Nessuna voce: questa guida non ha ancora un pagellino.
                 </Animated.Text>
@@ -582,4 +585,10 @@ const s = StyleSheet.create({
   pagellinoScaleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   pagellinoEmpty: { fontSize: 13, fontWeight: '400', color: CLAY.ink3, textAlign: 'center' },
   pagellinoValue: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
+});
+
+const n = StyleSheet.create({
+  card: { backgroundColor: SHEET_NIGHT.surface },
+  ink: { color: SHEET_NIGHT.ink },
+  ink3: { color: SHEET_NIGHT.ink3 },
 });

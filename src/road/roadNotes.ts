@@ -6,6 +6,7 @@ import { regloApi } from '../services/regloApi';
 import { notesEditorStore } from '../stores/notesEditorStore';
 import type { RoadLesson } from '../types/regloApi';
 import { roadQueue } from './queue';
+import { roadAlertStyle } from './night';
 import { isOfflineError, queueLessonPatch } from './offlineLesson';
 
 /**
@@ -98,7 +99,7 @@ export async function openRoadNotes(router: Router, lesson: RoadLesson, route: R
         return true;
       } catch (err) {
         if (!isOfflineError(err)) {
-          Alert.alert('Note non salvate', err instanceof Error ? err.message : 'Riprova tra poco.');
+          Alert.alert('Note non salvate', err instanceof Error ? err.message : 'Riprova tra poco.', undefined, roadAlertStyle());
           return false;
         }
         // REG-714: senza rete resta sul telefono e parte appena torna.

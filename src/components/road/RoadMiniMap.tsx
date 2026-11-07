@@ -7,7 +7,8 @@ import type { RoadMarker, RoadStop } from '../../types/regloApi';
 import { arrowCovered, arrowsAlong, RoadEndpointDot, RoadMarkerPin, RoadPinBody, RoadStopMarker, RoadTrack, ROAD_PIN_POINT_Y } from './RoadMapParts';
 import { RoadArrowLayer, type ArrowLayerHandle } from './RoadArrowLayer';
 import { SOFT } from '../../utils/motion';
-import { ANDROID_DAY_STYLE } from '../../road/night';
+import { ANDROID_DAY_STYLE, ANDROID_NIGHT_STYLE } from '../../road/night';
+import { SHEET_NIGHT, useSheetNight } from '../../theme/night';
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -113,7 +114,10 @@ export function RoadRouteMap({
   const insetBottom = insets?.bottom ?? 0;
 
   // Dati congelati sulla firma: stessi oggetti finché la mappa non va rimontata.
-  const sig = dataSignature(track, markers, stops);
+  // Ricca 7: nei fogli di Road di notte la mappa è scura. Cambia la firma:
+  // la MapView si rimonta (niente cambia DENTRO la mappa, vedi sopra).
+  const night = useSheetNight();
+  const sig = `${dataSignature(track, markers, stops)}#${night ? 'n' : 'd'}`;
   const frozen = useMemo(() => {
     const coords = track.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
     const all = [...coords, ...markers.map((m) => ({ latitude: m.lat, longitude: m.lng }))];
@@ -263,7 +267,7 @@ export function RoadRouteMap({
 
   return (
     <View
-      style={[styles.wrap, style]}
+      style={[styles.wrap, night && { backgroundColor: SHEET_NIGHT.surface }, style]}
       pointerEvents={touchable ? 'auto' : 'none'}
       // La mappa può essere pronta prima di avere le misure definitive del
       // contenitore: si reinquadra anche dopo il layout.
@@ -285,7 +289,7 @@ export function RoadRouteMap({
         onRegionChange={hideOverlay}
         onRegionChangeComplete={onRegionDone}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-        customMapStyle={ANDROID_DAY_STYLE}
+        customMapStyle={night ? ANDROID_NIGHT_STYLE : ANDROID_DAY_STYLE}
         showsPointsOfInterest={false}
         // Niente edifici 3D: su Apple Maps coprono il percorso, che è il dato di Road.
         showsBuildings={false}
@@ -297,9 +301,9 @@ export function RoadRouteMap({
         rotateEnabled={interactive}
         pitchEnabled={false}
         liteMode={Platform.OS === 'android' && !touchable}
-        userInterfaceStyle="light"
+        userInterfaceStyle={night ? 'dark' : 'light'}
       >
-        <RoadTrack coordinates={frozen.coords} width={interactive ? 6 : 5} />
+        <RoadTrack coordinates={frozen.coords} width={interactive ? 6 : 5} night={night} />
         {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[0]} kind="start" /> : null}
         {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[frozen.coords.length - 1]} kind="end" /> : null}
         {frozen.stops.map((st) => (

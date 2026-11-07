@@ -5,6 +5,7 @@ import { regloApi } from '../services/regloApi';
 import type { AutoscuolaAppointmentWithRelations, RoadLesson } from '../types/regloApi';
 import { dayLabel, formatRange } from './format';
 import { lessonStudentName } from './roadStore';
+import { roadAlertStyle } from './night';
 import { isOfflineError, queueLessonPatch } from './offlineLesson';
 
 /**
@@ -51,7 +52,7 @@ export function openRoadPagellino(
         return true;
       } catch (err) {
         if (!isOfflineError(err)) {
-          Alert.alert('Pagellino non salvato', err instanceof Error ? err.message : 'Riprova tra poco.');
+          Alert.alert('Pagellino non salvato', err instanceof Error ? err.message : 'Riprova tra poco.', undefined, roadAlertStyle());
           return false;
         }
         await queueLessonPatch(lesson.appointmentId, 'evaluations', { evaluations });

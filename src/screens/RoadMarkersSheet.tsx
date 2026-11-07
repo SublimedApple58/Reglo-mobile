@@ -6,6 +6,7 @@ import { FormSheet } from '../components/SheetScaffold';
 import { RoadRouteMap, roadMarkerKey } from '../components/road/RoadMiniMap';
 import { RoadMarkerRow, toMarkerItem, type RoadMarkerItem } from '../components/road/RoadMarkerList';
 import { CLAY, CLAY_SHADOW } from '../theme';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../theme/night';
 import { lessonStudentName, useRoadSelector } from '../road/roadStore';
 import { roadRouteMapStore } from '../road/routeMapStore';
 import { openRoadMarkerMenu } from '../road/markerMenu';
@@ -25,6 +26,8 @@ const ROW_H = 58;
  * - `percorso` (storico, dettaglio guida): dati del foglio «Percorso», sola lettura.
  */
 export function RoadMarkersSheet({ source }: { source: 'summary' | 'percorso' }) {
+  // Ricca 7: aperto da Road di notte (fuori da Road sempre false).
+  const night = useSheetNight();
   const summary = useRoadSelector((s) => s.summary);
   const live = useSyncExternalStore(roadRouteMapStore.subscribe, roadRouteMapStore.get);
   // Il percorso resta fermo finché il foglio è aperto (come il foglio «Percorso»).
@@ -104,7 +107,7 @@ export function RoadMarkersSheet({ source }: { source: 'summary' | 'percorso' })
     [onRow, onMore, correctable, selected],
   );
 
-  if (!data) return <View style={s.root} />;
+  if (!data) return <View style={[s.root, night && { backgroundColor: SHEET_NIGHT.bg }]} />;
 
   const n = data.markers.length;
   return (
@@ -115,7 +118,7 @@ export function RoadMarkersSheet({ source }: { source: 'summary' | 'percorso' })
       listRef={listRef}
       fixedTop={
         // La mappa si ritaglia nel figlio: l'ombra clay sta sul contenitore.
-        <View style={[s.mapWrap, CLAY_SHADOW.raise]}>
+        <View style={[s.mapWrap, night ? [{ backgroundColor: SHEET_NIGHT.surface }, SHEET_NIGHT_SHADOW.raise] : CLAY_SHADOW.raise]}>
           <RoadRouteMap
             track={data.track}
             markers={data.markers}

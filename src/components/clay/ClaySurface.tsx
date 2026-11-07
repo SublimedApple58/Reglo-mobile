@@ -3,6 +3,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
 import { ClayPressable } from './ClayPressable';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../../theme/night';
 
 /**
  * Superficie clay (§0): bianco in rilievo, raggio card. È la card dell'app.
@@ -31,11 +32,13 @@ export function ClaySurface({
   testID?: string;
   accessibilityLabel?: string;
 }) {
+  // Ricca 7: dentro i fogli di Road di notte la card è grigio scuro.
+  const night = useSheetNight();
   const st = [
     s.base,
     { borderRadius: radius },
     padded && s.padded,
-    size === 'sm' ? CLAY_SHADOW.raiseSm : CLAY_SHADOW.raise,
+    night ? [s.night, SHEET_NIGHT_SHADOW.raise] : size === 'sm' ? CLAY_SHADOW.raiseSm : CLAY_SHADOW.raise,
     style,
   ];
   if (onPress) {
@@ -55,4 +58,5 @@ export function ClaySurface({
 const s = StyleSheet.create({
   base: { backgroundColor: CLAY.surface },
   padded: { padding: 20 },
+  night: { backgroundColor: SHEET_NIGHT.surface },
 });

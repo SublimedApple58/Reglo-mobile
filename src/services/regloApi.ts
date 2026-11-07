@@ -131,6 +131,7 @@ import {
   RoadHotspots,
   RoadStudentItem,
   RoadStudentRoad,
+  RoadStudentHistory,
   RoadBriefing,
   RoadMarker,
   RoadPoint,
@@ -1142,6 +1143,9 @@ export const createRegloApi = (baseUrl?: string) => {
       client.request<RoadStudentRoad>(
         `/api/autoscuole/road/students/${studentId}`,
       ),
+    /** Ricca 8+9: ultime 5 tracce dell'allievo, anche con altri istruttori (tasto «Storico»). */
+    getRoadStudentHistory: async (studentId: string) =>
+      client.request<RoadStudentHistory>(`/api/autoscuole/road/students/${studentId}/history`),
     /** Punti critici dell'autoscuola (REG-646): mappa aggregata, anche per l'istruttore. */
     getRoadHotspots: async (params: { from: string }) =>
       client.request<RoadHotspots>(`/api/autoscuole/road/hotspots?from=${encodeURIComponent(params.from)}`),

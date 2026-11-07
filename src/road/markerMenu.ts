@@ -1,5 +1,6 @@
 import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import { correctRoadMarker } from './roadActions';
+import { roadNightNow } from './night';
 
 /**
  * REG-696: menu nativo per correggere una segnalazione dopo i 5 s
@@ -11,6 +12,8 @@ export function openRoadMarkerMenu(
   marker: { id: string; label: string; sentiment?: 'good' | 'bad' | null; note?: string | null; street?: string | null },
   onDone: () => void,
 ) {
+  // Ricca 7: di notte menu e conferme nativi scuri, come i fogli di Road.
+  const ui = roadNightNow() ? 'dark' : 'light';
   const toGood = marker.sentiment !== 'good';
   const flipLabel = toGood ? 'Segna come «Fatto bene»' : 'Segna come «Da migliorare»';
   const flip = async () => {
@@ -26,7 +29,7 @@ export function openRoadMarkerMenu(
           if (await correctRoadMarker(sessionId, marker.id, { remove: true })) onDone();
         },
       },
-    ]);
+    ], { userInterfaceStyle: ui });
 
   if (Platform.OS === 'ios') {
     ActionSheetIOS.showActionSheetWithOptions(
@@ -37,7 +40,8 @@ export function openRoadMarkerMenu(
         options: [flipLabel, 'Elimina segnalazione', 'Annulla'],
         destructiveButtonIndex: 1,
         cancelButtonIndex: 2,
-        tintColor: '#111111',
+        tintColor: ui === 'dark' ? '#F2F2F2' : '#111111',
+        userInterfaceStyle: ui,
       },
       (i) => {
         if (i === 0) void flip();
