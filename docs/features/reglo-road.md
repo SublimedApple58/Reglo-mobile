@@ -593,3 +593,9 @@ Piano approvato da Tiziano (04/11): il ripasso è un bottone, non parte da solo;
 - **Segnalazioni**: le piccole sono dischi tondi (niente fumetto con punta e puntino). Dal vivo si toccano: camera sulla segnalazione (300 ms) e fumetto grande con scheda (ora, via, segno, nota) sopra la mappa (`LivePinDetail`, si ingrandisce in 220 ms); si chiude toccando la mappa o trascinandola, e finché è aperta la camera non torna da sola sull'auto.
 - **Dettagli**: «Percorsi» → «Distanza»; cerchio della velocità sopra la scritta di Apple Mappe.
 - **POI di Apple Mappe**: `showsPointsOfInterest={false}` su iOS recente non basta: `patches/react-native-maps+1.20.1.patch` mette `pointOfInterestFilter` (nessun luogo) e `selectableMapFeatures = 0` nell'init di `AIRMap` (tutte le mappe dell'app spengono i luoghi). Solo nella build nativa 2.4.1. La patch cambia una riga esistente, così non si riapplica due volte (la prima versione aggiungeva un metodo e nella build EAS finiva doppia: «duplicate declaration»).
+
+## Ricca — «Guide avviate in anticipo» (07/11/2026)
+
+- Impostazione dell'autoscuola (web, Impostazioni › Reglo Road; `limits.roadEarlyKeepDuration`): «Orari reali» (default, REG-728) o «Mantieni la durata prenotata». La decide e applica il server a «Termina guida» (`alignLessonEndToRoad`).
+- In app, durante la guida: il server manda `lesson.roadEndsAt` (stato, avvio, ripresa). `lessonDriveEnd(lesson)` (`src/road/returnEta.ts`) lo usa per «Fine 9:45» sotto il nome, minuti rimasti / rientro (`returnView`) e avvisi «Mancano 5 minuti» / «Orario della guida finito» (`useEndAlert`). Senza il campo (server vecchio) vale `endsAt`.
+
