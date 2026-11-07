@@ -16,7 +16,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing, ReduceMotion, ZoomIn, FadeOut } from 'react-native-reanimated';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming, Easing, ReduceMotion, ZoomIn, FadeOut } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
@@ -74,6 +74,7 @@ import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '..
 import { fixHistory } from '../../src/road/fixHistory';
 import { NIGHT, roadMapStyle, useRoadNight } from '../../src/road/night';
 import { roadSounds, useRoadSoundMuted } from '../../src/road/sounds';
+import { HISTORY_SLOTS, roadHistoryToggle, useRoadHistory, useRoadHistoryShown, type HistoryPt } from '../../src/road/roadHistory';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
 /**
@@ -158,7 +159,9 @@ const STILL = (c: { lat: number; lng: number }) => [
 ];
 
 /**
- * La traccia fatta: grigia e sottile. REG-687: a pezzi. I pezzi chiusi non
+ * La traccia fatta. Ricca 9 (07/11): nera piena col bordo bianco come nel
+ * riepilogo (di notte chiara col bordo scuro); prima era grigia al 30% e si
+ * perdeva fra le strade. REG-687: a pezzi. I pezzi chiusi non
  * cambiano più (stesso array → la mappa non li ridisegna) e a ogni punto GPS
  * si rimanda solo la coda; prima a ogni punto ripartiva verso la mappa TUTTA la
  * traccia, migliaia di punti a fine guida. Posti fissi, sempre montati (crash
@@ -188,9 +191,13 @@ function useTrackChunks(track: TrackPt[]) {
   return { chunks: cc.chunks, tail };
 }
 
-const TRACK_INK = 'rgba(17,17,17,0.30)';
-// REG-723: senza il velo, di notte la linea chiara deve leggersi sopra le strade chiare.
-const TRACK_INK_NIGHT = 'rgba(242,242,242,0.6)';
+const TRACK_INK = 'rgba(17,17,17,1)';
+const TRACK_CASE = 'rgba(255,255,255,1)';
+// Di notte si inverte come la linea del giro (REG-697): chiara col bordo scuro.
+const TRACK_INK_NIGHT = 'rgba(242,242,242,0.95)';
+const TRACK_CASE_NIGHT = 'rgba(10,10,10,1)';
+const TRACK_W = 5;
+const TRACK_CASE_W = 10;
 const NO_INK = 'rgba(17,17,17,0)';
 const inkAlpha = (rgba: string, k: number) => rgba.replace(/[\d.]+\)$/, (a) => `${(parseFloat(a) * k).toFixed(3)})`);
 /** `k` < 1 = la coda provvisoria vecchia che sfuma (REG-722). */
@@ -207,15 +214,27 @@ const TrackPiece = React.memo(function TrackPiece({
 }) {
   const on = !!pts && pts.length >= 2 && k > 0;
   const core = night ? TRACK_INK_NIGHT : TRACK_INK;
+  const edge = night ? TRACK_CASE_NIGHT : TRACK_CASE;
+  // Bordo e linea: due Polyline per posto, i bordi sotto tutte le linee (zIndex).
   return (
-    <Polyline
-      coordinates={on ? pts! : still}
-      strokeColor={on ? inkAlpha(core, k) : NO_INK}
-      strokeWidth={5}
-      lineCap="round"
-      lineJoin="round"
-      zIndex={1}
-    />
+    <>
+      <Polyline
+        coordinates={on ? pts! : still}
+        strokeColor={on ? inkAlpha(edge, k) : NO_INK}
+        strokeWidth={TRACK_CASE_W}
+        lineCap="round"
+        lineJoin="round"
+        zIndex={1}
+      />
+      <Polyline
+        coordinates={on ? pts! : still}
+        strokeColor={on ? inkAlpha(core, k) : NO_INK}
+        strokeWidth={TRACK_W}
+        lineCap="round"
+        lineJoin="round"
+        zIndex={2}
+      />
+    </>
   );
 });
 
@@ -359,7 +378,7 @@ const ArrowPiece = React.memo(function ArrowPiece({ pts, still, night }: { pts: 
       strokeWidth={2}
       lineCap="round"
       lineJoin="round"
-      zIndex={2}
+      zIndex={3}
     />
   );
 });
@@ -376,6 +395,77 @@ const LiveEnds = React.memo(function LiveEnds({ center, night }: { center: { lat
       {Array.from({ length: ARROW_SLOTS }, (_, i) => (
         <ArrowPiece key={i} pts={lines[i] ?? null} still={still} night={night} />
       ))}
+    </>
+  );
+});
+
+/**
+ * Ricca 8 — le ultime tracce dell'allievo (tasto «Storico»): tenui e sottili,
+ * sotto il giro e la traccia in corso. HISTORY_SLOTS posti fissi sempre
+ * montati (crash AIRMap); accese e spente cambiando solo il colore, in una
+ * dissolvenza di 240 ms a 4 passi come la coda della traccia.
+ */
+const HISTORY_INK = 'rgba(17,17,17,0.42)';
+const HISTORY_INK_NIGHT = 'rgba(242,242,242,0.45)';
+const HISTORY_W = 4;
+
+function useStepFade(on: boolean) {
+  const [k, setK] = useState(on ? 1 : 0);
+  const kRef = useRef(k);
+  kRef.current = k;
+  useEffect(() => {
+    const from = kRef.current;
+    const to = on ? 1 : 0;
+    if (from === to) return;
+    const t0 = Date.now();
+    let step = 0;
+    let raf = 0;
+    const frame = () => {
+      const x = Math.min(1, (Date.now() - t0) / TAIL_FADE_MS);
+      const next = Math.ceil(x * TAIL_FADE_STEPS);
+      if (next !== step) {
+        step = next;
+        setK(from + (to - from) * (step / TAIL_FADE_STEPS));
+      }
+      if (x < 1) raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [on]);
+  return k;
+}
+
+const LiveHistory = React.memo(function LiveHistory({
+  center,
+  night,
+  lines,
+  shown,
+}: {
+  center: { lat: number; lng: number };
+  night: boolean;
+  lines: HistoryPt[][];
+  shown: boolean;
+}) {
+  const still = useMemo(() => STILL(center), [center]);
+  const k = useStepFade(shown && lines.length > 0);
+  const ink = night ? HISTORY_INK_NIGHT : HISTORY_INK;
+  return (
+    <>
+      {Array.from({ length: HISTORY_SLOTS }, (_, i) => {
+        const pts = lines[i];
+        const on = !!pts && k > 0;
+        return (
+          <Polyline
+            key={i}
+            coordinates={pts ?? still}
+            strokeColor={on ? inkAlpha(ink, k) : NO_INK}
+            strokeWidth={HISTORY_W}
+            lineCap="round"
+            lineJoin="round"
+            zIndex={0}
+          />
+        );
+      })}
     </>
   );
 });
@@ -500,6 +590,8 @@ const LiveMap = React.memo(function LiveMap({
   onMapPress,
   openPinId,
   night,
+  history,
+  historyShown,
 }: {
   openPinId: string | null;
   /** REG-697: mappa notte (MapKit scura su iOS, stile in grigi su Android). */
@@ -517,6 +609,9 @@ const LiveMap = React.memo(function LiveMap({
   mapHeadRef: React.MutableRefObject<number>;
   onPanDrag: () => void;
   onRegionDone: () => void;
+  /** Ricca 8: tracce delle ultime guide dell'allievo e se mostrarle. */
+  history: HistoryPt[][];
+  historyShown: boolean;
 }) {
   const where = useMemo(() => ({ lat: center.lat, lng: center.lng }), [center]);
   // REG-723: di notte la mappa è scura su tutte e due (iOS: stile notte nativo,
@@ -567,6 +662,8 @@ const LiveMap = React.memo(function LiveMap({
     >
       {/* REG-652: posti fissi, PRIMA degli altri figli (crash AIRMap, vedi RoadGuideOverlay) */}
       <LiveGuide center={where} night={darkMap} />
+      {/* Ricca 8: le guide passate, posti fissi sotto la traccia in corso. */}
+      <LiveHistory center={where} night={darkMap} lines={history} shown={historyShown} />
       <LiveTrack center={where} night={darkMap} />
       {/* REG-723: partenza e frecce del verso, posti fissi subito dopo la traccia. */}
       <LiveEnds center={where} night={darkMap} />
@@ -657,6 +754,9 @@ export default function RoadScreen() {
   const insets = useSafeAreaInsets();
   const session = useRoadSelector((s) => s.session);
   const lesson = session?.lesson ?? null;
+  // Ricca 8: le ultime tracce dell'allievo, chieste una volta dopo l'avvio.
+  const history = useRoadHistory(session?.id ?? null, lesson?.student?.id ?? null);
+  const historyShown = useRoadHistoryShown();
   const mapRef = useRef<MapView>(null);
   const [following, setFollowing] = useState(true);
   const [panelH, setPanelHRaw] = useState(220);
@@ -719,11 +819,11 @@ export default function RoadScreen() {
               lat: c.center.latitude,
               lng: c.center.longitude,
               heading: c.heading ?? 0,
-              pitch: c.pitch ?? 45,
+              pitch: c.pitch ?? cameraTarget(0, null).pitch,
               altitude,
               zoom: c.zoom ?? zoomForAltitude(altitude),
             }
-          : { lat: smp.lat, lng: smp.lng, heading: smp.heading, pitch: 45, altitude, zoom: zoomForAltitude(altitude) },
+          : { lat: smp.lat, lng: smp.lng, heading: smp.heading, pitch: cameraTarget(0, null).pitch, altitude, zoom: zoomForAltitude(altitude) },
         t0: Date.now(),
       };
     };
@@ -1114,6 +1214,8 @@ export default function RoadScreen() {
           onMapPress={closePin}
           openPinId={pinSel?.m.clientId ?? null}
           night={night}
+          history={history}
+          historyShown={historyShown}
         />
       </View>
 
@@ -1138,6 +1240,8 @@ export default function RoadScreen() {
         onRecenter={onRecenter}
         onNorth={onNorth}
         night={night}
+        hasHistory={history.length > 0}
+        historyShown={historyShown}
       />
 
       <LivePanel
@@ -1548,8 +1652,13 @@ const LiveControls = React.memo(function LiveControls({
   onRecenter,
   onNorth,
   night,
+  hasHistory,
+  historyShown,
 }: {
   night: boolean;
+  /** Ricca 8: tasto «Storico», solo se l'allievo ha guide passate con traccia. */
+  hasHistory: boolean;
+  historyShown: boolean;
   bottom: number;
   following: boolean;
   mapHeading: number;
@@ -1568,6 +1677,11 @@ const LiveControls = React.memo(function LiveControls({
         <Text style={[s.speedUnit, night && ns.ink3]}>km/h</Text>
       </View>
       <View style={[s.ctl, { bottom }]} pointerEvents="box-none">
+        {hasHistory ? (
+          <Animated.View entering={ROAD_TEXT_IN}>
+            <HistoryButton on={historyShown} night={night} />
+          </Animated.View>
+        ) : null}
         {/* REG-697: suoni degli avvisi accesi/spenti (la scelta resta). */}
         <Pressable
           onPress={() => {
@@ -1612,6 +1726,39 @@ const LiveControls = React.memo(function LiveControls({
         ) : null}
       </View>
     </>
+  );
+});
+
+/**
+ * Ricca 8 — «Storico»: acceso = pieno (nero di giorno, chiaro di notte) con
+ * l'icona in negativo, spento = tondo clay come gli altri. Il fondo passa in
+ * 200 ms senza rimbalzo.
+ */
+const HistoryButton = React.memo(function HistoryButton({ on, night }: { on: boolean; night: boolean }) {
+  const p = useSharedValue(on ? 1 : 0);
+  useEffect(() => {
+    p.value = withTiming(on ? 1 : 0, { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never });
+  }, [on, p]);
+  const off = night ? NIGHT.surface : CLAY.surface;
+  const full = night ? NIGHT.ink : CLAY.ink;
+  const fill = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(p.value, [0, 1], [off, full]) }));
+  const ink = on ? (night ? NIGHT.surface : CLAY.surface) : night ? NIGHT.ink : CLAY.ink;
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => undefined);
+        roadHistoryToggle.set(!on);
+      }}
+      style={({ pressed }) => [pressed && { transform: [{ scale: 0.95 }] }]}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel="Storico: mostra le ultime guide dell'allievo"
+      testID="road-history"
+    >
+      <Animated.View style={[s.round, CLAY_SHADOW.raise, fill]}>
+        <MaterialIcons name="history" size={23} color={ink} />
+      </Animated.View>
+    </Pressable>
   );
 });
 

@@ -19,9 +19,12 @@ const KMH_FAST = 60;
 /** Vicino alla svolta: da quanti metri prima si scende, e fin dove. */
 const TURN_FROM_M = 160;
 const ALT_TURN = 470;
-/** Inclinazione in marcia e sull'incrocio (gradi). */
-const PITCH_CRUISE = 45;
-const PITCH_TURN = 55;
+/**
+ * Inclinazione in marcia e sull'incrocio (gradi). Ricca 9 (07/11): da 45/55 a
+ * 30/35, più inclinata i palazzi coprivano la strada e la traccia.
+ */
+const PITCH_CRUISE = 30;
+const PITCH_TURN = 35;
 /** Rapidità dell'inseguimento (1/s): l'altitudine con calma, l'inclinazione un po' più svelta. */
 const ALT_RATE = 0.9;
 const PITCH_RATE = 1.2;
