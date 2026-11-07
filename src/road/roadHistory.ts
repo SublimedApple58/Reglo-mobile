@@ -14,15 +14,52 @@ import { regloApi } from '../services/regloApi';
  */
 
 export type HistoryPt = { latitude: number; longitude: number };
+export type HistoryLine = { pts: HistoryPt[]; startedAt: string };
+
+/**
+ * Un colore per guida, come «Tutti i percorsi» della scheda allievo web
+ * (`ROUTE_COLORS` in `reglo/components/pages/Autoscuole/road/StudentRoad.tsx`):
+ * palette istruttori dell'agenda senza blu/azzurro/indaco/ciano, stesso
+ * ordine (la guida più recente prende il primo). Di notte gli stessi toni più
+ * chiari (Tailwind 400), leggibili sulla mappa scura. Le due liste vanno
+ * cambiate insieme al web.
+ */
+const HISTORY_COLORS_DAY = ['#E11D48', '#059669', '#D97706', '#7C3AED', '#0D9488', '#EA580C', '#C026D3', '#65A30D', '#DB2777', '#57534E'];
+const HISTORY_COLORS_NIGHT = ['#FB7185', '#34D399', '#FBBF24', '#A78BFA', '#2DD4BF', '#FB923C', '#E879F9', '#A3E635', '#F472B6', '#A8A29E'];
+export const historyColor = (i: number, night: boolean) => {
+  const list = night ? HISTORY_COLORS_NIGHT : HISTORY_COLORS_DAY;
+  return list[i % list.length];
+};
 
 /** Posti fissi sulla mappa: tante quante ne manda il server. */
 export const HISTORY_SLOTS = 5;
 
-const cache = new Map<string, HistoryPt[][]>();
-const loading = new Set<string>();
+const cache = new Map<string, HistoryLine[]>();
+/** Richiesta in corso per guida: chi monta nel frattempo la aspetta (prima restava senza dati). */
+const inflight = new Map<string, Promise<HistoryLine[] | null>>();
 
-export function useRoadHistory(sessionId: string | null, studentId: string | null): HistoryPt[][] {
-  const [lines, setLines] = useState<HistoryPt[][]>(() => (sessionId ? cache.get(sessionId) ?? [] : []));
+function loadHistory(sessionId: string, studentId: string): Promise<HistoryLine[] | null> {
+  let p = inflight.get(sessionId);
+  if (!p) {
+    p = regloApi
+      .getRoadStudentHistory(studentId)
+      .then((r) => {
+        const got = r.items
+          .slice(0, HISTORY_SLOTS)
+          .map((it) => ({ startedAt: it.startedAt, pts: it.track.map(([latitude, longitude]) => ({ latitude, longitude })) }))
+          .filter((l) => l.pts.length >= 2);
+        cache.set(sessionId, got);
+        return got;
+      })
+      .catch(() => null)
+      .finally(() => inflight.delete(sessionId));
+    inflight.set(sessionId, p);
+  }
+  return p;
+}
+
+export function useRoadHistory(sessionId: string | null, studentId: string | null): HistoryLine[] {
+  const [lines, setLines] = useState<HistoryLine[]>(() => (sessionId ? cache.get(sessionId) ?? [] : []));
   useEffect(() => {
     if (!sessionId || !studentId) return;
     const hit = cache.get(sessionId);
@@ -30,22 +67,11 @@ export function useRoadHistory(sessionId: string | null, studentId: string | nul
       setLines(hit);
       return;
     }
-    if (loading.has(sessionId)) return;
-    loading.add(sessionId);
     let alive = true;
     const task = InteractionManager.runAfterInteractions(() => {
-      regloApi
-        .getRoadStudentHistory(studentId)
-        .then((r) => {
-          const got = r.items
-            .slice(0, HISTORY_SLOTS)
-            .map((it) => it.track.map(([latitude, longitude]) => ({ latitude, longitude })))
-            .filter((l) => l.length >= 2);
-          cache.set(sessionId, got);
-          if (alive) setLines(got);
-        })
-        .catch(() => undefined)
-        .finally(() => loading.delete(sessionId));
+      void loadHistory(sessionId, studentId).then((got) => {
+        if (alive && got) setLines(got);
+      });
     });
     return () => {
       alive = false;

@@ -74,7 +74,7 @@ import { deltaLabel, END_WARN_MS, estimateReturn, returnView, roadEta } from '..
 import { fixHistory } from '../../src/road/fixHistory';
 import { NIGHT, roadMapStyle, useRoadNight } from '../../src/road/night';
 import { roadSounds, useRoadSoundMuted } from '../../src/road/sounds';
-import { HISTORY_SLOTS, roadHistoryToggle, useRoadHistory, useRoadHistoryShown, type HistoryPt } from '../../src/road/roadHistory';
+import { HISTORY_SLOTS, historyColor, roadHistoryToggle, useRoadHistory, useRoadHistoryShown, type HistoryLine, type HistoryPt } from '../../src/road/roadHistory';
 import type { RoadHotspotOutcome } from '../../src/types/regloApi';
 
 /**
@@ -400,19 +400,20 @@ const LiveEnds = React.memo(function LiveEnds({ center, night }: { center: { lat
 });
 
 /**
- * Ricca 8 — le ultime tracce dell'allievo (tasto «Storico»): tenui e sottili,
- * sotto il giro e la traccia in corso. HISTORY_SLOTS posti fissi sempre
+ * Ricca 8 — le ultime tracce dell'allievo (tasto «Storico»), sotto il giro e
+ * la traccia in corso (che resta nera col bordo bianco, la più evidente). Un
+ * colore per guida come sul web (`historyColor`), più sottili e un po'
+ * trasparenti, con un filo di bordo. HISTORY_SLOTS × 2 posti fissi sempre
  * montati (crash AIRMap); accese e spente cambiando solo il colore, in una
  * dissolvenza di 240 ms a 4 passi come la coda della traccia.
  */
-// Grigio medio con un filo di bordo (bianco di giorno, scuro di notte): si
-// stacca dalle strade grigie della mappa ma resta sotto il nero della guida.
-const HISTORY_INK = 'rgba(99,99,102,0.9)';
-const HISTORY_CASE = 'rgba(255,255,255,0.9)';
-const HISTORY_INK_NIGHT = 'rgba(174,174,178,0.9)';
-const HISTORY_CASE_NIGHT = 'rgba(10,10,10,0.8)';
-const HISTORY_W = 4;
-const HISTORY_CASE_W = 7;
+const HISTORY_ALPHA = 0.82;
+const HISTORY_CASE = 'rgba(255,255,255,0.75)';
+const HISTORY_CASE_NIGHT = 'rgba(10,10,10,0.7)';
+const HISTORY_W = 3.5;
+const HISTORY_CASE_W = 6.5;
+const hexAlpha = (hex: string, a: number) =>
+  `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
 
 function useStepFade(on: boolean) {
   const [k, setK] = useState(on ? 1 : 0);
@@ -448,21 +449,22 @@ const LiveHistory = React.memo(function LiveHistory({
 }: {
   center: { lat: number; lng: number };
   night: boolean;
-  lines: HistoryPt[][];
+  lines: HistoryLine[];
   shown: boolean;
 }) {
   const still = useMemo(() => STILL(center), [center]);
   const k = useStepFade(shown && lines.length > 0);
-  const ink = night ? HISTORY_INK_NIGHT : HISTORY_INK;
   const edge = night ? HISTORY_CASE_NIGHT : HISTORY_CASE;
-  // Due Polyline fisse per traccia: bordo e linea.
+  // Due Polyline fisse per traccia (bordo e linea), dalla più vecchia alla più
+  // recente: a parità di zIndex l'ultima disegnata sta sopra.
   return (
     <>
       {Array.from({ length: HISTORY_SLOTS * 2 }, (_, j) => {
-        const i = j >> 1;
+        const i = HISTORY_SLOTS - 1 - (j >> 1);
         const isCase = (j & 1) === 0;
-        const pts = lines[i];
+        const pts = lines[i]?.pts;
         const on = !!pts && k > 0;
+        const ink = hexAlpha(historyColor(i, night), HISTORY_ALPHA);
         return (
           <Polyline
             key={j}
@@ -619,7 +621,7 @@ const LiveMap = React.memo(function LiveMap({
   onPanDrag: () => void;
   onRegionDone: () => void;
   /** Ricca 8: tracce delle ultime guide dell'allievo e se mostrarle. */
-  history: HistoryPt[][];
+  history: HistoryLine[];
   historyShown: boolean;
 }) {
   const where = useMemo(() => ({ lat: center.lat, lng: center.lng }), [center]);
@@ -1174,7 +1176,7 @@ export default function RoadScreen() {
    * tracce (e l'auto) e una riga dice cosa si sta guardando; «Ricentra»
    * riporta sull'auto. Spento, le tracce sfumano e la camera resta dov'è.
    */
-  const [historyNote, setHistoryNote] = useState<{ id: number; text: string } | null>(null);
+  const [historyNote, setHistoryNote] = useState<HistoryNote | null>(null);
   const onHistory = useCallback(() => {
     const next = !roadHistoryToggle.get();
     Haptics.selectionAsync().catch(() => undefined);
@@ -1185,9 +1187,13 @@ export default function RoadScreen() {
     }
     const first = lessonStudentName(roadStore.get().session?.lesson ?? null).split(' ')[0];
     const n = history.length;
-    setHistoryNote({ id: Date.now(), text: n === 1 ? `Ultima guida di ${first}` : `Ultime ${n} guide di ${first}` });
+    setHistoryNote({
+      id: Date.now(),
+      text: n === 1 ? `Ultima guida di ${first}` : `Ultime ${n} guide di ${first}`,
+      days: history.map((h) => dayMonthShort(h.startedAt)),
+    });
     const pts: HistoryPt[] = [];
-    for (const line of history) for (let i = 0; i < line.length; i += 2) pts.push(line[i]);
+    for (const line of history) for (let i = 0; i < line.pts.length; i += 2) pts.push(line.pts[i]);
     const car = liveRef.current;
     if (car) pts.push({ latitude: car.lat, longitude: car.lng });
     if (pts.length < 2) return;
@@ -1710,7 +1716,7 @@ const LiveControls = React.memo(function LiveControls({
   historyShown: boolean;
   onHistory: () => void;
   /** La riga «Ultime 5 guide di …» che compare accanto al tasto e sfuma. */
-  historyNote: { id: number; text: string } | null;
+  historyNote: HistoryNote | null;
   bottom: number;
   following: boolean;
   mapHeading: number;
@@ -1732,7 +1738,7 @@ const LiveControls = React.memo(function LiveControls({
         {hasHistory ? (
           <Animated.View entering={ROAD_TEXT_IN}>
             <HistoryButton on={historyShown} night={night} onPress={onHistory} />
-            {historyNote ? <HistoryCaption key={historyNote.id} text={historyNote.text} night={night} /> : null}
+            {historyNote ? <HistoryCaption key={historyNote.id} note={historyNote} night={night} /> : null}
           </Animated.View>
         ) : null}
         {/* REG-697: suoni degli avvisi accesi/spenti (la scelta resta). */}
@@ -1782,17 +1788,17 @@ const LiveControls = React.memo(function LiveControls({
   );
 });
 
+const HISTORY_NOTE_MS = 3200;
+type HistoryNote = { id: number; text: string; days: string[] };
+/** «5 nov» (legenda dello Storico). */
+const dayMonthShort = (iso: string) =>
+  new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', timeZone: 'Europe/Rome' }).replace('.', '');
 /**
- * Ricca 8 — «Storico»: acceso = pieno (nero di giorno, chiaro di notte) con
- * l'icona in negativo, spento = tondo clay come gli altri. Il fondo passa in
- * 200 ms senza rimbalzo.
+ * La riga accanto al tasto e, sotto, la legenda: un pallino del colore della
+ * traccia e il giorno, dalla più recente. Compare in 200 ms, resta 3,2 s e
+ * sfuma in 300 ms. Solo testo con un alone del colore della mappa (niente pillole).
  */
-/**
- * La riga accanto al tasto: compare in 200 ms, resta 2,2 s e sfuma in 300 ms.
- * Solo testo con un alone del colore della mappa (niente pillola).
- */
-const HISTORY_NOTE_MS = 2200;
-const HistoryCaption = React.memo(function HistoryCaption({ text, night }: { text: string; night: boolean }) {
+const HistoryCaption = React.memo(function HistoryCaption({ note, night }: { note: HistoryNote; night: boolean }) {
   const p = useSharedValue(0);
   useEffect(() => {
     p.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never }, () => {
@@ -1803,12 +1809,25 @@ const HistoryCaption = React.memo(function HistoryCaption({ text, night }: { tex
   return (
     <Animated.View pointerEvents="none" style={[s.historyNote, anim]}>
       <Text style={[s.historyNoteTx, night && s.historyNoteTxNight]} numberOfLines={1} accessibilityLiveRegion="polite">
-        {text}
+        {note.text}
       </Text>
+      <View style={s.historyLegend}>
+        {note.days.map((d, i) => (
+          <View key={i} style={s.historyLegendItem}>
+            <View style={[s.historyDot, { backgroundColor: historyColor(i, night) }, night && s.historyDotNight]} />
+            <Text style={[s.historyLegendTx, night && s.historyNoteTxNight]}>{d}</Text>
+          </View>
+        ))}
+      </View>
     </Animated.View>
   );
 });
 
+/**
+ * Ricca 8 — «Storico»: acceso = pieno (nero di giorno, chiaro di notte) con
+ * l'icona in negativo, spento = tondo clay come gli altri. Il fondo passa in
+ * 200 ms senza rimbalzo.
+ */
 const HistoryButton = React.memo(function HistoryButton({ on, night, onPress }: { on: boolean; night: boolean; onPress: () => void }) {
   const p = useSharedValue(on ? 1 : 0);
   useEffect(() => {
@@ -2105,7 +2124,19 @@ const s = StyleSheet.create({
   speedUnit: { fontSize: 10.5, fontWeight: '500', color: CLAY.ink3, marginTop: 1 },
   ctl: { position: 'absolute', right: 14, alignItems: 'flex-end', gap: 10 },
   round: { width: 50, height: 50, borderRadius: 25, backgroundColor: CLAY.surface, alignItems: 'center', justifyContent: 'center' },
-  historyNote: { position: 'absolute', right: 62, top: 0, bottom: 0, justifyContent: 'center', width: 260, alignItems: 'flex-end' },
+  historyNote: { position: 'absolute', right: 62, top: 0, bottom: 0, justifyContent: 'center', width: 340, alignItems: 'flex-end', gap: 4 },
+  historyLegend: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: 10, rowGap: 2 },
+  historyLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  historyDot: { width: 9, height: 9, borderRadius: 4.5, borderWidth: 1.5, borderColor: '#FFFFFF' },
+  historyDotNight: { borderColor: 'rgba(10,10,10,0.8)' },
+  historyLegendTx: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: CLAY.ink2,
+    letterSpacing: -0.1,
+    textShadowColor: 'rgba(255,255,255,0.95)',
+    textShadowRadius: 8,
+  },
   historyNoteTx: {
     fontSize: 15,
     fontWeight: '600',
