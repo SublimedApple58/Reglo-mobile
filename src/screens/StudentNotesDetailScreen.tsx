@@ -50,7 +50,7 @@ import { openRoadPercorso } from '../road/openRoadPercorso';
 import { forgetRoadStudent, prefetchRoadStudent } from '../road/avvioFlow';
 import { ROAD_ASSETS } from '../road/markerArt';
 import type { RoadStudentItem } from '../types/regloApi';
-import { isMandatoryLessonDuration } from '../utils/mandatoryLessons';
+import { REQUIRED_DRIVING_MINUTES, creditedMinutes, formatDrivingHours, lessonMinutes } from '../utils/mandatoryLessons';
 
 // Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
 const SEDE_OPTION = '__sede__';
@@ -532,14 +532,15 @@ export const StudentNotesDetailScreen = () => {
   );
   const hiddenByPath = rawAppointments.length - appointments.length;
 
-  // Obbligo: contano SOLO le guide da 60 minuti (stesso criterio del BE e dei
-  // colori dell'agenda). Le guide da 30 minuti finivano qui dentro per errore.
-  const completedCount = useMemo(
-    () => appointments.filter((a) => {
-      const s = (a.status ?? '').trim().toLowerCase();
-      if (s !== 'completed' && s !== 'checked_in') return false;
-      return isMandatoryLessonDuration(a);
-    }).length,
+  // Obbligo: le ORE guidate del percorso (ogni guida completata, qualunque
+  // durata), a mezz'ore con la tolleranza Road — stessa regola del web.
+  const mandatoryMinutes = useMemo(
+    () => creditedMinutes(
+      appointments.reduce((sum, a) => {
+        const s = (a.status ?? '').trim().toLowerCase();
+        return s === 'completed' || s === 'checked_in' ? sum + lessonMinutes(a) : sum;
+      }, 0),
+    ),
     [appointments],
   );
 
@@ -838,7 +839,12 @@ export const StudentNotesDetailScreen = () => {
       {/* Tre numeri, ognuno col suo oggetto 3D */}
       <View style={s.stats}>
         {[
-          { art: VITA_ART.volante, value: String(completedCount), unit: '', label: completedCount === 1 ? 'guida fatta' : 'guide fatte' },
+          {
+            art: VITA_ART.volante,
+            value: formatDrivingHours(mandatoryMinutes),
+            unit: `/${formatDrivingHours(REQUIRED_DRIVING_MINUTES)} h`,
+            label: mandatoryMinutes >= REQUIRED_DRIVING_MINUTES ? 'obbligo fatto' : 'obbligo guide',
+          },
           { art: VITA_ART.stella, value: avgRating ?? '—', unit: avgRating ? '/5' : '', label: 'pagellino' },
           { art: VITA_ART.orologio, value: String(totalHours), unit: 'h', label: 'al volante' },
         ].map((st) => (
