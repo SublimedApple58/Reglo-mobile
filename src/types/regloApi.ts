@@ -1971,6 +1971,11 @@ export type RoadStudentRoad = {
   hotspots?: RoadStudentHotspot[];
 };
 
+/** Ricca 8+9: ultime tracce dell'allievo (tutti gli istruttori) per il tasto «Storico» in guida. */
+export type RoadStudentHistory = {
+  items: Array<{ id: string; startedAt: string; track: Array<[number, number]> }>;
+};
+
 export type AddRoadMarkerInput = {
   clientId: string;
   kind: string;
