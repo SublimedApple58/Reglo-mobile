@@ -1347,10 +1347,10 @@ const WeekPage = React.memo(function WeekPage({
                 ]}
               >
                 {look.bar ? <View style={[styles.eventBar, { backgroundColor: look.bar }]} /> : null}
-                <View style={[styles.lessonInner, box.narrow && styles.innerNarrow]}>
-                  <Text style={[styles.lessonName, initialsFirst && styles.laneInitials, { color: look.text }]} numberOfLines={1} ellipsizeMode={box.narrow ? 'clip' : 'tail'}>{line1}</Text>
+                <View style={[styles.lessonInner, box.narrow && styles.innerNarrow, box.tiny && styles.innerTiny]}>
+                  <Text style={[styles.lessonName, initialsFirst && styles.laneInitials, initialsFirst && box.tiny && styles.laneInitialsTiny, { color: look.text }]} numberOfLines={1} ellipsizeMode={initialsFirst ? 'clip' : 'tail'}>{line1}</Text>
                   {line2 ? (
-                    <Text style={[styles.lessonTime, { color: look.sub }]} numberOfLines={1} ellipsizeMode={box.narrow ? 'clip' : 'tail'}>
+                    <Text style={[styles.lessonTime, { color: look.sub }]} numberOfLines={1} ellipsizeMode="tail">
                       {line2}
                     </Text>
                   ) : null}
@@ -1399,7 +1399,7 @@ const WeekPage = React.memo(function WeekPage({
                 ]}
               >
                 {EXAM_LOOK.bar ? <View style={[styles.eventBar, { backgroundColor: EXAM_LOOK.bar }]} /> : null}
-                <View style={[styles.eventInner, box.narrow && styles.innerNarrow, { backgroundColor: EXAM_LOOK.bg }]}>
+                <View style={[styles.eventInner, box.narrow && styles.innerNarrow, box.tiny && styles.innerTiny, { backgroundColor: EXAM_LOOK.bg }]}>
                 {/* In colonna da ~39pt utili il titolo a parole non ci sta: il
                     tipo lo dicono colore e icona, le parole restano nello sheet. */}
                 <View style={styles.eventHead}>
@@ -1411,7 +1411,7 @@ const WeekPage = React.memo(function WeekPage({
                   {withNames.length ? <Ionicons name="link" size={9} color={EXAM_LOOK.text} /> : null}
                 </View>
                 {examInitials ? (
-                  <Text style={[styles.laneInitials, { color: EXAM_LOOK.text, marginTop: 2 }]} numberOfLines={1} ellipsizeMode="clip">{examInitials}</Text>
+                  <Text style={[styles.laneInitials, box.tiny && styles.laneInitialsTiny, { color: EXAM_LOOK.text, marginTop: 2 }]} numberOfLines={1} ellipsizeMode="clip">{examInitials}</Text>
                 ) : null}
                 {height >= 40 && !box.narrow && (
                   <Text style={[styles.eventTime, { color: EXAM_LOOK.text }]} numberOfLines={1}>
@@ -1459,7 +1459,7 @@ const WeekPage = React.memo(function WeekPage({
                 ]}
               >
                 {look.bar ? <View style={[styles.eventBar, { backgroundColor: look.bar }]} /> : null}
-                <View style={[styles.eventInner, box.narrow && styles.innerNarrow, { backgroundColor: look.bg }]}>
+                <View style={[styles.eventInner, box.narrow && styles.innerNarrow, box.tiny && styles.innerTiny, { backgroundColor: look.bg }]}>
                 {/* Stessa regola dell'esame: niente parole, il tipo sta nel
                     colore e nell'icona. Per i gruppi moto l'icona è già quella
                     di birilli/strada — la pill con la parola veniva tagliata. */}
@@ -1482,7 +1482,7 @@ const WeekPage = React.memo(function WeekPage({
                   {withNames.length ? <Ionicons name="link" size={9} color={look.text} /> : null}
                 </View>
                 {glInitials ? (
-                  <Text style={[styles.laneInitials, { color: look.text, marginTop: 2 }]} numberOfLines={1} ellipsizeMode="clip">{glInitials}</Text>
+                  <Text style={[styles.laneInitials, box.tiny && styles.laneInitialsTiny, { color: look.text, marginTop: 2 }]} numberOfLines={1} ellipsizeMode="clip">{glInitials}</Text>
                 ) : null}
                 {height >= 40 && !box.narrow && (
                   <Text style={[styles.eventTime, { color: look.text }]} numberOfLines={1}>
@@ -1530,6 +1530,7 @@ const WeekPage = React.memo(function WeekPage({
                   styles.block,
                   isTheory && styles.blockSolid,
                   box.narrow && styles.blockNarrow,
+                  box.tiny && styles.innerTiny,
                   { top, height, left: box.left, width: box.width, backgroundColor: tint.bg, borderColor: isTheory ? tint.bg : tint.border },
                 ]}
               >
@@ -2100,6 +2101,9 @@ const styles = StyleSheet.create({
   innerNarrow: { paddingLeft: 3, paddingRight: 2 },
   blockNarrow: { paddingHorizontal: 2, alignItems: 'center' },
   laneInitials: { fontSize: 10, fontWeight: '600', lineHeight: 13, letterSpacing: -0.2 },
+  // Corsia da ~16pt (3 su iPhone): margini al minimo e iniziali centrate, intere.
+  innerTiny: { paddingLeft: 1, paddingRight: 1, alignItems: 'center' },
+  laneInitialsTiny: { fontSize: 9.5, letterSpacing: -0.4, textAlign: 'center' },
   laneMore: {
     position: 'absolute',
     borderRadius: 10,

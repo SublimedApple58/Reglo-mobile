@@ -135,10 +135,10 @@ function EveryoneFaces({ people }: { people: AgendaScopeInstructor[] }) {
   return (
     <View style={s.faces}>
       <View style={s.faceBack}>
-        <Avatar userId={b.userId} name={b.name} size={30} />
+        <Avatar userId={b.userId} name={b.name} size={28} />
       </View>
       <View style={s.faceFront}>
-        <Avatar userId={a.userId} name={a.name} size={30} />
+        <Avatar userId={a.userId} name={a.name} size={28} />
       </View>
     </View>
   );
@@ -221,8 +221,9 @@ const s = StyleSheet.create({
   blank: { backgroundColor: '#FFFFFF', height: 1 },
   search: { marginTop: 18 },
   faces: { width: 42, height: 42 },
-  faceBack: { position: 'absolute', right: 0, top: 0 },
-  faceFront: { position: 'absolute', left: 0, bottom: 0 },
+  // Due volti affiancati e sovrapposti di metà, come le pile di contatti iOS.
+  faceBack: { position: 'absolute', left: 14, top: 7 },
+  faceFront: { position: 'absolute', left: 0, top: 7, zIndex: 1 },
   section: { fontSize: 17, fontWeight: '600', color: CLAY.ink, paddingHorizontal: 4, paddingTop: 22, paddingBottom: 10, letterSpacing: -0.2 },
   letter: { fontSize: 13, fontWeight: '600', color: CLAY.ink4, paddingHorizontal: 4, paddingTop: 14, paddingBottom: 6 },
   none: { fontSize: 14.5, color: CLAY.ink3, paddingHorizontal: 4, paddingTop: 4 },
