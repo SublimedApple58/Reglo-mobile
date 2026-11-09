@@ -131,6 +131,10 @@ export default function ExamExaminersScreen() {
       onClose={() => { if (!saving) router.back(); }}
       busy={saving}
       testID="exam-examiners-sheet"
+      // Il form sheet nativo si alza già sopra la tastiera: con anche l'inset
+      // automatico dello scroll, la riga nuova messa a fuoco a tastiera chiusa
+      // faceva scorrere tutto fuori vista (righe sopra il foglio, corpo bianco).
+      scrollProps={{ automaticallyAdjustKeyboardInsets: false }}
       cta={<ClayButton title={data.ctaTitle} loading={saving} onPress={confirm} testID="exam-examiners-confirm" />}
     >
       <ClayList>
