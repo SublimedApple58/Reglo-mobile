@@ -1398,6 +1398,9 @@ Ogni sotto-input di un form NON si apre inline ma in una **route nativa** (Expo 
 |------|-------|-------|--------------|
 | Data (calendario mesi) | `select-date` | `dayPickerStore` | `modal` |
 | Ora (ruota) | `time-picker` | `timePickerStore` | `formSheet` + `fitToContents` |
+
+> **Orari spezzati** (07/11/2026): `home/time-picker` (guide, esami, blocchi, gruppi, malattia dello staff) ha il segmentato `00 · 15 · 30 · 45 · Altro`. «Altro» apre in dissolvenza (220 ms) il campo «Minuti esatti» (tastierino numerico, 2 cifre, 0–59) e, scelto il minuto, ne diventa l'etichetta («50»); la CTA dice «Scrivi i minuti» finché il campo è vuoto. Gli altri `time-picker` (disponibilità, veicoli, impostazioni) restano a quarti: il backend vuole le fasce a multipli di 30'. Web: `TimePickerInput freeInput` (reglo `docs/design-system.md`).
+
 | Allievo (ricerca + lista, single) | `select-student` | `studentPickerStore` | `modal` |
 | Allievi (ricerca + checkbox, MULTI) | `select-exam-students` | `examStudentsStore` | `modal` |
 | Durata / Veicolo / Tipo / Aggiungi allievo | `select-options` (≤7 voci) / `select-options-long` (>7, scrollabile) — route scelta da `optionsPickerPath()` DOPO `optionsPickerStore.set()` | `optionsPickerStore` | `formSheet fitToContents` / `modal` (2026-07-07: il form sheet clippava le liste lunghe senza scroll) |
