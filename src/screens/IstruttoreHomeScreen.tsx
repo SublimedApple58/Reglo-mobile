@@ -70,6 +70,9 @@ import { prefetchRoadForAppointment } from '../road/roadAppointmentQuery';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { useInstructorTabs } from '../hooks/useInstructorTabs';
 import { useTabBarOverlap } from '../components/tabBarSpace';
+import { agendaScopeSheetStore, type AgendaScope } from '../stores/agendaScopeSheetStore';
+import { SOFT } from '../utils/motion';
+import { ReduceMotion } from 'react-native-reanimated';
 
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
 
@@ -325,6 +328,10 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   const canSwitchScope = !ownerMode && autoscuolaRole === 'INSTRUCTOR_OWNER';
   const [calendarScope, setCalendarScope] = useState<'personal' | 'all'>(ownerMode ? 'all' : 'personal');
   const effectiveInstructorId = ownerMode || calendarScope === 'all' ? undefined : instructorId;
+  // Filtro per istruttore (09/11/2026): con «Tutti» caricato, scegliere un
+  // istruttore filtra in memoria — nessuna chiamata al tocco.
+  const [focusInstructorId, setFocusInstructorId] = useState<string | null>(null);
+  const [scopeInstructors, setScopeInstructors] = useState<AutoscuolaInstructor[]>([]);
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [featuredAppointments, setFeaturedAppointments] = useState<
     AutoscuolaAppointmentWithRelations[]
@@ -443,6 +450,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
     setSettings(settingsData);
     setStudents(bootstrap.students);
+    setScopeInstructors(bootstrap.instructors ?? []);
     setVehicles(bootstrap.vehicles ?? []);
     const notCancelled = (item: { status?: string | null }) => (item.status ?? '').toLowerCase() !== 'cancelled';
     const matchesScope = (item: {
@@ -570,6 +578,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       }
       setSettings(settingsResponse);
       setStudents(agendaBootstrap.students);
+      setScopeInstructors(agendaBootstrap.instructors ?? []);
       setVehicles(agendaBootstrap.vehicles);
       const currentInstructor = agendaBootstrap.instructors?.find(
         (inst) => inst.id === instructorId,
@@ -742,6 +751,51 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   // SWR: only a true loading state when nothing is loaded yet. Background window
   // refreshes keep the (week) grid painted instead of flashing a loader.
   const appointmentsLoading = (initialLoading || rangeLoading) && appointments.length === 0;
+
+  // ── Quale agenda (09/11/2026): Le mie / Tutti / un istruttore ──
+  const canPickScope = ownerMode || canSwitchScope;
+  const scopeDirectory = useMemo(
+    () => Object.fromEntries(scopeInstructors.map((i) => [i.id, { name: i.name, userId: i.userId ?? null }])),
+    [scopeInstructors],
+  );
+  // Un istruttore che non c'è più (disattivato, altra autoscuola) torna a «Tutti».
+  const focusId = focusInstructorId && scopeDirectory[focusInstructorId] ? focusInstructorId : null;
+  const gridAppointments = useMemo(
+    () => (focusId ? appointments.filter((a) => lessonInvolvesInstructor(a, focusId)) : appointments),
+    [appointments, focusId],
+  );
+  const gridBlocks = useMemo(
+    () => (focusId ? instructorBlocks.filter((b) => b.instructorId === focusId) : instructorBlocks),
+    [instructorBlocks, focusId],
+  );
+  const currentScope: AgendaScope = focusId
+    ? { kind: 'instructor', instructorId: focusId }
+    : effectiveInstructorId
+      ? { kind: 'personal' }
+      : { kind: 'all' };
+  // Cambio di agenda: la griglia si abbassa appena e torna piena (240 ms,
+  // niente salti), mentre i blocchi cambiano sotto.
+  const scopeFadeSV = useSharedValue(1);
+  const scopeFadeStyle = useAnimatedStyle(() => ({ opacity: scopeFadeSV.value }));
+  const applyScope = useCallback((scope: AgendaScope) => {
+    scopeFadeSV.value = 0.35;
+    scopeFadeSV.value = withTiming(1, { duration: 240, easing: SOFT, reduceMotion: ReduceMotion.Never });
+    setFocusInstructorId(scope.kind === 'instructor' ? scope.instructorId : null);
+    setCalendarScope(scope.kind === 'personal' ? 'personal' : 'all');
+  }, [scopeFadeSV]);
+  const openScopeSheet = useCallback(() => {
+    const me = instructorId ? scopeDirectory[instructorId] : undefined;
+    agendaScopeSheetStore.set({
+      canPickPersonal: canSwitchScope,
+      myInstructorId: instructorId ?? null,
+      myUserId: me?.userId ?? user?.id ?? null,
+      myName: me?.name ?? user?.name ?? '',
+      instructors: scopeInstructors.map((i) => ({ id: i.id, name: i.name, userId: i.userId ?? null })),
+      selected: currentScope,
+      onPick: applyScope,
+    });
+    router.push('/(tabs)/home/agenda-scope');
+  }, [instructorId, scopeDirectory, canSwitchScope, user?.id, user?.name, scopeInstructors, currentScope, applyScope, router]);
 
   const handleDeleteBlock = useCallback(async (blockId: string) => {
     try {
@@ -2010,22 +2064,45 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     );
   }
 
-  // Ambito per il titolare-istruttore (REG-639): due voci di testo, niente chip.
-  const scopeTabs = canSwitchScope ? (
+  // Quale agenda (REG-639 + 09/11/2026): per il titolare-istruttore «Le mie
+  // guide» resta una voce di testo; la seconda voce dice chi si sta guardando
+  // («Tutti gli istruttori» o il nome) e apre il foglio con la lista e la
+  // ricerca. Il titolare puro ha solo la seconda. Niente chip né segmenti.
+  const focusName = focusId ? scopeDirectory[focusId]?.name ?? '' : '';
+  const scopeTabs = canPickScope ? (
     <View style={hd.scope}>
-      {(['personal', 'all'] as const).map((v) => (
+      {canSwitchScope ? (
         <Pressable
-          key={v}
-          onPress={() => setCalendarScope(v)}
+          onPress={() => { if (currentScope.kind !== 'personal') applyScope({ kind: 'personal' }); }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityState={{ selected: calendarScope === v }}
+          accessibilityState={{ selected: currentScope.kind === 'personal' }}
+          testID="agenda-scope-mine"
         >
-          <Text style={[hd.scopeTx, calendarScope === v && hd.scopeOn]}>
-            {v === 'personal' ? 'Le mie guide' : 'Tutti gli istruttori'}
-          </Text>
+          <Text style={[hd.scopeTx, currentScope.kind === 'personal' && hd.scopeOn]}>Le mie guide</Text>
         </Pressable>
-      ))}
+      ) : null}
+      <Pressable
+        onPress={openScopeSheet}
+        hitSlop={8}
+        style={({ pressed }) => [hd.scopePick, pressed && { opacity: 0.55 }]}
+        accessibilityRole="button"
+        accessibilityLabel={`${focusName || 'Tutti gli istruttori'}, scegli quale agenda`}
+        testID="agenda-scope-open"
+      >
+        <Text
+          style={[hd.scopeTx, currentScope.kind !== 'personal' && hd.scopeOn, hd.scopePickTx]}
+          numberOfLines={1}
+        >
+          {focusName || 'Tutti gli istruttori'}
+        </Text>
+        <Ionicons
+          name="chevron-down"
+          size={15}
+          color={currentScope.kind !== 'personal' ? CLAY.ink : CLAY.ink4}
+          style={hd.scopeChevron}
+        />
+      </Pressable>
     </View>
   ) : null;
 
@@ -2092,16 +2169,19 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         </View>
 
         {/* Agenda = SOLO la vista settimanale (REG-638; confermato da Tiziano 29/10). */}
+        <Animated.View style={[{ flex: 1 }, scopeFadeStyle]}>
           <WeeklyAgendaView
-            appointments={appointments}
-            instructorBlocks={instructorBlocks}
+            appointments={gridAppointments}
+            instructorBlocks={gridBlocks}
             holidays={holidays}
             anchorDate={selectedDate}
             readOnly={ownerMode}
             loading={appointmentsLoading}
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            myInstructorId={effectiveInstructorId ?? null}
+            myInstructorId={focusId ?? effectiveInstructorId ?? null}
+            showInstructor={currentScope.kind === 'all'}
+            instructorDirectory={scopeDirectory}
             studentCompletedMinutes={studentCompletedMinutes}
             weekAvailabilityByDate={weekAvailability}
             onDateChange={(monday) => {
@@ -2126,6 +2206,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
             allowedDurations={bookingDurations}
             onGhostActiveChange={setGhostCtaActive}
           />
+        </Animated.View>
       </View>
 
       {/* ── FAB Menu (nascosto per il titolare: home in sola lettura;
@@ -3826,6 +3907,9 @@ const hd = StyleSheet.create({
   scope: { flexDirection: 'row', gap: 20, marginTop: 14 },
   scopeTx: { fontSize: 15, fontWeight: '500', color: CLAY.ink4 },
   scopeOn: { color: CLAY.ink, fontWeight: '600' },
+  scopePick: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, minWidth: 0 },
+  scopePickTx: { flexShrink: 1 },
+  scopeChevron: { marginLeft: 4, marginTop: 1 },
   oob: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingVertical: 10, paddingHorizontal: 14 },
   oobArt: { width: 30, height: 30 },
   oobTx: { flex: 1, fontSize: 15, fontWeight: '500', color: CLAY.ink },

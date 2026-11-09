@@ -300,4 +300,6 @@ When `../reglo/` backend changes:
 
 > 28/10/2026 (REG-638): l'agenda istruttore/titolare ha solo la griglia (`WeeklyAgendaView`). `WeeklyOverview`, `WeeklyLiveCard`, `DayItinerary`, `home/day-detail` e `dayDetailStore` sono stati eliminati: dove sopra o nei feature doc compaiono, sono storici.
 >
+> 09/11/2026: «Tutti gli istruttori» — corsie affiancate nella griglia (`src/utils/agendaLanes.ts`, cella «+N» → `home/agenda-slot`) e filtro per istruttore (`home/agenda-scope`, dati del bootstrap filtrati in memoria). Tocca `WeeklyAgendaView` (props `showInstructor`, `instructorDirectory`) e `IstruttoreHomeScreen`; nessuna API nuova.
+
 > 28/10/2026 notte (REG-639): era tornata una vista **Giorno** a lista (`AgendaDayView` + `AgendaDayStrip`), bocciata ed eliminata il 29/10: l'Agenda è **solo la Settimana** (griglia clay, blocchi a fondo pastello pieno). Vedi [features/agenda-istruttore.md](features/agenda-istruttore.md). Le icone Fluent (`assets/icons/fluent-*.png`) sono state eliminate: dove i doc le citano, sono storiche.

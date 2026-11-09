@@ -29,9 +29,8 @@ lun–sab), come dopo REG-638. REG-639 ne ha rifatto lo stile (clay v2:
 ## La vista
 
 **Testata** (stili `hd` in `IstruttoreHomeScreen`): «Agenda» 32/600 con sotto
-la data di oggi in grigio; a destra orologio (Disponibilità) e campanella; per
-il `INSTRUCTOR_OWNER` due voci di testo «Le mie guide» / «Tutti gli istruttori»
-(`calendarScope`, niente chip); errore; banner «N guide fuori disponibilità»
+la data di oggi in grigio; a destra orologio (Disponibilità) e campanella; il
+**selettore dell'agenda** (09/11/2026, vedi sotto); errore; banner «N guide fuori disponibilità»
 (`ClaySurface` piccola → `home/out-of-availability`). Niente segmentato:
 l'agenda si apre e resta sulla Settimana.
 
@@ -60,6 +59,40 @@ l'agenda si apre e resta sulla Settimana.
 **FAB «+»**: cerchio nero 56 col volume della CTA primaria
 (`CLAY_CTA.primary`, `testID="agenda-fab"`) → foglio «Nuovo». Si nasconde mentre
 è attiva la CTA del blocco fantasma (`onGhostActiveChange`).
+
+## Quale agenda e guide affiancate (09/11/2026)
+
+Segnalazioni Gabriele («non vedo le guide di tutti gli istruttori dallo
+smartphone») e Macchiavello. Decisione di Tiziano: **niente vista Giorno**, si
+sistema la Settimana.
+
+- **Selettore** (titolare e titolare-istruttore; l'istruttore vede solo le sue):
+  `INSTRUCTOR_OWNER` = voce di testo «Le mie guide» + seconda voce con chi si
+  guarda («Tutti gli istruttori» o il nome) e chevron; il titolare puro ha solo
+  la seconda. La seconda voce apre il form sheet `home/agenda-scope` «Quale
+  agenda?» (`agendaScopeSheetStore`): «Le mie guide», «Tutti gli istruttori»,
+  poi gli istruttori (volto + nome, spunta sulla scelta), ricerca da 7
+  istruttori, lettere oltre 20. FlatList del foglio, righe memo.
+- **Nessuna chiamata al tocco**: gli istruttori vengono dal bootstrap
+  dell'agenda (`instructors`, sempre tutti quelli attivi). Un singolo istruttore
+  si ottiene filtrando in memoria i dati di «Tutti» (`focusInstructorId` →
+  `gridAppointments`/`gridBlocks`); il fetch cambia solo fra «Le mie» e il resto.
+  Il cambio di agenda è una dissolvenza della griglia (0.35 → 1, 240 ms).
+- **Corsie** (`src/utils/agendaLanes.ts`, `layoutLanes`): nella colonna di un
+  giorno gli impegni che si sovrappongono negli orari reali (guide, esami,
+  gruppi, blocchi) si dividono la larghezza come nel calendario iOS. Corsie
+  minime 16pt (`LANE_MIN_W`): se non ci stanno, l'ultima corsia è la cella «+N»
+  (bianca clay, niente badge) che apre `home/agenda-slot` con tutti gli impegni
+  della fascia (volto e nome dell'istruttore, allievo e orario); il tocco chiude
+  e apre l'impegno. Con più istruttori (`showInstructor`): corsie strette
+  (< 44pt) = iniziali dell'istruttore e sotto il cognome dell'allievo se ci sta;
+  corsia piena = allievo e «Mario R.». Su iPhone ~3 corsie, su iPad di più.
+- Creazione dal fantasma invariata: in «Tutti» o con un istruttore scelto il
+  fantasma non si ferma sugli eventi e l'istruttore lo sceglie il foglio
+  (titolare) come prima.
+- Limite noto: il bootstrap ha `limit: 400` sulla finestra caricata; con
+  autoscuole molto grandi in «Tutti» le ultime guide della finestra possono
+  mancare (preesistente).
 
 ## Flusso dati
 

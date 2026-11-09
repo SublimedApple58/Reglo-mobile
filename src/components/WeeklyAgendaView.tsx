@@ -52,6 +52,8 @@ import { createKindSheetStore } from '../stores/createKindSheetStore';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CREATE_LABEL, draftLook } from './agenda/createKinds';
+import { layoutLanes, instructorInitials, instructorShortName, type LaneItem, type LaneOverflow } from '../utils/agendaLanes';
+import { agendaSlotSheetStore } from '../stores/agendaSlotSheetStore';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -103,6 +105,13 @@ type WeeklyAgendaViewProps = {
   ghostIgnoresEvents?: boolean;
   /** Cambia → il fantasma sparisce (es. dopo una creazione riuscita). */
   ghostResetKey?: number;
+  /**
+   * Più istruttori sulla griglia («Tutti gli istruttori», 09/11/2026): sui
+   * blocchi compare chi guida (iniziali nelle corsie strette, nome dove ci sta).
+   */
+  showInstructor?: boolean;
+  /** id istruttore → nome e utente: nomi sui blocchi e volti del foglio «+N». */
+  instructorDirectory?: Record<string, { name: string; userId?: string | null }>;
   /** Allowed lesson durations (minutes) — the ghost block snaps only to these (same set as the booking modal). */
   allowedDurations?: number[];
   /** Ghost CTA visible/hidden — lets the parent hide the FAB underneath. */
@@ -130,6 +139,12 @@ const ROW_H = 56;
 const GUTTER_W = 32;
 const COL_GAP = 3;        // gap between day columns (Airbnb-ish breathing room)
 const GRID_TOP_PAD = 12;  // breathing room so the first hour label isn't clipped
+// Corsie affiancate (09/11/2026): una corsia sotto LANE_MIN_W non è leggibile
+// (oltre si passa alla cella «+N»); sotto WIDE_LANE si mostrano solo le iniziali.
+const LANE_MIN_W = 16;
+const LANE_GAP = 2;
+const WIDE_LANE = 44;
+const EMPTY_DIRECTORY: Record<string, { name: string; userId?: string | null }> = {};
 
 // Ghost-block booking.
 const STEP = 15;                       // minutes per snap step (drag granularity)
@@ -772,6 +787,8 @@ type WeekPageProps = {
   /** Pull-to-refresh on the vertical grid scroll. */
   refreshing: boolean;
   onRefresh?: () => void;
+  showInstructor: boolean;
+  instructorDirectory: Record<string, { name: string; userId?: string | null }>;
 };
 
 const WeekPage = React.memo(function WeekPage({
@@ -779,7 +796,7 @@ const WeekPage = React.memo(function WeekPage({
   weekAvailabilityByDate, readOnly, loading,
   onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, myInstructorId,
   canBook, allowedDur, defaultDur, onGhostChange, ghostDismissTick, onGhostDismiss, ghostIgnoresEvents,
-  refreshing, onRefresh,
+  refreshing, onRefresh, showInstructor, instructorDirectory,
 }: WeekPageProps) {
   // Tab bar in vetro sopra la griglia: l'ultima ora resta raggiungibile.
   const barOverlap = useTabBarOverlap();
@@ -1011,6 +1028,94 @@ const WeekPage = React.memo(function WeekPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookableByCol]);
 
+  /* ── Corsie affiancate (09/11/2026) ──
+   * Gli impegni che si sovrappongono davvero si dividono la colonna; se le
+   * corsie non ci stanno, l'ultima diventa «+N» (foglio con la fascia). Per
+   * ogni impegno teniamo anche nome dell'istruttore, riga di dettaglio e
+   * tocco: servono alla cella «+N», che apre la lista senza chiamate. */
+  const router = useRouter();
+  const laneCap = Math.max(1, Math.floor((colW - 4) / LANE_MIN_W));
+  const lanesByCol = useMemo(() => weekDays.map((_day, colIdx) => {
+    const items: LaneItem[] = [];
+    const info = new Map<string, { start: number; end: number; instructorName: string; instructorUserId: string | null; detail: string; open: () => void }>();
+    const nameOf = (id: string | null | undefined, fallback?: string | null) =>
+      fallback || (id ? instructorDirectory[id]?.name : '') || 'Istruttore';
+    const span = (startsAt: string, endsAt: string | null | undefined): [number, number] => {
+      const st = new Date(startsAt);
+      const sm = st.getHours() * 60 + st.getMinutes();
+      const dur = endsAt ? (new Date(endsAt).getTime() - st.getTime()) / 60000 : 60;
+      return [sm, sm + Math.max(dur, 1)];
+    };
+    const add = (key: string, [start, end]: [number, number], instructorId: string | null | undefined, instructorName: string | null | undefined, what: string, open: () => void) => {
+      items.push({ key, start, end });
+      info.set(key, {
+        start, end,
+        instructorName: nameOf(instructorId, instructorName),
+        instructorUserId: (instructorId && instructorDirectory[instructorId]?.userId) || null,
+        detail: `${what} · ${fmtMin(start)} – ${fmtMin(end)}`,
+        open,
+      });
+    };
+    const { guide, exams, groups } = eventsByCol[colIdx];
+    for (const a of guide) {
+      const who = [a.student?.lastName, a.student?.firstName].filter(Boolean).join(' ') || 'Guida';
+      add(`g:${a.id}`, span(a.startsAt, a.endsAt), a.instructorId, a.instructor?.name, who, () => onPressAppointment(a));
+    }
+    for (const appts of exams) {
+      const a0 = appts[0];
+      const n = appts.filter((a) => !isExamPlaceholder(a)).length;
+      add(`e:${a0.id}`, span(a0.startsAt, a0.endsAt), a0.instructorId, a0.instructor?.name,
+        `Esame · ${n} ${n === 1 ? 'allievo' : 'allievi'}`, () => onPressExam?.(appts));
+    }
+    for (const { groupLessonId, appts } of groups) {
+      const a0 = appts[0];
+      const n = appts.filter((a) => !String(a.id).startsWith('gl-empty:')).length;
+      add(`gr:${groupLessonId ?? a0.id}`, span(a0.startsAt, a0.endsAt), a0.instructorId, a0.instructor?.name,
+        `Guida di gruppo · ${n}/${a0.groupLessonCapacity ?? GROUP_CAPACITY}`, () => { if (groupLessonId) onPressGroupLesson?.(groupLessonId); });
+    }
+    for (const b of blocksByCol[colIdx]) {
+      const bs = new Date(b.startsAt); const be = new Date(b.endsAt);
+      const sm = Math.max(bs.getHours() * 60 + bs.getMinutes(), FIRST_HOUR * 60);
+      const em = Math.min((be.getHours() * 60 + be.getMinutes()) || LAST_HOUR * 60, LAST_HOUR * 60);
+      if (em <= sm) continue;
+      const label = blockLabel(b.reason, BLOCK_PRESENTATION[blockKindOf(b.reason)].short);
+      add(`b:${b.id}`, [sm, em], b.instructorId, null, label, () => onPressBlock?.(b));
+    }
+    return { ...layoutLanes(items, laneCap), info };
+  }), [weekDays, eventsByCol, blocksByCol, laneCap, instructorDirectory, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock]);
+
+  // Posto di un impegno nella colonna; null = nascosto dietro «+N».
+  const laneBox = (colIdx: number, key: string) => {
+    const p = lanesByCol[colIdx].places.get(key);
+    if (!p) return null;
+    const w = (colW - 4) / p.lanes;
+    return {
+      left: colX(colIdx) + 2 + p.lane * w,
+      width: p.lanes > 1 ? w - LANE_GAP : w,
+      narrow: w < WIDE_LANE,
+      tiny: w < 22,
+    };
+  };
+
+  const openSlot = useCallback((colIdx: number, ov: LaneOverflow) => {
+    const info = lanesByCol[colIdx].info;
+    const rows = ov.all
+      .map((key) => ({ key, ...info.get(key)! }))
+      .filter((r) => r.instructorName)
+      .sort((a, b) => a.start - b.start || a.instructorName.localeCompare(b.instructorName, 'it'));
+    if (!rows.length) return;
+    const from = Math.min(...rows.map((r) => r.start));
+    const to = Math.max(...rows.map((r) => r.end));
+    Haptics.selectionAsync();
+    agendaSlotSheetStore.set({
+      title: fmtLongDay(weekDays[colIdx]),
+      subtitle: `${fmtMin(from)} – ${fmtMin(to)} · ${rows.length} impegni`,
+      rows: rows.map((r) => ({ key: r.key, instructorName: r.instructorName, instructorUserId: r.instructorUserId, detail: r.detail })),
+      onPick: (key) => info.get(key)?.open(),
+    });
+    router.push('/(tabs)/home/agenda-slot');
+  }, [lanesByCol, weekDays, router]);
+
   const holidayCols = useMemo(
     () => new Set(weekDays.map((d, i) => (holidays.has(toDateKey(d)) ? i : -1)).filter((i) => i >= 0)),
     [weekDays, holidays],
@@ -1214,29 +1319,41 @@ const WeekPage = React.memo(function WeekPage({
             let dur = 60;
             if (appt.endsAt) dur = (new Date(appt.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
+            const box = laneBox(colIdx, `g:${appt.id}`);
+            if (!box) return null;
             const look = getLessonLook(appt, colorConfig);
             const label = [appt.student?.lastName, appt.student?.firstName].filter(Boolean).join(' ') || 'Guida';
             const showTime = height >= 40;
+            const instrName = appt.instructor?.name ?? (appt.instructorId ? instructorDirectory[appt.instructorId]?.name : null);
+            // Corsia stretta con più istruttori: in cima le iniziali di chi guida,
+            // sotto il cognome dell'allievo se la corsia lo regge.
+            const initialsFirst = showInstructor && box.narrow;
+            const line1 = initialsFirst ? instructorInitials(instrName) : box.narrow ? (appt.student?.lastName || label) : label;
+            const line2 = initialsFirst
+              ? (!box.tiny && showTime ? (appt.student?.lastName || label) : null)
+              : showTime
+                ? (showInstructor ? instructorShortName(instrName) : `${pad(start.getHours())}:${pad(start.getMinutes())}`)
+                : null;
             // Terza riga solo se c'è spazio (da ~50pt, cioè un'ora o più).
-            const vehicleLabel = showVehicle && height >= 50 ? agendaVehicleLabel(appt) : null;
+            const vehicleLabel = showVehicle && height >= 50 && !box.narrow ? agendaVehicleLabel(appt) : null;
             return (
               <Pressable
                 key={appt.id}
                 onPress={() => onPressAppointment(appt)}
                 style={({ pressed }) => [
                   styles.lesson,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, opacity: pressed ? 0.8 : look.muted ? 0.7 : 1, boxShadow: tintShadow(look.glow) },
+                  { top, height, left: box.left, width: box.width, backgroundColor: look.bg, opacity: pressed ? 0.8 : look.muted ? 0.7 : 1, boxShadow: tintShadow(look.glow) },
                   look.ring ? { borderWidth: AUTOMATIC_MARKER_WIDTH, borderColor: look.ring } : null,
                 ]}
               >
                 {look.bar ? <View style={[styles.eventBar, { backgroundColor: look.bar }]} /> : null}
-                <View style={styles.lessonInner}>
-                  <Text style={[styles.lessonName, { color: look.text }]} numberOfLines={1}>{label}</Text>
-                  {showTime && (
-                    <Text style={[styles.lessonTime, { color: look.sub }]} numberOfLines={1}>
-                      {pad(start.getHours())}:{pad(start.getMinutes())}
+                <View style={[styles.lessonInner, box.narrow && styles.innerNarrow]}>
+                  <Text style={[styles.lessonName, initialsFirst && styles.laneInitials, { color: look.text }]} numberOfLines={1} ellipsizeMode={box.narrow ? 'clip' : 'tail'}>{line1}</Text>
+                  {line2 ? (
+                    <Text style={[styles.lessonTime, { color: look.sub }]} numberOfLines={1} ellipsizeMode={box.narrow ? 'clip' : 'tail'}>
+                      {line2}
                     </Text>
-                  )}
+                  ) : null}
                   {vehicleLabel ? (
                     <Text style={[styles.lessonVehicle, { color: look.sub }]} numberOfLines={1}>
                       {vehicleLabel}
@@ -1258,6 +1375,9 @@ const WeekPage = React.memo(function WeekPage({
             let dur = 60;
             if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
+            const box = laneBox(colIdx, `e:${a0.id}`);
+            if (!box) return null;
+            const examInitials = showInstructor ? instructorInitials(a0.instructor?.name ?? (a0.instructorId ? instructorDirectory[a0.instructorId]?.name : null)) : '';
             const examStudents = appts.filter((a) => !isExamPlaceholder(a));
             const examCount = examStudents.length;
             const examNames = examStudents
@@ -1275,27 +1395,30 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => onPressExam?.(appts)}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: EXAM_LOOK.bg, opacity: pressed ? 0.8 : 1, boxShadow: tintShadow(EXAM_LOOK.glow) },
+                  { top, height, left: box.left, width: box.width, backgroundColor: EXAM_LOOK.bg, opacity: pressed ? 0.8 : 1, boxShadow: tintShadow(EXAM_LOOK.glow) },
                 ]}
               >
                 {EXAM_LOOK.bar ? <View style={[styles.eventBar, { backgroundColor: EXAM_LOOK.bar }]} /> : null}
-                <View style={[styles.eventInner, { backgroundColor: EXAM_LOOK.bg }]}>
+                <View style={[styles.eventInner, box.narrow && styles.innerNarrow, { backgroundColor: EXAM_LOOK.bg }]}>
                 {/* In colonna da ~39pt utili il titolo a parole non ci sta: il
                     tipo lo dicono colore e icona, le parole restano nello sheet. */}
                 <View style={styles.eventHead}>
                   <Ionicons name="school" size={12} color={EXAM_LOOK.text} />
-                  {examCount > 0 ? (
+                  {examCount > 0 && !box.tiny ? (
                     <Text style={[styles.eventCount, { color: EXAM_LOOK.text }]} numberOfLines={1}>{examCount}</Text>
                   ) : null}
                   <View style={{ flex: 1 }} />
                   {withNames.length ? <Ionicons name="link" size={9} color={EXAM_LOOK.text} /> : null}
                 </View>
-                {height >= 40 && (
+                {examInitials ? (
+                  <Text style={[styles.laneInitials, { color: EXAM_LOOK.text, marginTop: 2 }]} numberOfLines={1} ellipsizeMode="clip">{examInitials}</Text>
+                ) : null}
+                {height >= 40 && !box.narrow && (
                   <Text style={[styles.eventTime, { color: EXAM_LOOK.text }]} numberOfLines={1}>
                     {pad(start.getHours())}:{pad(start.getMinutes())}
                   </Text>
                 )}
-                <EventStudentNames names={examNames} height={height} color={EXAM_LOOK.text} />
+                {box.narrow ? null : <EventStudentNames names={examNames} height={height - (examInitials ? 14 : 0)} color={EXAM_LOOK.text} />}
                 </View>
               </Pressable>
             );
@@ -1312,6 +1435,9 @@ const WeekPage = React.memo(function WeekPage({
             let dur = 60;
             if (a0.endsAt) dur = (new Date(a0.endsAt).getTime() - start.getTime()) / 60000;
             const height = Math.max((dur / 60) * ROW_H, 26);
+            const box = laneBox(colIdx, `gr:${groupLessonId ?? a0.id}`);
+            if (!box) return null;
+            const glInitials = showInstructor ? instructorInitials(a0.instructor?.name ?? (a0.instructorId ? instructorDirectory[a0.instructorId]?.name : null)) : '';
             const look = a0.groupLessonKind === 'moto' ? GROUP_MOTO_LOOK : GROUP_LOOK;
             const glMotoType = a0.groupLessonKind === 'moto' ? asMotoLessonType(a0.groupLessonMotoType) : null;
             const glStudents = appts.filter((a) => !String(a.id).startsWith('gl-empty:'));
@@ -1329,11 +1455,11 @@ const WeekPage = React.memo(function WeekPage({
                 onPress={() => { if (groupLessonId) onPressGroupLesson?.(groupLessonId); }}
                 style={({ pressed }) => [
                   styles.eventCard,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: look.bg, opacity: pressed ? 0.8 : 1, boxShadow: tintShadow(look.glow) },
+                  { top, height, left: box.left, width: box.width, backgroundColor: look.bg, opacity: pressed ? 0.8 : 1, boxShadow: tintShadow(look.glow) },
                 ]}
               >
                 {look.bar ? <View style={[styles.eventBar, { backgroundColor: look.bar }]} /> : null}
-                <View style={[styles.eventInner, { backgroundColor: look.bg }]}>
+                <View style={[styles.eventInner, box.narrow && styles.innerNarrow, { backgroundColor: look.bg }]}>
                 {/* Stessa regola dell'esame: niente parole, il tipo sta nel
                     colore e nell'icona. Per i gruppi moto l'icona è già quella
                     di birilli/strada — la pill con la parola veniva tagliata. */}
@@ -1347,18 +1473,23 @@ const WeekPage = React.memo(function WeekPage({
                   ) : (
                     <Ionicons name="people" size={12} color={look.text} />
                   )}
-                  <Text style={[styles.eventCount, { color: look.text }]} numberOfLines={1}>
-                    {glStudents.length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
-                  </Text>
+                  {box.tiny ? null : (
+                    <Text style={[styles.eventCount, { color: look.text }]} numberOfLines={1}>
+                      {glStudents.length}/{a0.groupLessonCapacity ?? GROUP_CAPACITY}
+                    </Text>
+                  )}
                   <View style={{ flex: 1 }} />
                   {withNames.length ? <Ionicons name="link" size={9} color={look.text} /> : null}
                 </View>
-                {height >= 40 && (
+                {glInitials ? (
+                  <Text style={[styles.laneInitials, { color: look.text, marginTop: 2 }]} numberOfLines={1} ellipsizeMode="clip">{glInitials}</Text>
+                ) : null}
+                {height >= 40 && !box.narrow && (
                   <Text style={[styles.eventTime, { color: look.text }]} numberOfLines={1}>
                     {pad(start.getHours())}:{pad(start.getMinutes())}
                   </Text>
                 )}
-                <EventStudentNames names={glNames} height={height} color={look.text} />
+                {box.narrow ? null : <EventStudentNames names={glNames} height={height - (glInitials ? 14 : 0)} color={look.text} />}
                 </View>
               </Pressable>
             );
@@ -1382,7 +1513,11 @@ const WeekPage = React.memo(function WeekPage({
             // REG-639 clay: blocchi neutri e quieti (bianco, tratteggio grigio,
             // testo grigio); la pausa tra guide si legge «Pausa».
             const tint = { bg: '#FFFFFF', border: 'rgba(17,17,17,0.18)', text: '#6A6A6A', icon: p.icon as any };
-            const label = blockLabel(block.reason, p.short);
+            const box = laneBox(colIdx, `b:${block.id}`);
+            if (!box) return null;
+            const blockInitials = showInstructor ? instructorInitials(instructorDirectory[block.instructorId]?.name) : '';
+            const baseLabel = blockLabel(block.reason, p.short);
+            const label = blockInitials ? (box.narrow ? blockInitials : `${baseLabel} · ${blockInitials}`) : baseLabel;
             // La lezione teorica è un evento (non un'assenza): rettangolo PIENO
             // indaco, niente bordo tratteggiato — come le guide/esami in griglia.
             const isTheory = bKind === 'theory';
@@ -1394,7 +1529,8 @@ const WeekPage = React.memo(function WeekPage({
                 style={[
                   styles.block,
                   isTheory && styles.blockSolid,
-                  { top, height, left: colX(colIdx) + 2, width: colW - 4, backgroundColor: tint.bg, borderColor: isTheory ? tint.bg : tint.border },
+                  box.narrow && styles.blockNarrow,
+                  { top, height, left: box.left, width: box.width, backgroundColor: tint.bg, borderColor: isTheory ? tint.bg : tint.border },
                 ]}
               >
                 {/* Teorica: niente icona (in colonna stretta si sovrappone al titolo) */}
@@ -1404,15 +1540,40 @@ const WeekPage = React.memo(function WeekPage({
                   <Text
                     style={[styles.blockName, height - 3 < 20 && styles.blockNameSm, { color: tint.text }]}
                     numberOfLines={1}
+                    ellipsizeMode={box.narrow ? 'clip' : 'tail'}
                   >
                     {label}
                   </Text>
                 ) : null}
-                {height >= 36 && (
+                {height >= 36 && !box.narrow && (
                   <Text style={[styles.blockTime, { color: tint.text }]} numberOfLines={1}>
                     {pad(bStart.getHours())}:{pad(bStart.getMinutes())}–{pad(bEnd.getHours())}:{pad(bEnd.getMinutes())}
                   </Text>
                 )}
+              </Pressable>
+            );
+          }),
+        )}
+
+        {/* «+N»: la fascia ha più impegni di quanti ne stiano affiancati */}
+        {lanesByCol.map(({ overflows }, colIdx) =>
+          overflows.map((ov, i) => {
+            const w = (colW - 4) / ov.lanes;
+            const top = ((ov.start - FIRST_HOUR * 60) / 60) * ROW_H;
+            const height = Math.max(((ov.end - ov.start) / 60) * ROW_H, 26);
+            return (
+              <Pressable
+                key={`more-${colIdx}-${i}`}
+                onPress={() => openSlot(colIdx, ov)}
+                accessibilityRole="button"
+                accessibilityLabel={`Altri ${ov.hidden.length} impegni, mostra la fascia`}
+                testID="agenda-lane-more"
+                style={({ pressed }) => [
+                  styles.laneMore,
+                  { top, height, left: colX(colIdx) + 2 + ov.lane * w, width: w - LANE_GAP, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <Text style={styles.laneMoreTx} numberOfLines={1} ellipsizeMode="clip">+{ov.hidden.length}</Text>
               </Pressable>
             );
           }),
@@ -1512,6 +1673,8 @@ export default function WeeklyAgendaView({
   carColor,
   ghostIgnoresEvents = false,
   ghostResetKey = 0,
+  showInstructor = false,
+  instructorDirectory = EMPTY_DIRECTORY,
   allowedDurations,
   onGhostActiveChange,
   onDateChange,
@@ -1671,10 +1834,13 @@ export default function WeeklyAgendaView({
       ghostIgnoresEvents={ghostIgnoresEvents}
       refreshing={refreshing}
       onRefresh={onRefresh}
+      showInstructor={showInstructor}
+      instructorDirectory={instructorDirectory}
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
       studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
-      myInstructorId, onCreateAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, dismissGhost, ghostIgnoresEvents, refreshing, onRefresh]);
+      myInstructorId, onCreateAt, allowedDur, defaultDur, handleGhostChange, ghostDismissTick, dismissGhost, ghostIgnoresEvents, refreshing, onRefresh,
+      showInstructor, instructorDirectory]);
 
   return (
     <View style={styles.container}>
@@ -1930,5 +2096,19 @@ const styles = StyleSheet.create({
   blockSolid: { borderStyle: 'solid', borderWidth: 0, ...CLAY_SHADOW.raiseSm },
   blockName: { fontSize: 10, fontWeight: '600', lineHeight: 13 },
   blockNameSm: { fontSize: 8.5, lineHeight: 11 },
+  // Corsie affiancate (09/11/2026): meno margine interno, iniziali leggibili.
+  innerNarrow: { paddingLeft: 3, paddingRight: 2 },
+  blockNarrow: { paddingHorizontal: 2, alignItems: 'center' },
+  laneInitials: { fontSize: 10, fontWeight: '600', lineHeight: 13, letterSpacing: -0.2 },
+  laneMore: {
+    position: 'absolute',
+    borderRadius: 10,
+    zIndex: 6,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    paddingTop: 5,
+    ...CLAY_SHADOW.raiseSm,
+  },
+  laneMoreTx: { fontSize: 11, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
   blockTime: { fontSize: 8.5, fontWeight: '500', marginTop: 2, opacity: 0.85 },
 });
