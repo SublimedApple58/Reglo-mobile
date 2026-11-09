@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RegloLogo } from '../components/RegloLogo';
-import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
+import { ClayButton } from '../components/clay';
 
 const NAVY = '#111111';
 const INK = '#1F1F1F';
@@ -29,19 +29,15 @@ export const AuthWelcomeScreen = () => {
       </View>
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + 24 }]}>
-        <Pressable
-          onPress={() => router.push('/(auth)/login-sheet')}
-          style={({ pressed }) => [styles.btnPrimary, pressed && styles.pressed]}
-        >
-          <GradientCTABackground radius={16} />
-          <Text style={styles.btnPrimaryText}>Accedi</Text>
-        </Pressable>
-        <Pressable
+        {/* CTA clay come «Continua» del primo accesso: capsula piena, volume
+            vero, al tocco scala e sprofonda senza rimbalzo (ClayPressable). */}
+        <ClayButton title="Accedi" onPress={() => router.push('/(auth)/login-sheet')} testID="welcome-login" />
+        <ClayButton
+          title="Registrati come allievo"
+          variant="secondary"
           onPress={() => router.push('/(auth)/signup')}
-          style={({ pressed }) => [styles.btnGhost, pressed && styles.pressedGhost]}
-        >
-          <Text style={styles.btnGhostText}>Registrati come allievo</Text>
-        </Pressable>
+          testID="welcome-signup"
+        />
         <Pressable
           onPress={() => router.push('/(auth)/first-access')}
           hitSlop={8}
@@ -78,37 +74,8 @@ const styles = StyleSheet.create({
   },
   sub: { fontSize: 15, fontWeight: '400', color: MUTED, textAlign: 'center', marginTop: 9 },
 
-  actions: { gap: 13 },
-  // Primary — 3D navy gradient CTA (app-wide lift: gradient bg + colored shadow).
-  // NB: no `overflow: 'hidden'` — it would clip the colored shadow (the gradient
-  // clips its own rounded corners), see GradientCTA.
-  btnPrimary: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  btnPrimaryText: { fontSize: 16.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.1 },
-  // Secondary — white pill with a soft lift + hairline border.
-  btnGhost: {
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#ECECEF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#111111',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-  },
-  btnGhostText: { fontSize: 16, fontWeight: '600', color: INK },
+  actions: { gap: 14 },
   firstAccess: { alignItems: 'center', paddingTop: 6 },
   firstAccessText: { fontSize: 14.5, color: MUTED },
   firstAccessLink: { fontWeight: '600', color: INK },
-  pressed: { transform: [{ scale: 0.985 }], opacity: 0.94 },
-  pressedGhost: { backgroundColor: '#FAFAFA', transform: [{ scale: 0.985 }] },
 });
