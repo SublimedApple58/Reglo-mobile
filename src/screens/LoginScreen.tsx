@@ -16,6 +16,7 @@ import { AuthField } from '../components/AuthField';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { RegloLogo } from '../components/RegloLogo';
 import { useSession } from '../context/SessionContext';
+import { RegloApiError } from '../services/apiClient';
 import { colors } from '../theme';
 import { GlassCloseButton } from '../components/GlassCloseButton';
 
@@ -45,6 +46,15 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
     try {
       await signIn(email.trim(), password);
     } catch (err) {
+      // Allievo creato dall'autoscuola col telefono che non ha ancora fatto il
+      // primo accesso: niente errore, lo si porta dove deve andare.
+      const code = err instanceof RegloApiError ? (err.payload as { code?: string } | null)?.code : undefined;
+      if (code === 'ACTIVATION_REQUIRED') {
+        const params = { phone: email.trim() };
+        if (mode === 'sheet') router.back();
+        router.push({ pathname: '/(auth)/first-access', params });
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Login non riuscito');
     } finally {
       setLoading(false);
@@ -59,12 +69,12 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
   const fields = (
     <>
       <AuthField
-        label="Email"
+        label="Email o telefono"
         dark={dark}
-        placeholder="nome@email.it"
+        placeholder="nome@email.it o 333 123 4567"
         autoCapitalize="none"
         autoCorrect={false}
-        keyboardType="email-address"
+        textContentType="username"
         value={email}
         onChangeText={setEmail}
       />
@@ -120,6 +130,12 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
         <View style={{ marginTop: 16 }}>{fields}</View>
         <CtaButton label="Accedi" tone="black" loading={loading} onPress={handleLogin} />
 
+        <View style={styles.firstAccessRow}>
+          <Text style={styles.footerText}>L&apos;autoscuola ti ha già iscritto?</Text>
+          <Text style={styles.footerLink} onPress={() => router.push('/(auth)/first-access')}>
+            Primo accesso
+          </Text>
+        </View>
         <View style={styles.footer}>
           <Text style={styles.footerText}>Sei un allievo?</Text>
           <Text style={styles.footerLink} onPress={() => router.push('/(auth)/signup')}>
@@ -214,7 +230,8 @@ const styles = StyleSheet.create({
   },
   ctaPressed: { transform: [{ scale: 0.985 }], opacity: 0.92 },
   ctaText: { fontSize: 16, fontWeight: '600' },
-  footer: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 'auto' },
+  footer: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 14 },
+  firstAccessRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 'auto' },
   footerText: { fontSize: 14, color: NAVY_400 },
   footerLink: { fontSize: 14, fontWeight: '600', color: NAVY },
 });

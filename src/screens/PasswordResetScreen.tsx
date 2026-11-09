@@ -41,11 +41,15 @@ type PasswordResetScreenProps = {
 const STEP_COPY: Record<Step, { title: string; sub: (email: string) => string }> = {
   email: {
     title: 'Reimposta password',
-    sub: () => 'Inserisci la tua email: ti invieremo un codice a 6 cifre.',
+    sub: () => 'Scrivi la tua email o il tuo numero: ti invieremo un codice a 6 cifre via email.',
   },
   code: {
     title: 'Controlla l’email',
-    sub: (email) => `Abbiamo inviato un codice a ${email || 'la tua email'}.`,
+    // Con il telefono il codice parte all'email dell'account, che qui non si conosce.
+    sub: (email) =>
+      email.includes('@')
+        ? `Abbiamo inviato un codice a ${email}.`
+        : "Abbiamo inviato un codice all'email collegata al tuo account.",
   },
   password: {
     title: 'Nuova password',
@@ -94,8 +98,9 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
   const onRequest = useCallback(async () => {
     if (loading) return;
     const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !trimmed.includes('@')) {
-      setError('Inserisci un’email valida.');
+    // Email, oppure il telefono di chi è stato iscritto dall'autoscuola.
+    if (!trimmed || (!trimmed.includes('@') && trimmed.replace(/\D/g, '').length < 8)) {
+      setError('Inserisci la tua email o il tuo numero di telefono.');
       return;
     }
     setError(null);
@@ -189,12 +194,12 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
     <>
       {step === 'email' && (
         <AuthField
-          label="Email"
+          label="Email o telefono"
           dark={dark}
-          placeholder="nome@email.it"
+          placeholder="nome@email.it o 333 123 4567"
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
+          textContentType="username"
           value={email}
           onChangeText={setEmail}
           returnKeyType="done"

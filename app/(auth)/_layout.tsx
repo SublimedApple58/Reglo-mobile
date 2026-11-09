@@ -29,6 +29,8 @@ export default function AuthLayout() {
           contentStyle: { backgroundColor: '#FFFFFF' },
         }}
       />
+      {/* «Primo accesso»: stack a schermo intero, un passo per schermata. */}
+      <Stack.Screen name="first-access" />
       {/* Android: full navy inline password-reset screen. */}
       <Stack.Screen name="password-reset" options={{ headerShown: false }} />
       {/* iOS: native page sheet for the (longer, scrollable) signup form. */}

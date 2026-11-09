@@ -109,6 +109,7 @@ const AuthGate = () => {
         'invite',
         'password-reset',
         'password-reset-sheet',
+        'first-access',
       ]);
       if (!inAuth || !allowedAuthLeaves.has(leaf ?? '')) {
         router.replace('/(auth)/login');

@@ -162,6 +162,27 @@ export type AuthPayload = {
   companies: CompanySummary[];
 };
 
+/** «Primo accesso» dell'allievo creato dall'autoscuola col solo telefono. */
+export type FirstAccessStartResult = {
+  /** Permesso temporaneo (30 min) per completare i dati. */
+  activationToken: string;
+  firstName: string;
+  lastName: string;
+  /** E.164, es. +393331234567 */
+  phone: string;
+  companyName: string | null;
+};
+
+export type FirstAccessCompleteInput = {
+  activationToken: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  /** YYYY-MM-DD */
+  birthDate: string;
+};
+
 export type MePayload = {
   user: UserPublic;
   activeCompanyId: Uuid | null;

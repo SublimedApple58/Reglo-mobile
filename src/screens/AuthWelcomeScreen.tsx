@@ -42,6 +42,16 @@ export const AuthWelcomeScreen = () => {
         >
           <Text style={styles.btnGhostText}>Registrati come allievo</Text>
         </Pressable>
+        <Pressable
+          onPress={() => router.push('/(auth)/first-access')}
+          hitSlop={8}
+          style={({ pressed }) => [styles.firstAccess, pressed && { opacity: 0.6 }]}
+          testID="welcome-first-access"
+        >
+          <Text style={styles.firstAccessText}>
+            L&apos;autoscuola ti ha già iscritto? <Text style={styles.firstAccessLink}>Primo accesso</Text>
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -96,6 +106,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   btnGhostText: { fontSize: 16, fontWeight: '600', color: INK },
+  firstAccess: { alignItems: 'center', paddingTop: 6 },
+  firstAccessText: { fontSize: 14.5, color: MUTED },
+  firstAccessLink: { fontWeight: '600', color: INK },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.94 },
   pressedGhost: { backgroundColor: '#FAFAFA', transform: [{ scale: 0.985 }] },
 });

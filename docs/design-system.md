@@ -328,6 +328,7 @@ generare. Il registro resta quello del set (`VITA_ART`, `MORALE_ART`,
 | `VITA_ART.termometro` (Malattia) | `web/settings/malattia-icon` 84 pt | `settings/malattia-icon.png` | idem, fondo reso trasparente |
 | `MORALE_ART.aeroplanino` (notifiche vuote) | `web/settings/notifica-inviata` 84 pt | `settings/notifica-inviata.png` | fondo bianco: solo su fondo bianco (`ClayEmpty`) |
 | `ROAD_ASSETS.road` (emblema Road) | `web/nav/road-3d` 46 pt | `nav/road-3d.png` | |
+| `KEY_ART` «Primo accesso» (`FirstAccessSteps`, passo numero) | `web/3d/chiave-3d` 72 pt | `3d/chiave-3d.png` | sorgente 264 px (@3x = 88 pt) |
 | **Al contrario: dal mobile al web** (Tiziano 30/10) — auto Road 3/4 e dall'alto (10 tinte), stella, razzo | `assets/road/cars/auto-{34,su}-<tinta>` (@3x), `vita/stella@3x`, `icons-3d/rocket` | `road/cars/auto-{34,su}-<tinta>.png`, `menu/feedback-mid.png`, `menu/dai-un-boost.png` | sul web sono le copie dei PNG mobile (stessi file @3x): qui restano i file mobile |
 | Capitoli teoria · `stat-quizzes` | `icons/chapters/`, `icons/stat-quizzes` | `3d/chapters/`, `road/f-alt.png` | già identici byte per byte |
 

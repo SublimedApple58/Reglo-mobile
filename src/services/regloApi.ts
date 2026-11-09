@@ -6,6 +6,8 @@ import {
   InstructorLinkPreview,
   InstructorLinkResult,
   AuthPayload,
+  FirstAccessCompleteInput,
+  FirstAccessStartResult,
   AutoscuolaAppointment,
   AutoscuolaAppointmentWithRelations,
   AutoscuolaAvailabilitySlot,
@@ -158,6 +160,21 @@ export const createRegloApi = (baseUrl?: string) => {
     },
     studentRegister: async (input: StudentRegisterInput) => {
       const payload = await client.request<AuthPayload>('/api/mobile/auth/student-register', {
+        method: 'POST',
+        body: input,
+      });
+      await authStorage.setToken(payload.token);
+      await authStorage.setActiveCompanyId(payload.activeCompanyId);
+      return payload;
+    },
+    // ── «Primo accesso» dell'allievo creato col solo telefono ──
+    firstAccessStart: async (phone: string) =>
+      client.request<FirstAccessStartResult>('/api/mobile/auth/first-access/start', {
+        method: 'POST',
+        body: { phone },
+      }),
+    firstAccessComplete: async (input: FirstAccessCompleteInput) => {
+      const payload = await client.request<AuthPayload>('/api/mobile/auth/first-access/complete', {
         method: 'POST',
         body: input,
       });
