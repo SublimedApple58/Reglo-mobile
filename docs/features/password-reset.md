@@ -19,6 +19,7 @@ password**, then **auto-login**. Backend: see `reglo/docs/features/password-rese
 
 ## Behaviour
 
+- Il primo campo accetta **email o telefono** (09/11/2026): col telefono di un allievo creato dall'autoscuola il codice parte comunque **per email**, all'indirizzo scelto al «Primo accesso» ([first-access.md](first-access.md)); il passo 2 dice «all'email collegata al tuo account».
 - `request` always succeeds (generic copy shown client-side — no enumeration).
   Resend has a 60s countdown.
 - `verify` throws `RegloApiError` (400) on wrong/expired code → inline error.
