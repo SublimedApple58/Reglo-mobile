@@ -72,6 +72,7 @@ import { useInstructorTabs } from '../hooks/useInstructorTabs';
 import { useTabBarOverlap } from '../components/tabBarSpace';
 import { agendaScopeSheetStore, type AgendaScope } from '../stores/agendaScopeSheetStore';
 import { SOFT } from '../utils/motion';
+import { getAgendaBootstrapComplete } from '../services/agendaBootstrapPaged';
 import { ReduceMotion } from 'react-native-reanimated';
 
 // REG-638: icona del bottone «Entra in Road» (stessa della live card).
@@ -538,7 +539,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           // otherwise reuse the fresh cache shared with useAgendaBootstrap.
           queryClient.fetchQuery({
             queryKey: queryKeys.agendaBootstrap(activeCompanyId, bootstrapParams),
-            queryFn: () => regloApi.getAgendaBootstrap(bootstrapParams),
+            queryFn: () => getAgendaBootstrapComplete(bootstrapParams),
             staleTime: force ? 0 : STALE_TIMES.agendaBootstrap,
           }),
           regloApi.getAppointments({

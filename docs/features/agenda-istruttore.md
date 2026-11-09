@@ -90,9 +90,13 @@ sistema la Settimana.
 - Creazione dal fantasma invariata: in «Tutti» o con un istruttore scelto il
   fantasma non si ferma sugli eventi e l'istruttore lo sceglie il foglio
   (titolare) come prima.
-- Limite noto: il bootstrap ha `limit: 400` sulla finestra caricata; con
-  autoscuole molto grandi in «Tutti» le ultime guide della finestra possono
-  mancare (preesistente).
+- **Mai guide mancanti**: il server dà al massimo `limit` (400) impegni per
+  richiesta, in ordine di inizio. `getAgendaBootstrapComplete`
+  (`src/services/agendaBootstrapPaged.ts`) chiede le pagine successive
+  dall'ultimo inizio ricevuto finché una pagina non torna piena (doppioni
+  scartati, max 15 pagine): la finestra caricata, e quindi la settimana
+  visibile, è sempre completa. Usato da `useAgendaBootstrap` e da `loadData`
+  (stessa chiave di cache). Verificato su staging con 5 per pagina: 27/27.
 
 ## Flusso dati
 
