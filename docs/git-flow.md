@@ -26,13 +26,15 @@ Le modifiche solo-JS si vedono in **hot-reload** (Metro), niente rebuild nativo;
 
 ## Rilascio in produzione (con OK esplicito dell'utente)
 1. Merge `feature` → **`master`**.
-2. **OTA** (per modifiche solo-JS): `eas update --platform ios --branch production --message "..."` **poi** `eas update --platform android --branch production --message "..."`.
+2. **OTA** (per modifiche solo-JS): `eas update --platform ios --branch production --message "..."` **poi** `eas update --platform android --branch production --message "..."`, **su entrambi i runtime 2.4.2 e 2.4.0** (vedi «Stato attuale» sotto).
    - **MAI `--auto`** (punta a `master` invece che a `production`). **MAI `--platform all`** (sempre ios e android separati).
 3. **Native build** (solo se cambia lo strato nativo): segui la checklist [Rilascio build nativa (store) + OTA dopo](#rilascio-build-nativa-store--ota-dopo).
 
 ## Rilascio build nativa (store) + OTA dopo
 
-> **Stato attuale** (aggiorna questa riga a ogni rilascio nativo, 29/10/2026): sugli **store** c'è la **2.3.0** (`runtimeVersion` 2.3.0, App Store + Play Store dal 2026-09-16); la **2.4.0** (`runtimeVersion` 2.4.0, moduli nativi di Road) è **solo la build TestFlight** con cui si prova Road, e `master` ha già `app.json` → `runtimeVersion: "2.4.0"`. Store e TestFlight leggono lo **stesso canale EAS `production`**: a separarli è solo il runtime. Quindi ogni OTA da `master` arriva **solo ai 2.4.0** (TestFlight), mai agli utenti 2.3.0 degli store. Prima di ogni `eas update`: `app.json` runtimeVersion = 2.4.0, `--branch production`, e nell'output di eas update il runtime deve dire 2.4.0. Force-update floor **2.3.0** iOS+Android (non alzarlo finché la 2.4.0 non è sugli store).
+> **Stato attuale** (aggiorna questa riga a ogni rilascio nativo, 09/11/2026): `master` ha `version` **2.4.2** e `runtimeVersion` **"2.4.2"** (live sugli store e obbligatoria: force-update floor 2.4.2). Restano in giro binari **2.4.0/2.4.1** (TestFlight) col runtime **"2.4.0"**. Tutti leggono lo **stesso canale EAS `production`**: a separarli è solo il runtime. Quindi **ogni OTA va pubblicato DUE volte**: sul runtime **2.4.2** (`app.json` com'è su `master`) e sul runtime **2.4.0** (`runtimeVersion` cambiato a `"2.4.0"` in `app.json` SOLO per il publish, mai committato, poi `git checkout -- app.json`). Per ciascun runtime: `--platform ios` **poi** `--platform android`, `--branch production`, e nell'output di eas update il runtime deve essere quello atteso.
+>
+> Comando sicuro: `env -u EXPO_PUBLIC_API_URL -u CI npx eas update --branch production --platform ios --clear-cache --message "..."`. `--clear-cache` è obbligatorio se di recente si è fatto un export con un URL diverso (catture/anteprime): la cache di Metro tiene l'URL vecchio inlinato. Dopo ogni publish: `strings dist/_expo/static/js/<ios|android>/*.hbc | grep -c app.reglo.it/api` deve dare 1 e lo stesso grep di `127.0.0.1` e `staging.reglo.it` deve dare 0.
 
 Ogni passo outward-facing (build prod, submit, OTA, floor) solo con **OK esplicito dell'utente**.
 
@@ -69,7 +71,7 @@ Upload manuale (Transporter per iOS, Play Console per Android), poi review e ril
 eas update --branch production --platform ios --message "..."
 eas update --branch production --platform android --message "..."
 ```
-Raggiungono solo i binari col runtime corrente. **MAI `--auto`** (punta a `master`), **MAI `--platform all`**. Niente staging mobile: si verifica in locale e si rilascia in prod.
+Raggiungono solo i binari col runtime di `app.json` al momento del publish: oggi vanno ripetuti sul 2.4.2 e sul 2.4.0 (vedi «Stato attuale»). **MAI `--auto`** (punta a `master`), **MAI `--platform all`**. Niente staging mobile: si verifica in locale e si rilascia in prod.
 
 ### 6. Recovery (OTA rotto in prod)
 ```bash
