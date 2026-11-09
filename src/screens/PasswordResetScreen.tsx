@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthField } from '../components/AuthField';
+import { PhoneField, phoneIsEmail, phoneSubmitValue, usePhoneValue } from '../components/PhoneField';
 import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -64,6 +65,8 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
   const dark = mode === 'inline';
 
   const [step, setStep] = useState<Step>('email');
+  // Campo «Email o telefono» (PhoneField); `email` è il valore inviato (email o E.164).
+  const identifier = usePhoneValue();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const { accessoryID, accessory } = useDoneAccessory();
@@ -97,7 +100,8 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
   // ── Step 1: request the code ──
   const onRequest = useCallback(async () => {
     if (loading) return;
-    const trimmed = email.trim().toLowerCase();
+    const submitted = phoneSubmitValue(identifier.value);
+    const trimmed = phoneIsEmail(identifier.value) ? submitted.toLowerCase() : submitted;
     // Email, oppure il telefono di chi è stato iscritto dall'autoscuola.
     if (!trimmed || (!trimmed.includes('@') && trimmed.replace(/\D/g, '').length < 8)) {
       setError('Inserisci la tua email o il tuo numero di telefono.');
@@ -116,7 +120,7 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
     } finally {
       setLoading(false);
     }
-  }, [email, loading]);
+  }, [identifier.value, loading]);
 
   // Resend without leaving the code step.
   const onResend = useCallback(async () => {
@@ -193,17 +197,17 @@ export const PasswordResetScreen = ({ mode = 'inline' }: PasswordResetScreenProp
   const body = (
     <>
       {step === 'email' && (
-        <AuthField
+        <PhoneField
           label="Email o telefono"
+          variant="auth"
           dark={dark}
+          allowEmail
           placeholder="nome@email.it o 333 123 4567"
-          autoCapitalize="none"
-          autoCorrect={false}
-          textContentType="username"
-          value={email}
-          onChangeText={setEmail}
+          value={identifier.value}
+          onChange={identifier.setValue}
           returnKeyType="done"
           onSubmitEditing={onRequest}
+          testID="reset-identifier"
         />
       )}
 

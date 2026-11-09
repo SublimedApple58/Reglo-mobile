@@ -244,7 +244,8 @@ When modifying a feature, read its connected features to verify nothing breaks.
 ### Primo accesso (allievo creato col telefono)
 - → **Session & Auth**: `firstAccessComplete` restituisce `AuthPayload` come il login → `applyAuthPayload`; se cambia la shape di `AuthPayload` aggiorna login, reset e primo accesso insieme.
 - → **LoginScreen / AuthWelcomeScreen**: punti d'ingresso «Primo accesso»; il login riconosce `code: "ACTIVATION_REQUIRED"` e apre il flusso col numero.
-- → **AuthGate** (`app/_layout.tsx`): `first-access` in `allowedAuthLeaves`.
+- → **AuthGate** (`app/_layout.tsx`): `first-access` e `country-picker` in `allowedAuthLeaves`.
+- → **PhoneField** (`src/components/PhoneField.tsx`, condiviso): Primo accesso, `LoginScreen`, `PasswordResetScreen`; apre `(auth)/country-picker`. Cambiarlo tocca tutti e tre.
 - → **Backend**: `POST /api/mobile/auth/first-access/{start,complete}`, login che accetta il telefono nel campo `email`. OTA-safe.
 
 ### Password Reset

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthField } from '../components/AuthField';
+import { PhoneField, phoneSubmitValue, usePhoneValue } from '../components/PhoneField';
 import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { RegloLogo } from '../components/RegloLogo';
 import { useSession } from '../context/SessionContext';
@@ -34,7 +35,8 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
   const { signIn } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  // «Email o telefono»: col numero compare il prefisso (PhoneField).
+  const identifier = usePhoneValue();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,13 +46,13 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
     setError(null);
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      await signIn(phoneSubmitValue(identifier.value), password);
     } catch (err) {
       // Allievo creato dall'autoscuola col telefono che non ha ancora fatto il
       // primo accesso: niente errore, lo si porta dove deve andare.
       const code = err instanceof RegloApiError ? (err.payload as { code?: string } | null)?.code : undefined;
       if (code === 'ACTIVATION_REQUIRED') {
-        const params = { phone: email.trim() };
+        const params = { phone: phoneSubmitValue(identifier.value) };
         if (mode === 'sheet') router.back();
         router.push({ pathname: '/(auth)/first-access', params });
         return;
@@ -68,15 +70,15 @@ export const LoginScreen = ({ mode = 'inline' }: LoginScreenProps) => {
 
   const fields = (
     <>
-      <AuthField
+      <PhoneField
         label="Email o telefono"
+        variant="auth"
         dark={dark}
+        allowEmail
         placeholder="nome@email.it o 333 123 4567"
-        autoCapitalize="none"
-        autoCorrect={false}
-        textContentType="username"
-        value={email}
-        onChangeText={setEmail}
+        value={identifier.value}
+        onChange={identifier.setValue}
+        testID="login-identifier"
       />
       <AuthField
         label="Password"
