@@ -13,7 +13,8 @@ import {
   isValidEmail,
   useFirstAccess,
 } from './FirstAccessContext';
-import { FirstAccessStepScreen, fadeIn } from './FirstAccessStepScreen';
+import { FirstAccessStepScreen, fadeIn, useFocusAfterPush } from './FirstAccessStepScreen';
+import { PhoneField, phoneIsComplete, phoneSubmitValue, usePhoneValue } from '../../components/PhoneField';
 
 const KEY_ART = require('../../../assets/web/3d/chiave-3d.png');
 const CAR_ART = require('../../../assets/icons3d-ai/auto.png');
@@ -26,21 +27,24 @@ export function FirstAccessPhoneStep() {
   const router = useRouter();
   const params = useLocalSearchParams<{ phone?: string }>();
   const { update } = useFirstAccess();
-  const [phone, setPhone] = useState(params.phone ?? '');
+  const phone = usePhoneValue(params.phone);
+  const phoneRef = useRef<TextInput>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const digits = phone.replace(/\D/g, '');
+  useFocusAfterPush(phoneRef);
 
   const submit = async () => {
     if (loading) return;
     setError(null);
     setLoading(true);
     try {
-      const start = await regloApi.firstAccessStart(phone.trim());
+      const start = await regloApi.firstAccessStart(phoneSubmitValue(phone.value));
       update({ start, firstName: start.firstName, lastName: start.lastName });
       router.push('/(auth)/first-access/name');
     } catch (err) {
-      setError(errorText(err, 'Non riusciamo a verificare il numero. Riprova.'));
+      // Sotto il campo ci sta una riga: la frase lunga del server si accorcia.
+      const message = errorText(err, 'Non riusciamo a verificare il numero. Riprova.');
+      setError(message.startsWith('Non troviamo un account') ? 'Nessun account da attivare con questo numero.' : message);
     } finally {
       setLoading(false);
     }
@@ -49,28 +53,25 @@ export function FirstAccessPhoneStep() {
   return (
     <FirstAccessStepScreen
       step="index"
-      hero={<Icon3D source={KEY_ART} size={72} />}
+      hero={<Icon3D source={KEY_ART} size={64} />}
       title="Primo accesso"
-      subtitle="La tua autoscuola ti ha già iscritto. Scrivi il numero di telefono che le hai lasciato."
+      subtitle="Scrivi il numero di telefono che hai lasciato alla tua autoscuola."
       cta="Continua"
-      ctaDisabled={digits.length < 8}
+      ctaDisabled={!phoneIsComplete(phone.value)}
       loading={loading}
       onCta={submit}
-      error={error}
+      revealKey={error}
     >
-      <ClayField
+      <PhoneField
+        ref={phoneRef}
         label="Numero di telefono"
-        value={phone}
-        onChangeText={(text) => {
-          setPhone(text);
+        value={phone.value}
+        onChange={(v) => {
+          phone.setValue(v);
           if (error) setError(null);
         }}
-        placeholder="333 123 4567"
-        keyboardType="phone-pad"
-        textContentType="telephoneNumber"
-        autoComplete="tel"
-        autoFocus
-        hint="Per un numero estero scrivi anche il prefisso, es. +41."
+        error={error}
+        reserveErrorSpace
         testID="first-access-phone"
       />
     </FirstAccessStepScreen>

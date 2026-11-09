@@ -110,6 +110,8 @@ const AuthGate = () => {
         'password-reset',
         'password-reset-sheet',
         'first-access',
+        // Foglio «Prefisso» del campo telefono (PhoneField).
+        'country-picker',
       ]);
       if (!inAuth || !allowedAuthLeaves.has(leaf ?? '')) {
         router.replace('/(auth)/login');
