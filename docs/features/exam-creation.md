@@ -14,7 +14,8 @@ Create exam appointments for zero or more students at once. Un esame si può cre
 
 ## Key files
 - `src/screens/CreateExamScreen.tsx` (22KB) — crea l'esame (0+ allievi)
-- `app/(tabs)/home/exam-manage.tsx` — foglio "Esame di guida": aggiungi/rimuovi allievi, cambia orario, annulla
+- `app/(tabs)/home/exam-manage.tsx` — foglio "Esame di guida": aggiungi/rimuovi allievi, cambia orario, esaminatori, note, annulla
+- `app/(tabs)/home/exam-examiners.tsx`, `app/(tabs)/home/exam-notes.tsx` — fogli esaminatori e note (REG-640)
 - `src/utils/weeklyAgenda.ts` — `isExamPlaceholder()` + conteggi esame
 
 ## Features
@@ -23,9 +24,10 @@ Create exam appointments for zero or more students at once. Un esame si può cre
 - Searchable student picker with smart sorting (selected first, then cluster)
 - Date, start/end time selection (default 1h)
 - Optional exam notes
+- **Esaminatori e note (REG-640, richiesta Solferino)**: prima riga di «Crea esame» = «Esaminatori» → form sheet `home/exam-examiners` (`src/stores/examinersSheetStore.ts`, `cleanExaminers`): righe di nome con la X, «Aggiungi esaminatore» quando l'ultima è compilata (max 5), sezione «Già usati» con i nomi dell'autoscuola (`getExamExaminerSuggestions`). Persone esterne, non istruttori: nomi liberi. In `exam-manage` la riga «Esaminatori» e la sezione «Note» (prima solo lettura) aprono `home/exam-examiners` e `home/exam-notes` (`examNotesSheetStore`) e salvano con `updateExamDetails` su **tutte** le righe dell'esame, segnaposto compreso; stato locale aggiornato a risposta del BE. Il titolare (`readOnly`) li vede solo. Aggiungendo allievi si rimandano note ed esaminatori correnti; il BE comunque li eredita dallo slot se mancano.
 
 ## API functions used
-`getStudents`, `getInstructorSettings`, `createExam`
+`getStudents`, `getInstructorSettings`, `createExam`, `updateExamDetails`, `getExamExaminerSuggestions`
 
 ## Components used
 Screen, BottomSheet, CalendarDrawer, TimePickerDrawer

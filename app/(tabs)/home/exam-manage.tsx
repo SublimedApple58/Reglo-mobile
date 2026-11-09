@@ -7,6 +7,8 @@ import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { examStudentsStore, type ExamStudentOption } from '../../../src/stores/examStudentsStore';
 import { regloApi } from '../../../src/services/regloApi';
 import { coInstructorPickerStore } from '../../../src/stores/coInstructorPickerStore';
+import { examinersSheetStore } from '../../../src/stores/examinersSheetStore';
+import { examNotesSheetStore } from '../../../src/stores/examNotesSheetStore';
 import type { AutoscuolaAppointmentWithRelations } from '../../../src/types/regloApi';
 import { asExamOutcome, askExamOutcome } from '../../../src/utils/examOutcome';
 import { FormSheet } from '../../../src/components/SheetScaffold';
@@ -38,6 +40,13 @@ export default function ExamManageScreen() {
   // ricarica l'esame dal BE: dopo il salvataggio si aggiorna la riga qui.
   const [coInstructors, setCoInstructors] = useState<Array<{ id: string; name: string }>>(
     seed?.coInstructors ?? [],
+  );
+
+  // REG-640: note ed esaminatori, ora modificabili riaprendo l'esame. Stato
+  // locale aggiornato a risposta del BE, come gli accompagnatori.
+  const [notes, setNotes] = useState<string | null>(seed?.notes ?? null);
+  const [examiners, setExaminers] = useState<string[]>(
+    () => seed?.appointments.find((a) => a.examiners?.length)?.examiners ?? [],
   );
 
   useEffect(() => () => { examManageStore.clear(); }, []);
@@ -75,6 +84,35 @@ export default function ExamManageScreen() {
       },
     });
     router.push('/(tabs)/home/manage-co-instructors');
+  };
+
+  // Tutte le righe dell'esame, segnaposto compreso: note ed esaminatori
+  // valgono per l'esame, anche quando non ha ancora allievi.
+  const allIds = () => appts.map((a) => a.id).filter((id) => !id.startsWith('pending-'));
+
+  const openExaminers = () => {
+    examinersSheetStore.set({
+      examiners,
+      ctaTitle: 'Salva',
+      onConfirm: async (names) => {
+        await regloApi.updateExamDetails({ appointmentIds: allIds(), examiners: names });
+        setExaminers(names);
+        onChanged?.();
+      },
+    });
+    router.push('/(tabs)/home/exam-examiners');
+  };
+
+  const openNotes = () => {
+    examNotesSheetStore.set({
+      notes: notes ?? '',
+      onConfirm: async (next) => {
+        await regloApi.updateExamDetails({ appointmentIds: allIds(), notes: next });
+        setNotes(next);
+        onChanged?.();
+      },
+    });
+    router.push('/(tabs)/home/exam-notes');
   };
 
   // ── Modifica / Imposta orario → native time picker route ──
@@ -266,7 +304,8 @@ export default function ExamManageScreen() {
         startsAt,
         endsAt: endsAt ?? undefined,
         instructorId: seed.instructorId ?? undefined,
-        notes: seed.notes ?? undefined,
+        notes: notes ?? undefined,
+        examiners,
       });
       onChanged();
       // Optimistic append so the open sheet reflects the additions immediately.
@@ -343,6 +382,17 @@ export default function ExamManageScreen() {
             testID="exam-manage-co-instructors"
           />
         )}
+        {/* REG-640: esaminatori esterni, prima degli allievi. */}
+        {readOnly ? (
+          examiners.length ? <ClayListRow title="Esaminatori" subtitle={examiners.join(', ')} /> : null
+        ) : (
+          <ClayListRow
+            title="Esaminatori"
+            subtitle={examiners.length ? examiners.join(', ') : 'Nessuno — tocca per aggiungere'}
+            onPress={() => { if (!busy) openExaminers(); }}
+            testID="exam-manage-examiners"
+          />
+        )}
       </ClayList>
 
       {/* Allievi: tocco = scheda allievo, ••• = menu (esito, rimuovi). */}
@@ -402,11 +452,32 @@ export default function ExamManageScreen() {
         )}
       </ClaySection>
 
-      {seed.notes ? (
-        <ClaySection title="Note">
-          <Text style={s.noteTx}>{seed.notes}</Text>
+      {/* REG-640: le note si modificano dal foglio dedicato (prima solo lettura). */}
+      {readOnly ? (
+        notes ? (
+          <ClaySection title="Note">
+            <Text style={s.noteTx}>{notes}</Text>
+          </ClaySection>
+        ) : null
+      ) : (
+        <ClaySection
+          title="Note"
+          action={
+            <Pressable
+              onPress={() => { if (!busy) openNotes(); }}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={notes ? 'Modifica note' : 'Aggiungi note'}
+              testID="exam-manage-notes"
+              style={({ pressed }) => pressed && { opacity: 0.55 }}
+            >
+              <Text style={s.action}>{notes ? 'Modifica' : 'Aggiungi'}</Text>
+            </Pressable>
+          }
+        >
+          <Text style={notes ? s.noteTx : s.emptyStudents}>{notes ?? 'Nessuna nota.'}</Text>
         </ClaySection>
-      ) : null}
+      )}
     </FormSheet>
   );
 }

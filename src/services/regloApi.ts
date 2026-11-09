@@ -366,7 +366,7 @@ export const createRegloApi = (baseUrl?: string) => {
         body: input,
       }),
 
-    createExam: async (input: { studentIds: string[]; startsAt: string; endsAt?: string; instructorId?: string; notes?: string }) =>
+    createExam: async (input: { studentIds: string[]; startsAt: string; endsAt?: string; instructorId?: string; notes?: string; examiners?: string[] }) =>
       client.request<{ count: number }>('/api/autoscuole/exam', {
         method: 'POST',
         body: input,
@@ -387,6 +387,20 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PATCH',
         body: input,
       }),
+
+    /**
+     * REG-640 — note ed esaminatori di un esame. Stessa PATCH: senza `startsAt`
+     * né `coInstructorIds` il BE la legge come modifica dei dettagli. Un campo
+     * assente resta com'è.
+     */
+    updateExamDetails: async (input: { appointmentIds: string[]; notes?: string | null; examiners?: string[] }) =>
+      client.request<unknown>('/api/autoscuole/exam', {
+        method: 'PATCH',
+        body: input,
+      }),
+    /** REG-640 — nomi di esaminatori già usati dall'autoscuola, il più recente prima. */
+    getExamExaminerSuggestions: async () =>
+      client.request<string[]>('/api/autoscuole/exam/examiners'),
 
     // ── Group lessons (Guide di gruppo) ──
     getGroupLessons: async (params?: { from?: string; to?: string }) =>

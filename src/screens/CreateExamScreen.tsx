@@ -7,6 +7,7 @@ import { ClayButton, ClayField, ClayList, ClayListRow, ClayToggle } from '../com
 import { useDoneAccessory } from '../components/KeyboardDoneAccessory';
 
 import { examSheetStore } from '../stores/examSheetStore';
+import { examinersSheetStore } from '../stores/examinersSheetStore';
 import { examStudentsStore, type ExamStudentOption } from '../stores/examStudentsStore';
 import { dayPickerStore } from '../stores/dayPickerStore';
 import { timePickerStore } from '../stores/timePickerStore';
@@ -50,6 +51,8 @@ export const CreateExamScreen = () => {
   const [timeSet, setTimeSet] = useState(true);
   const [duration, setDuration] = useState(60);
   const [notes, setNotes] = useState('');
+  // REG-640: esaminatori esterni, prima degli allievi.
+  const [examiners, setExaminers] = useState<string[]>([]);
   const { accessoryID, accessory } = useDoneAccessory();
   const [saving, setSaving] = useState(false);
 
@@ -101,6 +104,7 @@ export const CreateExamScreen = () => {
     const want = data.presetDurationMinutes;
     setDuration(want ? EXAM_DURATIONS.reduce((b, d) => (Math.abs(d - want) < Math.abs(b - want) ? d : b), 60) : 60);
     setNotes('');
+    setExaminers([]);
     setSaving(false);
   }, [data]);
 
@@ -126,6 +130,11 @@ export const CreateExamScreen = () => {
       }));
     examStudentsStore.set({ selectedIds, options, onConfirm: setSelectedIds });
     router.push('/(tabs)/home/select-exam-students');
+  };
+
+  const openExaminers = () => {
+    examinersSheetStore.set({ examiners, ctaTitle: 'Fatto', onConfirm: setExaminers });
+    router.push('/(tabs)/home/exam-examiners');
   };
 
   const openDatePicker = () => {
@@ -192,6 +201,7 @@ export const CreateExamScreen = () => {
           startsAt: examDate.toISOString(),
           endsAt: endsAt.toISOString(),
           notes: notes.trim() || undefined,
+          examiners,
         });
       } else {
         const dateOnly = new Date(examDate); dateOnly.setHours(0, 0, 0, 0);
@@ -199,6 +209,7 @@ export const CreateExamScreen = () => {
           studentIds: selectedIds,
           startsAt: dateOnly.toISOString(),
           notes: notes.trim() || undefined,
+          examiners,
         });
       }
       data.onDone('Esame creato.');
@@ -227,6 +238,12 @@ export const CreateExamScreen = () => {
       ) : (
         <>
           <ClayList>
+            <ClayListRow
+              title="Esaminatori"
+              subtitle={examiners.length ? examiners.join(', ') : 'Facoltativi'}
+              onPress={guard(openExaminers)}
+              testID="create-exam-examiners"
+            />
             <ClayListRow
               title="Allievi"
               subtitle={studentsValue ?? 'Seleziona allievi'}

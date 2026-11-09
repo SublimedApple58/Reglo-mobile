@@ -40,6 +40,9 @@ export default function HomeLayout() {
       <Stack.Screen name="create-group-lesson" options={FORM_SHEET} />
       <Stack.Screen name="select-student" options={FORM_SHEET} />
       <Stack.Screen name="select-exam-students" options={FORM_SHEET} />
+      {/* REG-640: esaminatori e note dell'esame. */}
+      <Stack.Screen name="exam-examiners" options={FORM_SHEET} />
+      <Stack.Screen name="exam-notes" options={FORM_SHEET} />
       <Stack.Screen name="out-of-availability" options={FORM_SHEET} />
       <Stack.Screen name="select-options" options={FORM_SHEET} />
       <Stack.Screen name="student-locations" options={FORM_SHEET} />

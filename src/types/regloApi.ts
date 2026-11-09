@@ -364,6 +364,8 @@ export type AutoscuolaAppointment = {
    * l'allievo a PATENTATO lato server.
    */
   examOutcome?: 'idoneo' | 'respinto' | null;
+  /** REG-640: esaminatori esterni dell'esame (nomi liberi), uguali su tutte le righe. */
+  examiners?: string[];
   notes: string | null;
   cancelledAt?: IsoDate | null;
   cancellationKind?: string | null;
