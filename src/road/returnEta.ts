@@ -15,6 +15,13 @@ const START_MS = 25 / 3.6;
 /** Avviso «mancano 5 minuti». */
 export const END_WARN_MS = 5 * 60_000;
 
+/**
+ * La fine della guida mentre si guida (residuo, «Fine 9:45», avvisi di fine):
+ * `roadEndsAt` del server (impostazione «Guide avviate in anticipo»), se no la
+ * fine prenotata come dal REG-728.
+ */
+export const lessonDriveEnd = (lesson: { endsAt: string; roadEndsAt?: string }) => lesson.roadEndsAt ?? lesson.endsAt;
+
 let lastEta: number | null = null;
 
 export const roadEta = {

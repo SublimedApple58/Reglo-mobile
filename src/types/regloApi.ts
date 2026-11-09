@@ -1615,6 +1615,13 @@ export type RoadLesson = {
   vehicle: { id: Uuid; name: string; plate: string | null } | null;
   /** Variante colore dell'auto 3D, già risolta dal server (veicolo → tinta istruttore → bianco). */
   carColor?: string | null;
+  /**
+   * Ricca 07/11 — solo per la guida IN CORSO: la fine che vale mentre si guida.
+   * Con «Mantieni la durata prenotata» e avvio in anticipo è inizio anticipato
+   * + durata (partita 8:45 una guida 9:00–10:00 → 9:45); altrimenti = `endsAt`.
+   * Assente con un server vecchio: vale `endsAt`.
+   */
+  roadEndsAt?: string;
 };
 
 export type RoadSessionStatus = 'active' | 'completed' | 'abandoned';
@@ -1969,6 +1976,11 @@ export type RoadStudentRoad = {
   items: RoadStudentItem[];
   briefing?: RoadBriefing | null;
   hotspots?: RoadStudentHotspot[];
+};
+
+/** Ricca 8+9: ultime tracce dell'allievo (tutti gli istruttori) per il tasto «Storico» in guida. */
+export type RoadStudentHistory = {
+  items: Array<{ id: string; startedAt: string; track: Array<[number, number]> }>;
 };
 
 export type AddRoadMarkerInput = {

@@ -2178,6 +2178,14 @@ sforava e la CTA restava fuori (pagellino senza «Salva»). Su iPad `FORM_SHEET`
 e `FormSheet` lo riempie come su Android (centro che scorre, CTA fissa in fondo con indicatore
 home + 30pt). I fogli legacy (`SheetScaffold`) su iPad restano in alto nel page sheet.
 
+**Notte sopra Road** (segnalazione Ricca 7, 07/11): lo stack `/road` fornisce `SheetNightContext`
+(`src/theme/night.ts`) con la notte di Road (automatica o forzata da «Aspetto»). `FormSheet`,
+`ClaySurface`, `ClayButton`, `ClayField`, `ClayList`/`ClayListRow`, `ClaySection`, `ClaySegmented`,
+`ClayToggle`, `ClayIconButton`, `ClayStat`, `StarRating` e la barra «Fatto» della tastiera lo leggono
+da soli: fondo `#1C1C1E`, superfici `#2C2C2E`, testo `#F2F2F2` / grigi chiari (`SHEET_NIGHT`), ombre
+`SHEET_NIGHT_SHADOW`. Fuori da Road il contesto è sempre `false`: niente cambia. Un foglio nuovo dentro
+`/road` con colori propri usa `useSheetNight()` per i suoi testi.
+
 ### 13.2.1 Layout interno di un form sheet — respiro e CTA in fondo
 
 > **Regola Reglo (Tiziano, 27/10/2026) — vale per OGNI foglio.**

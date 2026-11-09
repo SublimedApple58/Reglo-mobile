@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 import { InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useSheetNight } from '../theme/night';
 import { spacing } from '../theme/spacing';
 
 /**
@@ -28,15 +29,17 @@ export function useDoneAccessory(label: string = 'Fatto'): {
   accessory: React.ReactNode;
 } {
   const rawId = useId();
+  // Ricca 7: sopra i fogli di Road di notte la barra è scura come la tastiera.
+  const night = useSheetNight();
   if (Platform.OS !== 'ios') {
     return { accessoryID: undefined, accessory: null };
   }
   const id = rawId.replace(/[^a-zA-Z0-9_-]/g, '') || 'kbDone';
   const accessory = (
     <InputAccessoryView nativeID={id}>
-      <View style={styles.bar}>
+      <View style={[styles.bar, night && styles.barNight]}>
         <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} style={styles.btn}>
-          <Text style={styles.text}>{label}</Text>
+          <Text style={[styles.text, night && styles.textNight]}>{label}</Text>
         </Pressable>
       </View>
     </InputAccessoryView>
@@ -57,4 +60,6 @@ const styles = StyleSheet.create({
   },
   btn: { paddingHorizontal: 12, paddingVertical: 6 },
   text: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
+  barNight: { backgroundColor: '#2C2C2E', borderTopColor: 'rgba(255,255,255,0.12)' },
+  textNight: { color: '#F2F2F2' },
 });

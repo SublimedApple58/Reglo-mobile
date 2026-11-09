@@ -286,8 +286,8 @@ When `../reglo/` backend changes:
 - → **Group Lessons (student view)**: `group-lesson-detail` shows self moto + follow car + "Guida di gruppo moto"; `GroupLessonInvitesScreen` shows "Ti verrà assegnata una moto" (needs backend `getGroupLessonInvites` → `kind`; type `GroupLessonInvite.kind`).
 - Category `B` (auto) students: **unchanged** (default car branch everywhere).
 
-### Guide obbligatorie (contatore x/6)
-- Regola in `src/utils/mandatoryLessons.ts` (`REQUIRED_LESSONS`, `isMandatoryLessonDuration`): contano **solo le guide da esattamente 60 minuti**, `endsAt` nullo escluso. Usata da `StudentNotesDetailScreen` (solo per la statistica «guide fatte») e `InstructorNotesScreen` (riga "x di 6 guide" della lista allievi, solo quando non c'è prossima guida né da pagare).
+### Guide obbligatorie (contatore in ore)
+- Regola in `src/utils/mandatoryLessons.ts`: dal 07/11/2026 (come il web REG-726) si contano le **ore guidate** di tutte le guide completate (`lessonMinutes`, `endsAt` nullo = 0), a mezz'ore con tolleranza 5' per le guide Road (`creditedMinutes`); soglia `REQUIRED_DRIVING_HOURS` (6, poi 8). Usata da `StudentNotesDetailScreen` (statistica «3,5 /6 h · obbligo guide», per percorso) e `InstructorNotesScreen` (riga «2,5/6 h di guida» della lista allievi, solo quando non c'è prossima guida né da pagare; card esame «Mancano 3,5 ore all'obbligo»). `isMandatoryLessonDuration` (60' esatti) resta solo per il criterio dei colori.
 - **Giro «memorabile» (28/10/2026, scelta di Tiziano)**: il blocco «Guide obbligatorie» (barra, contatore «6 di 6») è stato TOLTO dal dettaglio allievo e l'anello «4/6» dal foglio «Gestisci guida» (`home/manage-lesson`). `studentProgress` resta nel `manageLessonStore` ma il foglio non lo disegna più.
 - **Gemella** di `reglo/lib/autoscuole/mandatory-lessons.ts`, che alimenta il `summary` del dettaglio allievo web e il flag `mandatoryLesson` dei colori agenda: le due copie vanno cambiate insieme.
 - Prima del 2026-09-18 entrambe le schermate contavano tutte le guide completate/checked_in, comprese quelle da 30 minuti.

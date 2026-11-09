@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { markerArt } from '../../road/markerArt';
 import { formatHm } from '../../road/format';
 import { SentimentBadge, type Sentiment } from './RoadSentiment';
+import { SHEET_NIGHT, useSheetNight } from '../../theme/night';
 import { ExpandableText } from './ExpandableText';
 
 export type RoadMarkerItem = {
@@ -76,11 +77,13 @@ export const RoadMarkerRow = React.memo(function RoadMarkerRow({
   correctable?: boolean;
 }) {
   const sub = [m.street, m.note].filter(Boolean).join(' · ');
+  // Ricca 7: fogli di Road di notte.
+  const night = useSheetNight();
   return (
     <Pressable
       disabled={!onPress}
       onPress={onPress ? () => onPress(m.key) : undefined}
-      style={({ pressed }) => [s.row, index > 0 && s.sep, selected && s.selected, pressed && s.pressed]}
+      style={({ pressed }) => [s.row, index > 0 && s.sep, index > 0 && night && n.sep, selected && s.selected, selected && night && n.pressed, pressed && (night ? n.pressed : s.pressed)]}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityState={onMore ? { selected } : undefined}
       accessibilityHint={correctable ? 'Correggi o elimina la segnalazione' : onMore ? 'Mostra sulla mappa' : undefined}
@@ -91,17 +94,17 @@ export const RoadMarkerRow = React.memo(function RoadMarkerRow({
         {m.sentiment ? <SentimentBadge sentiment={m.sentiment} size={19} style={s.sg} /> : null}
       </View>
       <View style={s.tx}>
-        <Text style={s.title} numberOfLines={1}>{m.label}</Text>
+        <Text style={[s.title, night && n.ink]} numberOfLines={1}>{m.label}</Text>
         {sub ? (
           onPress ? (
             // Riga che si tocca: la nota intera è nel menu / nel ripasso.
-            <Text style={s.sub} numberOfLines={1}>{sub}</Text>
+            <Text style={[s.sub, night && n.ink3]} numberOfLines={1}>{sub}</Text>
           ) : (
-            <ExpandableText text={sub} numberOfLines={1} style={s.sub} />
+            <ExpandableText text={sub} numberOfLines={1} style={[s.sub, night && n.ink3]} />
           )
         ) : null}
       </View>
-      <Text style={s.time}>{formatHm(m.recordedAt)}</Text>
+      <Text style={[s.time, night && n.ink3]}>{formatHm(m.recordedAt)}</Text>
       {onMore ? (
         <Pressable
           onPress={() => onMore(m.key)}
@@ -111,7 +114,7 @@ export const RoadMarkerRow = React.memo(function RoadMarkerRow({
           accessibilityLabel={`Correggi «${m.label}»`}
           testID={`road-marker-more-${index}`}
         >
-          <Ionicons name="ellipsis-horizontal" size={20} color="#6A6A6A" />
+          <Ionicons name="ellipsis-horizontal" size={20} color={night ? SHEET_NIGHT.ink3 : '#6A6A6A'} />
         </Pressable>
       ) : null}
     </Pressable>
@@ -133,4 +136,12 @@ const s = StyleSheet.create({
   sub: { fontSize: 13, fontWeight: '400', color: '#6A6A6A', marginTop: 1 },
   time: { fontSize: 14, fontWeight: '400', color: '#6A6A6A', fontVariant: ['tabular-nums'] },
   more: { width: 32, height: 32, marginRight: -6, alignItems: 'center', justifyContent: 'center' },
+});
+
+const n = StyleSheet.create({
+  ink: { color: SHEET_NIGHT.ink },
+  ink2: { color: SHEET_NIGHT.ink2 },
+  ink3: { color: SHEET_NIGHT.ink3 },
+  sep: { borderTopColor: SHEET_NIGHT.hair },
+  pressed: { backgroundColor: SHEET_NIGHT.pressed },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { CLAY } from '../../theme/clay';
+import { SHEET_NIGHT, useSheetNight } from '../../theme/night';
 
 /**
  * Sezione di una schermata o di un foglio (§0.5): titolo di sezione in
@@ -22,16 +23,17 @@ export function ClaySection({
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const night = useSheetNight();
   return (
     <View style={[s.wrap, style]}>
       {title || action ? (
         <View style={s.head}>
-          {title ? <Text style={s.title} accessibilityRole="header">{title}</Text> : <View />}
+          {title ? <Text style={[s.title, night && { color: SHEET_NIGHT.ink }]} accessibilityRole="header">{title}</Text> : <View />}
           {action}
         </View>
       ) : null}
       {children}
-      {footnote ? <Text style={s.foot}>{footnote}</Text> : null}
+      {footnote ? <Text style={[s.foot, night && { color: SHEET_NIGHT.ink3 }]}>{footnote}</Text> : null}
     </View>
   );
 }

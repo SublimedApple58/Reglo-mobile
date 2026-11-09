@@ -28,7 +28,13 @@ import { VITA_ART } from '../theme/vitaArt';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaAppointmentWithRelations, AutoscuolaCase } from '../types/regloApi';
-import { REQUIRED_LESSONS, isMandatoryLessonDuration } from '../utils/mandatoryLessons';
+import {
+  REQUIRED_DRIVING_MINUTES,
+  creditedMinutes,
+  drivingHoursRemainingLabel,
+  formatDrivingHours,
+  lessonMinutes,
+} from '../utils/mandatoryLessons';
 import { isCompanyManualMode, isLessonUnpaid } from '../utils/lessonPayments';
 import { formatDay, formatTime } from '../utils/date';
 import { selectionAsync } from '../utils/haptics';
@@ -140,16 +146,14 @@ export const InstructorNotesScreen = () => {
   }, [loadData]);
 
   const studentInfo = useMemo(() => {
-    const map = new Map<string, { total: number; completed: number }>();
+    const map = new Map<string, { total: number; minutes: number }>();
     for (const appt of allAppointments) {
-      const cur = map.get(appt.studentId) ?? { total: 0, completed: 0 };
+      const cur = map.get(appt.studentId) ?? { total: 0, minutes: 0 };
       cur.total += 1;
       const st = (appt.status ?? '').trim().toLowerCase();
-      // `total` conta tutte le guide; `completed` alimenta l'obbligo, quindi
-      // prende SOLO le guide da 60 minuti (stesso criterio del BE).
-      if ((st === 'completed' || st === 'checked_in') && isMandatoryLessonDuration(appt)) {
-        cur.completed += 1;
-      }
+      // `total` conta tutte le guide; `minutes` alimenta l'obbligo: le ORE
+      // guidate di ogni guida completata, qualunque durata (come il web).
+      if (st === 'completed' || st === 'checked_in') cur.minutes += lessonMinutes(appt);
       map.set(appt.studentId, cur);
     }
     return map;
@@ -263,8 +267,8 @@ export const InstructorNotesScreen = () => {
 
   const examCard = (() => {
     if (!nextExam || query || searching) return null;
-    const info = studentInfo.get(nextExam.student.id) ?? { total: 0, completed: 0 };
-    const missing = Math.max(0, REQUIRED_LESSONS - info.completed);
+    const info = studentInfo.get(nextExam.student.id) ?? { total: 0, minutes: 0 };
+    const missing = Math.max(0, REQUIRED_DRIVING_MINUTES - creditedMinutes(info.minutes));
     return (
       <Animated.View entering={FadeIn.duration(260)}>
         <ClaySurface
@@ -280,7 +284,7 @@ export const InstructorNotesScreen = () => {
               {nextExam.student.firstName} all’esame il {dayMonth(nextExam.iso)}
             </Text>
             <Text style={s.examSub} numberOfLines={1}>
-              {missing === 0 ? 'Obbligo guide completato' : `Mancano ${missing} ${missing === 1 ? 'guida' : 'guide'} all’obbligo`}
+              {missing === 0 ? 'Obbligo guide completato' : `${drivingHoursRemainingLabel(missing)} all’obbligo`}
             </Text>
           </View>
         </ClaySurface>
@@ -482,11 +486,12 @@ const keyOf = (st: StudentEntry) => st.id;
 /** Respiro sopra la prima e sotto l'ultima riga (lo stesso di `ClayList`). */
 const LIST_INSET = 4;
 
-type StudentInfo = { total: number; completed: number };
+type StudentInfo = { total: number; minutes: number };
 type StudentStep = { next: string | null; unpaid: number };
 
 function rowSubtitle(info: StudentInfo | undefined, step: StudentStep | undefined, exam: string | undefined) {
-  const done = Math.min(info?.completed ?? 0, REQUIRED_LESSONS);
+  // Obbligo in ore a mezz'ore: «2,5/6 h».
+  const done = creditedMinutes(info?.minutes ?? 0);
   // Il prossimo passo prima del contatore: la prossima guida e il da
   // riscuotere (in nero solo da DUE_STRONG_FROM in su). Il contatore delle guide resta solo se non c'è altro.
   const when = exam
@@ -506,9 +511,9 @@ function rowSubtitle(info: StudentInfo | undefined, step: StudentStep | undefine
   }
   return !info || info.total === 0
     ? 'Nessuna guida ancora'
-    : done >= REQUIRED_LESSONS
-      ? `${REQUIRED_LESSONS} di ${REQUIRED_LESSONS} · obbligo completato`
-      : `${done} di ${REQUIRED_LESSONS} guide`;
+    : done >= REQUIRED_DRIVING_MINUTES
+      ? `${formatDrivingHours(REQUIRED_DRIVING_MINUTES)}/${formatDrivingHours(REQUIRED_DRIVING_MINUTES)} h · obbligo completato`
+      : `${formatDrivingHours(done)}/${formatDrivingHours(REQUIRED_DRIVING_MINUTES)} h di guida`;
 }
 
 /**

@@ -19,6 +19,7 @@ import { isRoadTrackingActive, startRoadTracking, stopRoadTracking } from './tra
 import { formatRange, haversineMeters, makeClientId } from './format';
 import { fixHistory } from './fixHistory';
 import { ROAD_UNDO_SECONDS, roadFreeStarted } from './freeStartStore';
+import { roadAlertStyle } from './night';
 import { cacheRoadEvaluation, isOfflineError } from './offlineLesson';
 
 /**
@@ -398,7 +399,7 @@ export async function recordRoadMarker(input: {
   if (!session) return null;
   const pos = await currentPosition();
   if (!pos) {
-    Alert.alert('Posizione non trovata', 'Aspetta qualche secondo che il GPS trovi la posizione e riprova.');
+    Alert.alert('Posizione non trovata', 'Aspetta qualche secondo che il GPS trovi la posizione e riprova.', undefined, roadAlertStyle());
     return null;
   }
   const now = Date.now();
@@ -479,7 +480,7 @@ export async function correctRoadMarker(
     return true;
   } catch (err) {
     if (!isOfflineError(err)) {
-      Alert.alert('Segnalazione non modificata', messageOf(err, 'Riprova tra poco.'));
+      Alert.alert('Segnalazione non modificata', messageOf(err, 'Riprova tra poco.'), undefined, roadAlertStyle());
       return false;
     }
     // REG-714: senza rete la correzione va in coda (il server accetta id o
@@ -596,7 +597,7 @@ export async function endRoad(): Promise<boolean> {
     } catch {
       // resta spento: si riprova a terminare
     }
-    Alert.alert('Guida non terminata', messageOf(err, 'Riprova tra poco.'));
+    Alert.alert('Guida non terminata', messageOf(err, 'Riprova tra poco.'), undefined, roadAlertStyle());
     return false;
   }
   roadUploader.onSessionClosed(null);

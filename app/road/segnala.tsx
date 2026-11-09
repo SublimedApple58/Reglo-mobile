@@ -10,6 +10,7 @@ import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { recordRoadMarker } from '../../src/road/roadActions';
 import { CUSTOM_KIND_PREFIX, markerArt, shortMarkerLabel } from '../../src/road/markerArt';
 import { formatHm } from '../../src/road/format';
+import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../../src/theme/night';
 
 type Item = { kind: string; label: string; short: string };
 
@@ -21,6 +22,8 @@ type Item = { kind: string; label: string; short: string };
  */
 export default function SegnalaSheet() {
   const router = useRouter();
+  // Ricca 7: di notte tessere e testi scuri come il foglio.
+  const night = useSheetNight();
   const catalog = useRoadSelector((s) => s.catalog);
   const street = useRoadSelector((s) => s.street);
   const sentimentMode = useRoadSelector((s) => s.sentimentMode);
@@ -65,6 +68,9 @@ export default function SegnalaSheet() {
           { text: 'Segna', onPress: (text?: string) => commit(item, text ?? null) },
         ],
         'plain-text',
+        undefined,
+        undefined,
+        { userInterfaceStyle: night ? 'dark' : 'light' },
       );
       return;
     }
@@ -88,10 +94,10 @@ export default function SegnalaSheet() {
           {({ pressed }) => (
             <>
               {/* Tessera bianca in rilievo; premuta sprofonda (ombra interna). */}
-              <View style={[s.sq, pressed ? [CLAY_SHADOW.sink, s.sqPressed] : CLAY_SHADOW.raiseSm]}>
+              <View style={[s.sq, night && n.sq, pressed ? [night ? SHEET_NIGHT_SHADOW.sink : CLAY_SHADOW.sink, s.sqPressed] : night ? SHEET_NIGHT_SHADOW.raise : CLAY_SHADOW.raiseSm]}>
                 <Image source={markerArt(item.kind)} style={s.sqImg} resizeMode="contain" />
               </View>
-              <Text style={s.tileTx} numberOfLines={2}>{item.short}</Text>
+              <Text style={[s.tileTx, night && n.ink2]} numberOfLines={2}>{item.short}</Text>
             </>
           )}
         </Pressable>
@@ -119,20 +125,21 @@ export default function SegnalaSheet() {
         {renderGrid(base)}
         {custom.length ? (
           <>
-            <Text style={s.sec}>Della tua autoscuola</Text>
+            <Text style={[s.sec, night && n.ink3]}>Della tua autoscuola</Text>
             <View style={{ marginTop: 10 }}>{renderGrid(custom)}</View>
           </>
         ) : null}
 
         {noteFor ? (
           <View style={s.noteBox}>
-            <Text style={s.noteTitle}>{noteFor.label}: aggiungi una nota</Text>
+            <Text style={[s.noteTitle, night && n.ink]}>{noteFor.label}: aggiungi una nota</Text>
             <TextInput
               value={note}
               onChangeText={setNote}
               placeholder="Cosa è successo"
-              placeholderTextColor={CLAY.ink4}
-              style={[s.noteInput, CLAY_SHADOW.sink]}
+              placeholderTextColor={night ? SHEET_NIGHT.ink4 : CLAY.ink4}
+              keyboardAppearance={night ? 'dark' : 'default'}
+              style={[s.noteInput, night ? [n.sq, n.ink, SHEET_NIGHT_SHADOW.sink] : CLAY_SHADOW.sink]}
               autoFocus
               multiline
               maxLength={500}
@@ -143,7 +150,7 @@ export default function SegnalaSheet() {
             </View>
           </View>
         ) : (
-          <Text style={s.hint}>Tocca per segnare dove sei · tieni premuto per aggiungere una nota</Text>
+          <Text style={[s.hint, night && n.ink4]}>Tocca per segnare dove sei · tieni premuto per aggiungere una nota</Text>
         )}
       </View>
     </FormSheet>
@@ -179,4 +186,12 @@ const s = StyleSheet.create({
     textAlignVertical: 'top',
   },
   noteActions: { flexDirection: 'row', gap: 10 },
+});
+
+const n = StyleSheet.create({
+  sq: { backgroundColor: SHEET_NIGHT.surface },
+  ink: { color: SHEET_NIGHT.ink },
+  ink2: { color: SHEET_NIGHT.ink2 },
+  ink3: { color: SHEET_NIGHT.ink3 },
+  ink4: { color: SHEET_NIGHT.ink4 },
 });
