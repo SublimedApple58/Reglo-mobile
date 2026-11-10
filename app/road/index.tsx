@@ -22,6 +22,7 @@ import * as Location from 'expo-location';
 import * as Haptics from '../../src/utils/haptics';
 import { minimizeRoad, ROAD_COVER_MS, ROAD_SWITCH_MS, useRoadMinimized } from '../../src/road/miniStore';
 import { lessonStudentName, roadStore, useRoadSelector, type RoadLocalMarker } from '../../src/road/roadStore';
+import { openRoadMarkerSheet } from '../../src/road/markerEdit';
 import { endRoad, recordHotspotCheck, swapRoadMarkerPlace, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { ROAD_EXIT, ROAD_TEXT_IN } from '../../src/road/motion';
@@ -1146,6 +1147,16 @@ export default function RoadScreen() {
     },
     [release, showPin],
   );
+  // Road novembre R3: tocco sul fumetto = foglio «Segnalazione» (tipo, giudizio, nota, sposta, elimina).
+  const onPinOpen = useCallback(
+    (clientId: string) => {
+      const sid = roadStore.get().session?.id;
+      if (!sid) return;
+      closePin();
+      openRoadMarkerSheet({ sessionId: sid, clientId, live: true });
+    },
+    [closePin],
+  );
   const onPanDrag = useCallback(() => {
     closePin();
     release();
@@ -1276,7 +1287,7 @@ export default function RoadScreen() {
       </View>
 
       {/* REG-723: la segnalazione toccata, grande, con il dettaglio. */}
-      {pinSel ? <LivePinDetail key={pinSel.m.clientId} sel={pinSel} /> : null}
+      {pinSel ? <LivePinDetail key={pinSel.m.clientId} sel={pinSel} onPress={onPinOpen} /> : null}
 
       {carPt ? (
         <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
@@ -1662,14 +1673,20 @@ const PIN_OUT = FadeOut.duration(140).reduceMotion(ReduceMotion.Never);
  * sotto, in grigio, segno · ora · via (una riga) e la nota se c'è. Il pin
  * piccolo sotto è nascosto, così sul punto resta un solo anello.
  */
-const LivePinDetail = React.memo(function LivePinDetail({ sel }: { sel: PinSel }) {
+const LivePinDetail = React.memo(function LivePinDetail({ sel, onPress }: { sel: PinSel; onPress: (clientId: string) => void }) {
   const { m } = sel;
   const sign = m.sentiment === 'good' ? 'Fatto bene' : m.sentiment === 'bad' ? 'Da migliorare' : null;
   const sub = [sign, formatHm(m.recordedAt), m.street].filter(Boolean).join(' · ');
   return (
-    <View pointerEvents="none" style={[s.pinBox, { left: sel.x - PIN_W / 2, top: sel.y + PIN_DOT / 2 - PIN_BOX_H }]}>
-      <Animated.View entering={PIN_IN} exiting={PIN_OUT} style={s.pinInner} testID="road-pin-detail">
-        <View style={[s.pinBubble, m.sentiment ? { borderColor: sentimentColor(m.sentiment) } : null]}>
+    <View pointerEvents="box-none" style={[s.pinBox, { left: sel.x - PIN_W / 2, top: sel.y + PIN_DOT / 2 - PIN_BOX_H }]}>
+      <Animated.View entering={PIN_IN} exiting={PIN_OUT} style={s.pinInner} pointerEvents="box-none" testID="road-pin-detail">
+        <Pressable
+          onPress={() => onPress(m.clientId)}
+          style={({ pressed }) => [s.pinBubble, m.sentiment ? { borderColor: sentimentColor(m.sentiment) } : null, pressed && { transform: [{ scale: 0.97 }] }]}
+          accessibilityRole="button"
+          accessibilityLabel={`Modifica ${m.label}`}
+          testID="road-pin-open"
+        >
           <Image source={markerArt(m.kind)} style={s.pinImg} resizeMode="contain" />
           <View style={s.pinText}>
             <Text style={s.pinTitle} numberOfLines={1}>
@@ -1684,11 +1701,12 @@ const LivePinDetail = React.memo(function LivePinDetail({ sel }: { sel: PinSel }
               </Text>
             ) : null}
           </View>
+          <Ionicons name="chevron-forward" size={16} color={CLAY.chevron} style={s.pinChevron} />
           <View style={s.pinTailRow}>
             <View style={s.pinTail} />
           </View>
-        </View>
-        <View style={s.pinDot} />
+        </Pressable>
+        <View style={s.pinDot} pointerEvents="none" />
       </Animated.View>
     </View>
   );
@@ -2130,6 +2148,7 @@ const s = StyleSheet.create({
   pinTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
   pinSub: { fontSize: 13, fontWeight: '500', color: CLAY.ink3, marginTop: 1 },
   pinNote: { fontSize: 13.5, fontWeight: '400', color: CLAY.ink2, marginTop: 3, lineHeight: 18 },
+  pinChevron: { marginLeft: -2, marginRight: -6 },
   pinTailRow: { position: 'absolute', left: 0, right: 0, bottom: -5, alignItems: 'center' },
   pinTail: { width: 10, height: 10, backgroundColor: '#FFFFFF', borderBottomRightRadius: 3, transform: [{ rotate: '45deg' }] },
   pinDot: {

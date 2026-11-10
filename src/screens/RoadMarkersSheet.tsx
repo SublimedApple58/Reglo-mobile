@@ -9,8 +9,7 @@ import { CLAY, CLAY_SHADOW } from '../theme';
 import { SHEET_NIGHT, SHEET_NIGHT_SHADOW, useSheetNight } from '../theme/night';
 import { lessonStudentName, useRoadSelector } from '../road/roadStore';
 import { roadRouteMapStore } from '../road/routeMapStore';
-import { openRoadMarkerMenu } from '../road/markerMenu';
-import { refreshRoadSummary } from '../road/roadActions';
+import { openRoadMarkerSheet } from '../road/markerEdit';
 import { dayLabel } from '../road/format';
 import type { RoadMarker, RoadStop } from '../types/regloApi';
 
@@ -89,7 +88,7 @@ export function RoadMarkersSheet({ source }: { source: 'summary' | 'percorso' })
   const onMore = useCallback(
     (key: string) => {
       const m = (markers ?? []).find((x) => roadMarkerKey(x) === key);
-      if (m && sessionId) openRoadMarkerMenu(sessionId, m, () => void refreshRoadSummary());
+      if (m && sessionId) openRoadMarkerSheet({ sessionId, clientId: m.clientId, live: false });
     },
     [markers, sessionId],
   );

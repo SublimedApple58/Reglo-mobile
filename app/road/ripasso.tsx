@@ -13,8 +13,7 @@ import { ClayButton, ClayIconButton } from '../../src/components/clay';
 import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { CTA_HEIGHT } from '../../src/theme/spacing';
 import { useRoadSelector } from '../../src/road/roadStore';
-import { refreshRoadSummary } from '../../src/road/roadActions';
-import { openRoadMarkerMenu } from '../../src/road/markerMenu';
+import { openRoadMarkerSheet } from '../../src/road/markerEdit';
 import { markerArt } from '../../src/road/markerArt';
 import { formatHm } from '../../src/road/format';
 import { ripassoHandoff, ripassoOrder } from '../../src/road/ripasso';
@@ -78,7 +77,7 @@ export default function RipassoScreen() {
 
   if (!summary || !current) return <View style={s.root} />;
 
-  const correct = () => openRoadMarkerMenu(summary.id, current, () => void refreshRoadSummary());
+  const correct = () => openRoadMarkerSheet({ sessionId: summary.id, clientId: current.clientId, live: false });
   const pagellino = () => {
     ripassoHandoff.requestPagellino();
     router.back();

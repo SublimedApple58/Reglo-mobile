@@ -40,6 +40,9 @@ export default function RoadLayout() {
         {/* Ricca 7: Auto / Giorno / Notte. */}
         <Stack.Screen name="aspetto" options={sheet} />
         <Stack.Screen name="ripasso" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
+        {/* Road novembre R3: modifica di una segnalazione (foglio) e «Sposta» col mirino. */}
+        <Stack.Screen name="segnalazione" options={sheet} />
+        <Stack.Screen name="sposta" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
         {/* Road novembre R5: tocco sul nome = la scheda allievo della home,
             completa, sopra la mappa (GPS e guida continuano sotto). Tutti i
             fogli che la scheda apre stanno qui dentro, con le stesse

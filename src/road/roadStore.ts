@@ -537,6 +537,12 @@ export const roadStore = {
     return next;
   },
 
+  /** Road novembre R3: segnalazione modificata (dopo la risposta del server o la coda offline). */
+  updateLocalMarker(clientId: string, patch: Partial<RoadLocalMarker>) {
+    if (!state.markers.some((m) => m.clientId === clientId)) return;
+    set({ markers: state.markers.map((m) => (m.clientId === clientId ? { ...m, ...patch } : m)) });
+  },
+
   removeMarker(clientId: string) {
     set({
       markers: state.markers.filter((m) => m.clientId !== clientId),
