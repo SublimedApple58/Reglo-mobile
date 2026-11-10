@@ -33,7 +33,8 @@ function hoursOf(sec: number) {
 }
 function guideLine(it: RoadStudentItem) {
   const ev = it.evaluation;
-  const pg = ev ? (ev.done >= ev.total ? 'pagellino fatto' : ev.done === 0 ? 'pagellino da fare' : `pagellino ${ev.done} su ${ev.total}`) : null;
+  // R1: basta una voce votata, le altre restano «non valutate» di proposito.
+  const pg = ev ? (ev.done > 0 ? 'pagellino fatto' : 'pagellino da fare') : null;
   return [`${formatKm(it.distanceMeters)} km`, `${Math.max(1, Math.round(it.durationSec / 60))} min`, pg].filter(Boolean).join(' · ');
 }
 

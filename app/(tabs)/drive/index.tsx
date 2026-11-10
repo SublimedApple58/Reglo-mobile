@@ -192,18 +192,27 @@ export default function RoadTab() {
   }, [options, inRoad, current, suggestedIds, defaultDuration]);
 
   const recent = options?.recentSessions ?? null;
-  // Guida finita col pagellino da compilare: si apre da solo «Appena finita»,
-  // una volta per avvio dell'app; poi resta la riga in «Le tue ultime guide».
+  // Guida finita col pagellino ancora vuoto: si apre da solo «Appena finita»,
+  // una volta per guida (ricordato sul telefono, R1); poi resta la riga in
+  // «Le tue ultime guide».
   const toClose = options?.toClose ?? null;
   const toCloseId = toClose ? recent?.find((r) => r.id === toClose.sessionId)?.id ?? null : null;
   useFocusEffect(
     useCallback(() => {
-      if (!toCloseId || inRoad || !pagellinoPrompt.shouldShow(toCloseId)) return;
-      const t = setTimeout(() => {
-        pagellinoPrompt.markShown(toCloseId);
-        router.push('/(tabs)/drive/appena-finita');
-      }, 450);
-      return () => clearTimeout(t);
+      if (!toCloseId || inRoad) return;
+      let cancelled = false;
+      let t: ReturnType<typeof setTimeout> | undefined;
+      pagellinoPrompt.ready().then(() => {
+        if (cancelled || !pagellinoPrompt.shouldShow(toCloseId)) return;
+        t = setTimeout(() => {
+          pagellinoPrompt.markShown(toCloseId);
+          router.push('/(tabs)/drive/appena-finita');
+        }, 450);
+      });
+      return () => {
+        cancelled = true;
+        if (t) clearTimeout(t);
+      };
     }, [toCloseId, inRoad, router]),
   );
 

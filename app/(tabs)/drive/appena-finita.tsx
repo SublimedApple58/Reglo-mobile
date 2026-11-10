@@ -14,8 +14,8 @@ import { RoadNotesCard } from '../../../src/components/road/RoadNotesCard';
 
 /**
  * «Appena finita» (Tiziano 28/10/2026): la guida appena chiusa col pagellino
- * da compilare. Si apre da sola sulla tab Road una volta per avvio dell'app
- * (`pagellinoPrompt`), così nella tab resta una sola CTA primaria («Parti
+ * da compilare. Si apre da sola sulla tab Road una volta per guida
+ * (`pagellinoPrompt`, ricordato sul telefono da R1), così nella tab resta una sola CTA primaria («Parti
  * con»). Form sheet unico: niente maniglia, si chiude con la X o «Più tardi».
  */
 export default function RoadAppenaFinitaSheet() {

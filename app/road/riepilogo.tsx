@@ -171,12 +171,13 @@ export default function RiepilogoScreen() {
           ? `${ev.total} ${ev.total === 1 ? 'voce' : 'voci'} · completo`
           : `${ev.done} ${ev.done === 1 ? 'voce valutata' : 'voci valutate'} su ${ev.total}`;
 
-  // REG-715: con segnalazioni il ripasso; senza, il pagellino (se acceso e non
-  // completo); altrimenti «Fine». La X in alto chiude sempre.
+  // REG-715: con segnalazioni il ripasso; senza, il pagellino (se acceso e
+  // ancora vuoto: da R1 basta una voce votata); altrimenti «Fine». La X in
+  // alto chiude sempre.
   const pagellinoOn = evaluationOn ? !evOk || (evOk.enabled && evOk.total > 0) : showPagellino;
   const primary = hasMarkers
     ? { title: `Ripassa con ${firstName}`, onPress: () => router.push('/road/ripasso'), testID: 'road-summary-ripasso' }
-    : pagellinoOn && !pgComplete
+    : pagellinoOn && pgEmpty
       ? { title: 'Compila il pagellino', onPress: openPagellino, testID: 'road-summary-pagellino-cta' }
       : { title: 'Fine', onPress: close, testID: 'road-summary-close' };
 
