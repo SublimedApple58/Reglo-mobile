@@ -7,6 +7,7 @@ import type {
   RoadPlanStop,
   RoadPoint,
   RoadSessionWithLesson,
+  RoadMarkerShape,
 } from '../types/regloApi';
 import { bearingDeg, haversineMeters } from './format';
 import { keepOnLine, LINE_FILTER_START, type LineFilter } from './trackFilter';
@@ -52,6 +53,9 @@ export type RoadLocalMarker = {
   lng: number;
   street: string | null;
   sentiment: 'good' | 'bad' | null;
+  /** R7: punto preciso o zona (assente = punto). */
+  shape?: RoadMarkerShape;
+  radiusM?: number | null;
   recordedAt: string;
   /**
    * REG-696: l'altra posizione possibile («qui» se la segnalazione è stata

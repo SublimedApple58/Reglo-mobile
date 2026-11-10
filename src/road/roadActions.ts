@@ -11,6 +11,7 @@ import type {
   RoadPlan,
   RoadSessionWithLesson,
   RoadStudentHotspot,
+  UpdateRoadMarkerInput,
 } from '../types/regloApi';
 import { roadQueue } from './queue';
 import { roadStore, lessonStudentName } from './roadStore';
@@ -466,17 +467,41 @@ export async function swapRoadMarkerPlace(clientId: string) {
 
 /**
  * REG-696: correggere una segnalazione dopo i 5 s (riepilogo, percorso):
- * giudizio o cancellazione. Va al server subito (niente aggiornamento
+ * giudizio o cancellazione; Road novembre R3: anche tipo, nota, posizione,
+ * punto/zona (`patch`). Va al server subito (niente aggiornamento
  * ottimistico): l'interfaccia si aggiorna con la risposta.
+ *
+ * R3: se la segnalazione è ancora in coda (il suo `add` non è partito) la
+ * modifica va in coda anche con la rete e si fonde con l'`add`.
  */
 export async function correctRoadMarker(
   sessionId: string,
   markerIdOrClientId: string,
-  change: { sentiment: 'good' | 'bad' } | { remove: true },
+  change: { sentiment: 'good' | 'bad' } | { remove: true } | { patch: UpdateRoadMarkerInput },
 ): Promise<boolean> {
+  const patch: UpdateRoadMarkerInput | null =
+    'remove' in change ? null : 'patch' in change ? change.patch : { sentiment: change.sentiment };
+  const queueIt = async () => {
+    await roadQueue.pushMarkerOp(
+      patch
+        ? { op: 'update', sessionId, clientId: markerIdOrClientId, patch }
+        : { op: 'remove', sessionId, clientId: markerIdOrClientId },
+    );
+    const { summary } = roadStore.get();
+    if (summary?.id === sessionId) {
+      const hit = (m: { id: string; clientId: string }) => m.id === markerIdOrClientId || m.clientId === markerIdOrClientId;
+      const markers = patch
+        ? summary.markers.map((m) => (hit(m) ? { ...m, ...withoutKind(patch) } : m))
+        : summary.markers.filter((m) => !hit(m));
+      roadStore.patchSummary({ markers });
+    }
+    roadUploader.ensureRunning();
+    return true;
+  };
+  if (await roadQueue.hasPendingAdd(markerIdOrClientId)) return queueIt();
   try {
-    if ('remove' in change) await regloApi.removeRoadMarker(sessionId, markerIdOrClientId);
-    else await regloApi.updateRoadMarker(sessionId, markerIdOrClientId, { sentiment: change.sentiment });
+    if (!patch) await regloApi.removeRoadMarker(sessionId, markerIdOrClientId);
+    else await regloApi.updateRoadMarker(sessionId, markerIdOrClientId, patch);
     return true;
   } catch (err) {
     if (!isOfflineError(err)) {
@@ -485,24 +510,14 @@ export async function correctRoadMarker(
     }
     // REG-714: senza rete la correzione va in coda (il server accetta id o
     // clientId) e il riepilogo si aggiorna subito sul telefono.
-    await roadQueue.pushMarkerOp(
-      'remove' in change
-        ? { op: 'remove', sessionId, clientId: markerIdOrClientId }
-        : { op: 'update', sessionId, clientId: markerIdOrClientId, patch: { sentiment: change.sentiment } },
-    );
-    const { summary } = roadStore.get();
-    if (summary?.id === sessionId) {
-      const markers =
-        'remove' in change
-          ? summary.markers.filter((m) => m.id !== markerIdOrClientId && m.clientId !== markerIdOrClientId)
-          : summary.markers.map((m) =>
-              m.id === markerIdOrClientId || m.clientId === markerIdOrClientId ? { ...m, sentiment: change.sentiment } : m,
-            );
-      roadStore.patchSummary({ markers });
-    }
-    roadUploader.ensureRunning();
-    return true;
+    return queueIt();
   }
+}
+
+/** Offline il tipo nuovo non ha ancora l'etichetta del server: resta quella vecchia. */
+function withoutKind(patch: UpdateRoadMarkerInput) {
+  const { kind: _kind, ...rest } = patch;
+  return rest;
 }
 
 /**

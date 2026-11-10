@@ -290,6 +290,17 @@ export const roadQueue = {
     await persist();
   },
 
+  /**
+   * R3: la segnalazione è ancora in coda (il suo `add` non è partito)? Allora
+   * una modifica o una cancellazione va in coda anche con la rete, così si
+   * fonde con l'`add` invece di arrivare al server prima di lui (prima: la
+   * cancellazione non trovava niente e poi l'`add` la faceva ricomparire).
+   */
+  async hasPendingAdd(clientId: string) {
+    await loadQueue();
+    return state.markerOps.some((m) => m.op === 'add' && m.input.clientId === clientId);
+  },
+
   /** Prima operazione che l'utente attuale può spedire (`skip`: guide da saltare). */
   peekMarkerOp(skip: ReadonlySet<string> = new Set()): MarkerOp | null {
     return state.markerOps.find((m) => mine(m.ownerId) && !skip.has(m.sessionId)) ?? null;

@@ -134,6 +134,13 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
     torna la rete» finché note o pagellino della guida sono in coda (`roadQueue.subscribe`).
   - Le correzioni delle segnalazioni dal riepilogo (`correctRoadMarker`) senza rete vanno nella coda
     delle segnalazioni e cambiano subito il riepilogo (`roadStore.patchSummary`).
+    Road novembre R3: anche **con** la rete, se l'`add` di quella segnalazione è ancora in coda
+    (`roadQueue.hasPendingAdd`) la correzione va in coda e si fonde con l'`add` (prima la
+    cancellazione arrivava al server prima della segnalazione, che poi ricompariva).
+    `correctRoadMarker` accetta anche `{ patch }` (tipo, nota, posizione + via, punto/zona; il
+    server la accetta **sempre**, senza limite di tempo). Tipi R7: `RoadMarkerShape`,
+    `ROAD_ZONE_RADII` (50/100/200), `shape`/`radiusM` su `RoadMarker`, `AddRoadMarkerInput`,
+    `UpdateRoadMarkerInput`, `RoadLocalMarker`. La grafica di R3/R7 aspetta le anteprime.
   - All'avvio, se `/road/state` dice la guida ancora attiva ma la sua chiusura è in coda
     (`roadQueue.hasClose`), `RoadController` non la riapre: spedisce.
   - Chiusure, note e pagellino si tengono 48 h (`OPS_STALE_MS`); il timer dell'uploader resta acceso

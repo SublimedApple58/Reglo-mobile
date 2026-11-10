@@ -1778,14 +1778,26 @@ export type RoadPlanRouteResponse = {
 
 export type RoadSessionWithLesson = RoadSession & { lesson: RoadLesson };
 
-/** REG-696: correzione di una segnalazione (PATCH). */
+/** REG-696 + Road novembre R3/R7: modifica di una segnalazione (PATCH), sempre. */
 export type UpdateRoadMarkerInput = {
   sentiment?: 'good' | 'bad' | null;
+  /** R3: cambio tipo (il server ricalcola l'etichetta). */
+  kind?: string;
   lat?: number;
   lng?: number;
+  /** R3: via della nuova posizione (dal telefono); senza, la cerca il server. */
+  street?: string | null;
   recordedAt?: string;
   note?: string | null;
+  /** R7: punto preciso o zona. */
+  shape?: RoadMarkerShape;
+  radiusM?: number | null;
 };
+
+/** R7: segnalazione su un punto preciso o su una zona (cerchio). */
+export type RoadMarkerShape = 'point' | 'zone';
+/** R7: raggi ammessi per una zona, in metri. */
+export const ROAD_ZONE_RADII = [50, 100, 200] as const;
 
 export type RoadMarker = {
   id: Uuid;
@@ -1799,6 +1811,9 @@ export type RoadMarker = {
   street: string | null;
   /** «Fatto bene» / «da migliorare»; null = neutra (segnalazioni prima del segno). */
   sentiment?: 'good' | 'bad' | null;
+  /** R7: assente (server vecchi) = punto. */
+  shape?: RoadMarkerShape;
+  radiusM?: number | null;
   recordedAt: string;
 };
 
@@ -2015,6 +2030,9 @@ export type AddRoadMarkerInput = {
   lng: number;
   street?: string | null;
   sentiment?: 'good' | 'bad' | null;
+  /** R7: punto (default) o zona. */
+  shape?: RoadMarkerShape;
+  radiusM?: number | null;
   recordedAt?: string;
 };
 
