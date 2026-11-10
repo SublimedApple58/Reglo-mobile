@@ -1745,7 +1745,8 @@ export const AllievoHomeScreen = () => {
     const place = nextExam.location?.name ?? null;
     const whenLine = [
       `${examStart.getDate()} ${mon(examStart)}`,
-      examTimeIsTbd(nextExam) ? 'orario da definire' : formatTime(nextExam.startsAt),
+      // «9:30», non «09:30» (come l'anteprima approvata).
+      examTimeIsTbd(nextExam) ? 'orario da definire' : `${examStart.getHours()}:${String(examStart.getMinutes()).padStart(2, '0')}`,
       place,
     ]
       .filter(Boolean)

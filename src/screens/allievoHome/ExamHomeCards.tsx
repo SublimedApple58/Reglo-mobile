@@ -198,13 +198,17 @@ const s = StyleSheet.create({
   },
   heroClip: { borderRadius: 30, overflow: 'hidden' },
   glow: { position: 'absolute', right: -60, top: -70 },
-  heroIn: { paddingTop: 12, paddingBottom: 22, paddingHorizontal: EXAM_HOME_INSET },
+  // iOS mette l'inchiostro delle cifre più in alto del browser (riga 64/64):
+  // 19,5 + 1 di riga = 22 pt ottici sopra le cifre, misurati sul simulatore.
+  heroIn: { paddingTop: 19.5, paddingBottom: 22, paddingHorizontal: EXAM_HOME_INSET },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headText: { flex: 1, minWidth: 0 },
   numRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   big: { fontSize: 64, lineHeight: 64, fontWeight: '600', color: EXAM_TONE.ink, letterSpacing: -2.6 },
   unit: { flexShrink: 1, fontSize: 18, fontWeight: '600', color: EXAM_TONE.ink, letterSpacing: -0.4 },
-  when: { fontSize: 13.5, lineHeight: 18, color: EXAM_TONE.sub, marginTop: 8 },
+  // La riga del numero porta già la discesa di «giorni all'esame»: 1 pt basta
+  // per i 17,5 pt dell'anteprima fra il fondo delle cifre e la riga data.
+  when: { fontSize: 13.5, lineHeight: 18, color: EXAM_TONE.sub, marginTop: 1 },
   road: { marginTop: 22 },
   track: { height: FLAG, justifyContent: 'center' },
   line: { position: 'absolute', top: 11.5, height: 3, borderRadius: 2, backgroundColor: EXAM_TONE.track },
