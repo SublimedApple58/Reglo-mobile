@@ -1,20 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import Animated, {
-  Extrapolation,
-  FadeIn,
-  FadeInUp,
-  interpolate,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import {
   Alert,
-  Image,
-  Modal,
-  Platform,
-  Pressable,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -22,15 +11,12 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { spacing } from '../theme';
 
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { BlurView } from 'expo-blur';
-import { Screen } from '../components/Screen';
-import { GradientCTABackground, primaryCtaShadow } from '../components/GradientCTA';
 import { BookingCelebration } from '../components/BookingCelebration';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { CalendarDrawer } from '../components/CalendarDrawer';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SkeletonBlock } from '../components/Skeleton';
 import { useSession } from '../context/SessionContext';
@@ -50,8 +36,35 @@ import {
   AvailableSlot,
   AutoscuolaStudent,
   AutoscuolaInstructor,
+  AutoscuolaWaitlistOfferWithSlot,
+  GroupLessonInvite,
 } from '../types/regloApi';
-import { colors, radii, spacing, typography } from '../theme';
+import { ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
+import { Avatar, ClayButton, ClayIconButton, ClayPressable } from '../components/clay';
+import { CLAY } from '../theme/clay';
+import {
+  bookingExceptionCases,
+  bookingHoldMessage,
+  resolveStudentBookingPolicy,
+} from '../utils/studentBookingPolicy';
+import {
+  BookingCaseItem,
+  BookingCasesCard,
+  CallInstructorButton,
+  EmptyLessonCard,
+  FeaturedOfferCard,
+  HOME_ART,
+  HomeGreeting,
+  HomeLessonRow,
+  HomeRow,
+  HomeRowsList,
+  HomeSection,
+  HomeTile,
+  LessonsList,
+  NextLessonCard,
+  PausedCard,
+  StatTiles,
+} from './allievoHome/HomeSections';
 import { lessonDetailStore } from '../stores/lessonDetailStore';
 import { groupLessonStudentStore } from '../stores/groupLessonStudentStore';
 import { allLessonsStore } from '../stores/allLessonsStore';
@@ -60,13 +73,12 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
 
-import { formatDay, formatTime } from '../utils/date';
+import { formatTime } from '../utils/date';
+import { examTimeIsTbd } from '../utils/examTime';
+import { CompactLessonCard, ExamHeroCard } from './allievoHome/ExamHomeCards';
 import { slotLocationParam } from '../utils/slotLocation';
-import { EXAM_TIME_TBD, EXAM_TIME_TBD_SHORT, examTimeIsTbd } from '../utils/examTime';
 import { transmissionLabel } from '../utils/license';
-import { lessonArtSource, heroArtSource } from '../utils/lessonArt';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
@@ -142,8 +154,6 @@ const findLinkedStudent = (
 
 
 
-const COMPACT_HEADER_H = 44;
-const SCROLL_RANGE = 70;
 
 export const AllievoHomeScreen = () => {
   const insets = useSafeAreaInsets();
@@ -199,6 +209,8 @@ export const AllievoHomeScreen = () => {
   const [swapOffersCount, setSwapOffersCount] = useState<number | null>(null);
   // Open group-lesson invites available to this student (for the home CTA badge).
   const [groupInvitesCount, setGroupInvitesCount] = useState<number | null>(null);
+  // Elenco (solo data/posti, countOnly) per la riga «Posti liberi» della home.
+  const [groupInvites, setGroupInvites] = useState<GroupLessonInvite[]>([]);
   // My active swap requests: appointmentId → offerId (for the home marker + revoke).
   const [mySwapByAppointment, setMySwapByAppointment] = useState<Map<string, string>>(new Map());
 
@@ -430,7 +442,8 @@ export const AllievoHomeScreen = () => {
         // spinner running (it lives in the route, not here) and the toast would be
         // hidden behind the modal.
         const closeWithError = (msg: string) => {
-          router.dismiss(2);
+          // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
+          router.dismissTo('/(tabs)/home');
           bookingFlowStore.clear();
           setToast({ text: msg, tone: 'danger' });
         };
@@ -445,7 +458,8 @@ export const AllievoHomeScreen = () => {
         }).then(async (response) => {
           if (response.matched) {
             await invalidateAllData();
-            router.dismiss(2);
+            // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
+          router.dismissTo('/(tabs)/home');
             bookingFlowStore.clear();
             triggerBookingCelebration();
             return;
@@ -679,8 +693,13 @@ export const AllievoHomeScreen = () => {
     try {
       // countOnly: badge number only, no ensure-invite writes server-side.
       const list = await regloApi.getGroupLessonInvites(selectedStudentId, 100, true);
-      setGroupInvitesCount(Array.isArray(list) ? list.length : 0);
+      const items = Array.isArray(list)
+        ? list.slice().sort((x, y) => new Date(x.startsAt).getTime() - new Date(y.startsAt).getTime())
+        : [];
+      setGroupInvites(items);
+      setGroupInvitesCount(items.length);
     } catch {
+      setGroupInvites([]);
       setGroupInvitesCount(0);
     }
   }, [groupLessonsEligible, selectedStudentId]);
@@ -689,8 +708,11 @@ export const AllievoHomeScreen = () => {
     useCallback(() => {
       if (!selectedStudentId) return;
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      // Prenotazione «solo eccezioni»: se l'autoscuola cambia modalità la home
+      // deve saperlo al ritorno, non dopo i 10 minuti di cache.
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookingOptions(activeCompanyId, selectedStudentId) });
       void refreshGroupInvitesCount();
-    }, [queryClient, selectedStudentId, refreshGroupInvitesCount]),
+    }, [queryClient, selectedStudentId, refreshGroupInvitesCount, activeCompanyId]),
   );
 
   // Listen for data changes from NotificationOverlay (e.g., proposal accepted, waitlist accepted)
@@ -1408,1843 +1430,597 @@ export const AllievoHomeScreen = () => {
   };
 
 
-  // ── Scroll animation (sticky header) ──
-  const headerH = insets.top + COMPACT_HEADER_H;
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => { scrollY.value = e.contentOffset.y; },
-  });
+  // ── Prenotazione «solo eccezioni»: stato deciso dal server ──
+  const bookingPolicy = useMemo(() => resolveStudentBookingPolicy(bookingOptions), [bookingOptions]);
+  const policyMode = bookingPolicy?.mode ?? null;
+  const policyHold = bookingPolicy?.hold ?? null;
 
-  const largeTitleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, SCROLL_RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SCROLL_RANGE], [0, -12], Extrapolation.CLAMP) },
-    ],
-  }));
+  // Offerte «slot liberato» attive (il server restituisce solo quelle che
+  // questo allievo può prendere). Ricaricate al focus e a ogni evento push.
+  const [liveOffers, setLiveOffers] = useState<AutoscuolaWaitlistOfferWithSlot[]>([]);
+  const refreshLiveOffers = useCallback(async () => {
+    if (!selectedStudentId) return;
+    try {
+      const list = await regloApi.getWaitlistOffers(selectedStudentId, 5);
+      setLiveOffers(Array.isArray(list) ? list : []);
+    } catch {
+      setLiveOffers([]);
+    }
+  }, [selectedStudentId]);
 
-  const compactTitleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [SCROLL_RANGE * 0.5, SCROLL_RANGE], [0, 1], Extrapolation.CLAMP),
-  }));
+  // Ultimo minuto: quanti orari liberi nella finestra e il primo.
+  const [lastMinute, setLastMinute] = useState<{ count: number; first: string | null } | null>(null);
+  const lastMinuteUntil = bookingPolicy?.lastMinuteUntil ?? null;
+  const refreshLastMinute = useCallback(async () => {
+    if (!selectedStudentId || !lastMinuteUntil || policyHold) {
+      setLastMinute(null);
+      return;
+    }
+    const until = new Date(lastMinuteUntil);
+    const duration = availableDurations.includes(60) ? 60 : availableDurations[0] ?? 60;
+    const days: string[] = [];
+    // Giorni dalla mezzanotte di oggi: conta anche domani se la finestra ci arriva
+    // (la finestra può finire prima dell'ora attuale del giorno dopo).
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let d = today; d < until && days.length < 8; d = addDays(d, 1)) days.push(toDateString(d));
+    try {
+      const lists = await Promise.all(
+        days.map((date) =>
+          regloApi
+            .getAvailableSlots({ studentId: selectedStudentId, date, durationMinutes: duration })
+            .catch(() => [] as AvailableSlot[]),
+        ),
+      );
+      const all = lists
+        .flat()
+        .filter((slot) => new Date(slot.startsAt).getTime() > Date.now())
+        .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+      setLastMinute({ count: all.length, first: all[0]?.startsAt ?? null });
+    } catch {
+      setLastMinute(null);
+    }
+  }, [selectedStudentId, lastMinuteUntil, policyHold, availableDurations]);
 
-  const headerBorderStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 20], [0, 1], Extrapolation.CLAMP),
-  }));
+  useFocusEffect(
+    useCallback(() => {
+      void refreshLiveOffers();
+      void refreshLastMinute();
+    }, [refreshLiveOffers, refreshLastMinute]),
+  );
+  useEffect(() => {
+    return notificationEvents.onDataChanged(() => {
+      void refreshLiveOffers();
+      void refreshLastMinute();
+    });
+  }, [refreshLiveOffers, refreshLastMinute]);
 
+  const openSlotOffer = useCallback(
+    (offerId: string) => router.push({ pathname: '/(tabs)/home/slot-offer', params: { offerId } }),
+    [router],
+  );
+
+  // ── Numeri e frasi della home ──
   const firstName = selectedStudent?.firstName ?? 'Allievo';
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 13) return 'Buongiorno';
+    if (h >= 13 && h < 18) return 'Buon pomeriggio';
+    return 'Buonasera';
+  }, []);
+
+  const pastLessons = useMemo(() => {
+    const now = Date.now();
+    return appointments
+      .filter((a) => {
+        const status = (a.status ?? '').trim().toLowerCase();
+        const type = (a.type ?? '').trim().toLowerCase();
+        if (status === 'cancelled' || type === 'esame') return false;
+        const end = a.endsAt ? new Date(a.endsAt).getTime() : new Date(a.startsAt).getTime() + 3600000;
+        return end < now;
+      })
+      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+  }, [appointments]);
+
+  const lessonsThisWeek = useMemo(() => {
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const next = addDays(monday, 7).getTime();
+    return [...upcoming, ...upcomingGroupLessons].filter((a) => {
+      const t = new Date(a.startsAt).getTime();
+      return t >= monday.getTime() && t < next;
+    }).length;
+  }, [upcoming, upcomingGroupLessons]);
+
+  const featuredOffer = liveOffers[0] ?? null;
+
+  const mood = useMemo(() => {
+    // Con la card esame la frase sotto il nome sparisce (anteprima 1i/1j).
+    if (nextExam && examCountdown) return null;
+    if (policyHold === 'blocked') return 'Le guide che hai già fissato restano valide.';
+    if (featuredOffer) return 'Si è liberato un posto: prendilo prima degli altri.';
+    if (policyMode === 'exceptions') return 'Le guide le fissa la tua autoscuola.';
+    if (policyMode === 'closed') return 'La tua autoscuola organizza le guide per te.';
+    if (lessonsThisWeek >= 2) return `Questa settimana guidi ${lessonsThisWeek} volte. Bel ritmo!`;
+    if (lessonsThisWeek === 1) return 'Questa settimana hai una guida. Buona strada!';
+    if (upcoming.length) return 'La prossima guida ti aspetta.';
+    return 'Prenota la tua prossima guida quando vuoi.';
+  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, upcoming.length, nextExam, examCountdown]);
+
+  const instructorInitials = (name: string | null | undefined) => {
+    if (!name) return null;
+    const parts = name.trim().split(/\s+/);
+    return `${parts[0]?.[0] ?? ''}${parts.length > 1 ? parts[parts.length - 1][0] : ''}`.toUpperCase();
+  };
+  const timeRange = (a: { startsAt: string; endsAt?: string | null }) =>
+    `${formatTime(a.startsAt)}${a.endsAt ? ` – ${formatTime(a.endsAt)}` : ''}`;
+  const longDay = (iso: string) => {
+    const d = new Date(iso);
+    const txt = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  };
+  const shortDay = (iso: string) => {
+    const d = new Date(iso);
+    const wd = d.toLocaleDateString('it-IT', { weekday: 'long' });
+    return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d.getDate()}`;
+  };
+
+  // ── Righe e sezioni ──
+  const lessonRows = useMemo<HomeLessonRow[]>(() => {
+    const list = [...upcoming.slice(1), ...upcomingGroupLessons]
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+      .slice(0, 3);
+    return list.map((l) => {
+      const d = new Date(l.startsAt);
+      const isGroup = !!l.groupLessonId;
+      const wd = d.toLocaleDateString('it-IT', { weekday: 'long' });
+      const who = isGroup ? 'Guida di gruppo' : l.instructor?.name ?? 'Istruttore da assegnare';
+      const extra = mySwapByAppointment.has(l.id)
+        ? 'sostituzione richiesta'
+        : l.types?.length
+          ? formatLessonType(l.types[0]).toLowerCase()
+          : l.endsAt
+            ? `${Math.round((new Date(l.endsAt).getTime() - d.getTime()) / 60000)} min`
+            : null;
+      return {
+        key: l.id,
+        dayNum: String(d.getDate()),
+        month: d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', ''),
+        title: `${wd.charAt(0).toUpperCase() + wd.slice(1)} · ${timeRange(l)}`,
+        subtitle: extra ? `${who} · ${extra}` : who,
+        onPress: () => (isGroup ? openGroupLessonDetail(l) : openLessonDetail(l)),
+      };
+    });
+  }, [upcoming, upcomingGroupLessons, mySwapByAppointment, openGroupLessonDetail, openLessonDetail]);
+
+  const pastRows = useMemo<HomeLessonRow[]>(
+    () =>
+      pastLessons.slice(0, 3).map((l) => {
+        const d = new Date(l.startsAt);
+        const wd = d.toLocaleDateString('it-IT', { weekday: 'long' });
+        return {
+          key: l.id,
+          dayNum: String(d.getDate()),
+          month: d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', ''),
+          title: `${wd.charAt(0).toUpperCase() + wd.slice(1)} · ${timeRange(l)}`,
+          subtitle: l.instructor?.name ?? 'Guida',
+          onPress: () => openLessonDetail(l),
+        };
+      }),
+    [pastLessons, openLessonDetail],
+  );
+
+  const openAllLessons = useCallback(() => {
+    allLessonsStore.set({ lessons: upcoming, studentId: selectedStudentId, onOpenDetail: openLessonDetail });
+    router.push('/(tabs)/home/all-lessons');
+  }, [upcoming, selectedStudentId, openLessonDetail, router]);
+
+  const openExam = useCallback(() => {
+    if (!nextExam || !examCountdown) return;
+    examDetailStore.set({ exam: nextExam, countdown: examCountdown });
+    router.push('/(tabs)/home/exam-detail');
+  }, [nextExam, examCountdown, router]);
+
+  const tiles = useMemo<HomeTile[]>(() => {
+    const out: HomeTile[] = [];
+    if (pastLessons.length) {
+      out.push({
+        key: 'done',
+        icon: HOME_ART.volante,
+        value: `${pastLessons.length} ${pastLessons.length === 1 ? 'guida' : 'guide'}`,
+        label: 'già fatte',
+      });
+    }
+    // L'esame ha la sua card in cima: qui non si ripete.
+    if (policyMode === 'closed' && pastLessons[0]) {
+      const wd = new Date(pastLessons[0].startsAt).toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+      out.push({ key: 'last', icon: HOME_ART.agenda, value: wd.charAt(0).toUpperCase() + wd.slice(1), label: 'ultima guida' });
+    }
+    return out;
+  }, [pastLessons, policyMode]);
+
+  const bookingCases = useMemo<BookingCaseItem[]>(() => {
+    if (!bookingPolicy) return [];
+    const icons = { slotFill: HOME_ART.campanella, groupSeats: HOME_ART.persone, lastMinute: HOME_ART.orologio };
+    return bookingExceptionCases(bookingPolicy).map((c) => ({ ...c, icon: icons[c.key] }));
+  }, [bookingPolicy]);
+
+  const canTakeGroupSeats =
+    groupLessonsEligible &&
+    !policyHold &&
+    (policyMode === 'open' || (policyMode === 'exceptions' && !!bookingPolicy?.exceptions.groupSeats));
+  const firstGroupInvite = groupInvites[0] ?? null;
+
+  const freeRows = useMemo<HomeRow[]>(() => {
+    const rows: HomeRow[] = [];
+    for (const offer of liveOffers.slice(1)) {
+      rows.push({
+        key: `offer-${offer.id}`,
+        icon: HOME_ART.campanella,
+        title: `${shortDay(offer.slot.startsAt)} · ${timeRange(offer.slot)}`,
+        subtitle: 'Si è liberato un posto',
+        onPress: () => openSlotOffer(offer.id),
+      });
+    }
+    if (canTakeGroupSeats && policyMode === 'exceptions' && firstGroupInvite) {
+      const left = firstGroupInvite.openSeats;
+      rows.push({
+        key: 'group',
+        icon: HOME_ART.persone,
+        title: `${shortDay(firstGroupInvite.startsAt)} · ${timeRange(firstGroupInvite)}`,
+        subtitle: `${firstGroupInvite.kind === 'moto' ? 'Guida di gruppo moto' : 'Guida di gruppo'} · ${
+          left === 1 ? '1 posto rimasto' : `${left} posti liberi`
+        }${groupInvites.length > 1 ? ` · altre ${groupInvites.length - 1}` : ''}`,
+        onPress: () => router.push('/(tabs)/home/group-lesson-invites'),
+      });
+    }
+    if (lastMinute && lastMinute.count > 0 && bookingPolicy) {
+      const first = lastMinute.first ? new Date(lastMinute.first) : null;
+      const isToday = first ? toDateString(first) === toDateString(new Date()) : false;
+      rows.push({
+        key: 'last-minute',
+        icon: HOME_ART.orologio,
+        title: `Prossime ${bookingPolicy.exceptions.lastMinuteHours} ore`,
+        subtitle: first
+          ? `${lastMinute.count} ${lastMinute.count === 1 ? 'orario' : 'orari'}, il primo ${
+              isToday ? 'oggi' : first.toLocaleDateString('it-IT', { weekday: 'long' })
+            } alle ${formatTime(first.toISOString())}`
+          : null,
+        onPress: () => router.push('/(tabs)/home/last-minute'),
+      });
+    }
+    return rows;
+  }, [liveOffers, canTakeGroupSeats, policyMode, firstGroupInvite, groupInvites.length, lastMinute, bookingPolicy, openSlotOffer, router]);
+
+  const moreRows = useMemo<HomeRow[]>(() => {
+    const rows: HomeRow[] = [];
+    if (swapEnabled && !policyHold) {
+      rows.push({
+        key: 'swaps',
+        icon: HOME_ART.scambio,
+        title: 'Scambi',
+        subtitle:
+          swapOffersCount == null
+            ? 'Guide lasciate da altri allievi'
+            : swapOffersCount > 0
+              ? `${swapOffersCount} ${swapOffersCount === 1 ? 'guida disponibile' : 'guide disponibili'} da altri allievi`
+              : 'Nessuna guida da prendere al momento',
+        onPress: () => router.push('/(tabs)/home/swaps'),
+      });
+    }
+    if (canTakeGroupSeats && policyMode === 'open') {
+      rows.push({
+        key: 'groups',
+        icon: HOME_ART.persone,
+        title: 'Guide di gruppo',
+        subtitle:
+          groupInvitesCount == null
+            ? 'Guide in compagnia di altri allievi'
+            : groupInvitesCount > 0
+              ? `${groupInvitesCount} ${groupInvitesCount === 1 ? 'posto libero' : 'posti liberi'} per te`
+              : 'Nessun posto libero al momento',
+        onPress: () => router.push('/(tabs)/home/group-lesson-invites'),
+      });
+    }
+    if (isLockedToInstructor && assignedInstructorName && weeklyAbsenceEnabled) {
+      rows.push({
+        key: 'absence',
+        icon: HOME_ART.agenda,
+        title: weeklyAbsenceDeclared ? 'Assenza segnalata' : 'Sarai assente questa settimana?',
+        subtitle: weeklyAbsenceDeclared ? `L'abbiamo detto a ${assignedInstructorName}` : `Avvisa ${assignedInstructorName}`,
+        onPress: weeklyAbsenceDeclared || weeklyAbsenceLoading ? undefined : handleDeclareAbsence,
+      });
+    }
+    return rows;
+  }, [swapEnabled, policyHold, swapOffersCount, canTakeGroupSeats, policyMode, groupInvitesCount, isLockedToInstructor, assignedInstructorName, weeklyAbsenceEnabled, weeklyAbsenceDeclared, weeklyAbsenceLoading, handleDeclareAbsence, router]);
+
+  // ── Home con l'esame: numero grande, una riga, la linea Oggi→Esame ──
+  const examHome = useMemo(() => {
+    if (!nextExam || !examCountdown) return null;
+    const days = examCountdown.days;
+    const examStart = new Date(nextExam.startsAt);
+    const mon = (d: Date) => d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+    const place = nextExam.location?.name ?? null;
+    const whenLine = [
+      `${examStart.getDate()} ${mon(examStart)}`,
+      // «9:30», non «09:30» (come l'anteprima approvata).
+      examTimeIsTbd(nextExam) ? 'orario da definire' : `${examStart.getHours()}:${String(examStart.getMinutes()).padStart(2, '0')}`,
+      place,
+    ]
+      .filter(Boolean)
+      .join(' \u00B7 ');
+    const now = Date.now();
+    const span = Math.max(1, examStart.getTime() - now);
+    const beforeExam = [...upcoming, ...upcomingGroupLessons]
+      .filter((l) => {
+        const t = new Date(l.startsAt).getTime();
+        return t >= now && t < examStart.getTime();
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    const lessonPositions = beforeExam.map((l) => (new Date(l.startsAt).getTime() - now) / span);
+    let compact: { kicker: string; title: string } | null = null;
+    if (nextLesson) {
+      const d = new Date(nextLesson.startsAt);
+      const wd = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+      const isLast = beforeExam.length === 1 && beforeExam[0].id === nextLesson.id;
+      const when = nextLessonCountdown ? ` \u00B7 ${nextLessonCountdown.toLowerCase()}` : '';
+      compact = {
+        kicker: `${isLast ? 'Ultima guida' : 'Prossima guida'}${when}`,
+        title: `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d.getDate()} ${mon(d)} \u00B7 ${timeRange(nextLesson)}`,
+      };
+    }
+    return {
+      big: days <= 0 ? 'Oggi' : String(days),
+      unit: days <= 0 ? "è il giorno dell'esame" : days === 1 ? "giorno all'esame" : "giorni all'esame",
+      whenLine,
+      lessonPositions,
+      compact,
+    };
+  }, [nextExam, examCountdown, upcoming, upcomingGroupLessons, nextLesson, nextLessonCountdown]);
+
+  const callInstructor = useCallback(() => {
+    if (!assignedInstructorPhone) return;
+    void Linking.openURL(`tel:${assignedInstructorPhone.replace(/\s+/g, '')}`);
+  }, [assignedInstructorPhone]);
+  const instructorFirstName = assignedInstructorName?.trim().split(/\s+/)[0] ?? null;
+
+  const { scrollY, onScroll } = useLargeTitleScroll();
+  // Se booking-options fallisce la home si mostra lo stesso (senza bottoni di prenotazione).
+  const dataReady = studentsLoaded && studentDataReady && (!!bookingOptions || bookingOptionsQuery.isError);
+  const canFreelyBook = !!bookingPolicy?.canBookFreely && policyMode === 'open';
+
+  const nextLessonCard = nextLesson ? (
+    <NextLessonCard
+      when={`Prossima guida${nextLessonCountdown ? ` · ${nextLessonCountdown.toLowerCase()}` : ''}`}
+      day={longDay(nextLesson.startsAt)}
+      time={`${timeRange(nextLesson)}${nextLesson.location ? ` · ${nextLesson.location.name}` : ''}`}
+      who={
+        mySwapByAppointment.has(nextLesson.id)
+          ? 'Sostituzione richiesta'
+          : [nextLesson.instructor?.name ?? 'Istruttore da assegnare', nextLesson.vehicle?.name]
+              .filter(Boolean)
+              .join(' · ')
+      }
+      initials={mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
+      onPress={() => openLessonDetail(nextLesson)}
+    />
+  ) : null;
+
+  const emptyCard = !nextLesson ? (
+    policyMode === 'closed' || policyHold ? (
+      <EmptyLessonCard
+        title="Nessuna guida in programma"
+        text="Le guide non si prenotano dall'app. Quando l'autoscuola ne fissa una ti arriva una notifica e la trovi qui."
+        action={
+          assignedInstructorPhone && instructorFirstName ? (
+            <CallInstructorButton name={instructorFirstName} onPress={callInstructor} />
+          ) : undefined
+        }
+      />
+    ) : policyMode === 'exceptions' ? (
+      <EmptyLessonCard
+        title="Nessuna guida in programma"
+        text="Quando l'autoscuola ne fissa una, o prendi un posto libero, la trovi qui."
+      />
+    ) : (
+      <EmptyLessonCard
+        title="Nessuna guida in programma"
+        text={
+          nextExam && examCountdown
+            ? `Mancano ${examCountdown.days} giorni all'esame: prenota le guide per arrivarci pronto.`
+            : 'Scegli giorno e orario: la tua prima guida è a un tocco.'
+        }
+      />
+    )
+  ) : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={styles.root}>
       <StatusBar style="dark" />
-      <ToastNotice
-        message={toast?.text ?? null}
-        tone={toast?.tone}
-        onHide={() => setToast(null)}
-      />
-      <BookingCelebration
-        visible={bookingCelebrationVisible}
-        onHidden={() => setBookingCelebrationVisible(false)}
-      />
+      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
+      <BookingCelebration visible={bookingCelebrationVisible} onHidden={() => setBookingCelebrationVisible(false)} />
 
-      {/* ── Sticky header ── */}
-      <View style={[styles.headerWrap, { height: headerH, paddingTop: insets.top }]}>
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={80} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(253,253,253,0.95)' }]} />
-        )}
-        <Animated.View style={[StyleSheet.absoluteFill, styles.headerBorder, headerBorderStyle]} />
-        <View style={styles.headerRow}>
-          <Animated.View style={[styles.compactHeader, compactTitleStyle]}>
-            <Text style={styles.compactTitle} numberOfLines={1}>Ciao, {firstName}</Text>
-          </Animated.View>
-        </View>
-      </View>
-
-      {/* ── Scroll content ── */}
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={{ flex: 1 }}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: headerH }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            progressViewOffset={headerH}
-          />
-        }
-      >
-        {/* ── Large title ── */}
-        <Animated.View style={[styles.largeTitleWrap, largeTitleStyle]}>
-          <Text style={styles.largeTitleText}>Ciao, {firstName}</Text>
-          {activeCompanyName ? (
-            <View style={styles.largeTitleSchoolRow}>
-              <Image source={require('../../assets/icons3d-ai/pin.png')} style={styles.largeTitleSchoolIcon} />
-              <Text style={[styles.largeTitleSub, { flexShrink: 1 }]} numberOfLines={1}>
-                {activeCompanyName}
-                {studentLicenseLabel ? ` \u00B7 Patente ${studentLicenseLabel}` : ''}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.largeTitleSub}>Le tue guide</Text>
-          )}
-        </Animated.View>
-
-        {/* ── Skeleton while loading ── */}
-        {upcoming.length === 0 && (!studentsLoaded || !studentDataReady) && (
+      <ClayNavBar
+        title={firstName}
+        scrollY={scrollY}
+        actions={
           <>
-            <SkeletonBlock width="100%" height={180} radius={26} />
-            <SkeletonBlock width="100%" height={60} radius={20} />
-          </>
-        )}
-
-        {/* ── Empty state (no lessons AND no exam) ── */}
-        {upcoming.length === 0 && !nextExam && studentsLoaded && (appointmentsQuery.data != null) && (
-          <View style={styles.emptyState}>
-            <Image
-              source={lessonArtSource(studentLicenseCategory)}
-              style={styles.emptyStateIcon}
+            <ClayIconButton
+              icon={<Ionicons name="notifications-outline" size={21} color={CLAY.ink} />}
+              onPress={() => router.push('/(tabs)/home/notifications')}
+              accessibilityLabel={unreadNotifCount > 0 ? `Notifiche, ${unreadNotifCount} da leggere` : 'Notifiche'}
+              testID="home-bell"
             />
-            <Text style={styles.emptyStateTitle}>Nessuna guida in programma</Text>
-            <Text style={styles.emptyStateSub}>
-              Prenota la tua prima guida e inizia il percorso{'\n'}verso la patente!
-            </Text>
-            {canBook && (
-              <Pressable
-                onPress={openBookingFlow}
-                style={({ pressed }) => [styles.examPromptCta, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
-              >
-                <GradientCTABackground radius={26} />
-                <Ionicons name="add" size={18} color="#FFFFFF" />
-                <Text style={styles.examPromptCtaText}>Prenota una guida</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {/* ── Dedicated EXAM-HERO state (exam scheduled, but NO lessons booked) ── */}
-        {upcoming.length === 0 && nextExam && examCountdown && studentsLoaded && (appointmentsQuery.data != null) && (
-          <>
-            <Animated.View entering={FadeInUp.delay(40).duration(340).springify()}>
-              <Pressable
-                onPress={() => {
-                  examDetailStore.set({ exam: nextExam, countdown: examCountdown });
-                  router.push('/(tabs)/home/exam-detail');
-                }}
-                style={({ pressed }) => [styles.examHero, pressed && styles.ctaPressed]}
-              >
-                <View style={styles.examHeroTop}>
-                  <View style={styles.examHeroEyebrowRow}>
-                    <Image source={require('../../assets/icons3d-ai/esame.png')} style={styles.examHeroIcon} />
-                    <Text style={styles.examHeroEyebrow}>ESAME DI GUIDA</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
-                </View>
-
-                {examCountdown.days === 0 ? (
-                  <Text style={styles.examHeroToday}>È oggi!</Text>
-                ) : (
-                  <View style={styles.examHeroCountWrap}>
-                    <Text style={styles.examHeroNum}>{examCountdown.days}</Text>
-                    <Text style={styles.examHeroUnit}>{examCountdown.days === 1 ? 'giorno' : 'giorni'}</Text>
-                  </View>
-                )}
-
-                <View style={styles.examHeroFooter}>
-                  <View style={styles.examHeroChip}>
-                    <Ionicons name="calendar" size={13} color="#FFFFFF" />
-                    <Text style={styles.examHeroChipText}>{formatDay(nextExam.startsAt)}</Text>
-                  </View>
-                  <View style={styles.examHeroChip}>
-                    <Ionicons name="time" size={13} color="#FFFFFF" />
-                    {/* REG-604: senza endsAt l'ora è la mezzanotte segnaposto. */}
-                    <Text style={styles.examHeroChipText}>
-                      {examTimeIsTbd(nextExam) ? EXAM_TIME_TBD : formatTime(nextExam.startsAt)}
-                    </Text>
-                  </View>
-                </View>
-              </Pressable>
-            </Animated.View>
-
-            <Animated.View entering={FadeInUp.delay(140).duration(320).springify()} style={styles.examPrompt}>
-              <Image source={lessonArtSource(studentLicenseCategory)} style={styles.examPromptIcon} />
-              <Text style={styles.examPromptTitle}>Non hai guide prenotate</Text>
-              <Text style={styles.examPromptSub}>
-                {studentBookingDisabledByPolicy
-                  ? 'Contatta la tua autoscuola per fissare le guide di pratica prima dell’esame.'
-                  : examCountdown.days <= 1
-                    ? 'Manca pochissimo! Prenota una guida per allenarti prima dell’esame.'
-                    : `Mancano ${examCountdown.days} giorni: prenota le tue guide di pratica e arriva all’esame al massimo.`}
-              </Text>
-              {!studentBookingDisabledByPolicy && (
-                <Pressable
-                  onPress={openBookingFlow}
-                  style={({ pressed }) => [styles.examPromptCta, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
-                >
-                  <GradientCTABackground radius={26} />
-                  <Ionicons name="add" size={18} color="#FFFFFF" />
-                  <Text style={styles.examPromptCtaText}>Prenota una guida</Text>
-                </Pressable>
-              )}
-            </Animated.View>
+            <ClayPressable kind="small" onPress={() => router.push('/(tabs)/more')} accessibilityRole="button" accessibilityLabel="Il tuo profilo">
+              <Avatar userId={user?.id ?? null} name={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName ?? ''}` : firstName} size={40} />
+            </ClayPressable>
           </>
-        )}
-
-        {/* ── Exam countdown card (compact, shown above lessons when lessons exist) ── */}
-        {nextExam && examCountdown && upcoming.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(50).duration(280).springify()}>
-            <Pressable
-              onPress={() => {
-                examDetailStore.set({ exam: nextExam, countdown: examCountdown });
-                router.push('/(tabs)/home/exam-detail');
-              }}
-              style={({ pressed }) => [styles.examCard, pressed && styles.ctaPressed]}
-            >
-              <Image source={require('../../assets/icons3d-ai/esame.png')} style={styles.examIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.examLabel}>Esame di guida</Text>
-                <Text style={styles.examDate}>
-                  {formatDay(nextExam.startsAt)} {'\u2022'}{' '}
-                  {examTimeIsTbd(nextExam) ? EXAM_TIME_TBD_SHORT : formatTime(nextExam.startsAt)}
-                </Text>
-              </View>
-              <View style={styles.examBadge}>
-                <Text style={styles.examBadgeNum}>{examCountdown.days}</Text>
-                <Text style={styles.examBadgeUnit}>{examCountdown.days === 1 ? 'giorno' : 'giorni'}</Text>
-              </View>
-            </Pressable>
-          </Animated.View>
-        )}
-
-        {/* ── HERO: Next lesson — warm elevated card ── */}
-        {nextLesson && (
-          <Animated.View entering={FadeInUp.delay(80).duration(320).springify()}>
-            <Pressable
-              onPress={() => openLessonDetail(nextLesson)}
-              style={({ pressed }) => [styles.heroCard, pressed && styles.ctaPressed]}
-            >
-              <View style={styles.heroTop}>
-                <View style={{ flex: 1 }}>
-                  {nextLessonCountdown && (
-                    <Text style={styles.heroWhen}>{nextLessonCountdown}</Text>
-                  )}
-                  <Text style={styles.heroTime}>
-                    {formatTime(nextLesson.startsAt)}{nextLesson.endsAt ? ` \u2013 ${formatTime(nextLesson.endsAt)}` : ''}
-                  </Text>
-                  <Text style={styles.heroDate}>{formatDay(nextLesson.startsAt)}</Text>
-                </View>
-                <Image
-                  source={heroArtSource(nextLesson.vehicle?.licenseCategory ?? studentLicenseCategory)}
-                  style={styles.heroIcon}
-                />
-              </View>
-
-              {/* REG-705e: righe discrete al posto dei chip — luogo, poi chi e che guida. */}
-              <View style={styles.heroFooter}>
-                {nextLesson.location ? (
-                  <View style={styles.heroLine}>
-                    <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
-                    <Text style={styles.heroLineText} numberOfLines={1}>
-                      {nextLesson.location.name}
-                      {nextLesson.location.address && nextLesson.location.address !== nextLesson.location.name ? (
-                        <Text style={styles.heroLineAddr}>{`  ${nextLesson.location.address}`}</Text>
-                      ) : null}
-                    </Text>
-                  </View>
-                ) : null}
-                {mySwapByAppointment.has(nextLesson.id) ? (
-                  <View style={styles.heroLine}>
-                    <Ionicons name="swap-horizontal" size={15} color={colors.textSecondary} />
-                    <Text style={styles.heroLineText} numberOfLines={1}>Sostituzione richiesta</Text>
-                  </View>
-                ) : (
-                  <View style={styles.heroLine}>
-                    <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
-                    <Text style={styles.heroLineText} numberOfLines={1}>
-                      {nextLesson.instructor?.name ?? 'Da assegnare'}
-                      <Text style={styles.heroLineDim}>
-                        {nextLesson.types && nextLesson.types.length > 0 ? ` \u00B7 ${formatLessonType(nextLesson.types[0])}` : ''}
-                        {/* Guida moto individuale: tipo birilli/strada (REG-399). */}
-                        {nextLesson.motoLessonType ? ` \u00B7 ${MOTO_LESSON_TYPE_LABELS[nextLesson.motoLessonType]}` : ''}
-                      </Text>
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </Pressable>
-          </Animated.View>
-        )}
-
-        {/* ── Upcoming lessons + booking CTA — horizontal scroll of mini-cards ── */}
-        {(upcoming.length > 1 || (canBook && upcoming.length >= 1)) && (
-          <Animated.View entering={FadeInUp.delay(140).duration(280).springify()}>
-            {upcoming.length > 1 && (
-              <Pressable
-                onPress={() => {
-                  allLessonsStore.set({ lessons: upcoming, studentId: selectedStudentId, onOpenDetail: openLessonDetail });
-                  router.push('/(tabs)/home/all-lessons');
-                }}
-                style={({ pressed }) => [styles.seeAllBtn, pressed && { opacity: 0.6 }]}
-              >
-                <Text style={styles.seeAllText}>Vedi tutte le guide</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-              </Pressable>
-            )}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ overflow: 'visible' }}
-              contentContainerStyle={styles.upcomingScroll}
-            >
-              {canBook && (
-                <Pressable
-                  onPress={openBookingFlow}
-                  style={({ pressed }) => [styles.bookCard, pressed && styles.ctaPressed]}
-                >
-                  <View style={styles.bookCardIcon}>
-                    <Ionicons name="add" size={20} color="#6A6A6A" />
-                  </View>
-                  <Text style={styles.bookCardTitle}>Prenota</Text>
-                  <Text style={styles.bookCardSub}>una guida</Text>
-                </Pressable>
-              )}
-              {upcoming.slice(1).map((lesson) => {
-                return (
-                  <Pressable
-                    key={lesson.id}
-                    onPress={() => openLessonDetail(lesson)}
-                    style={({ pressed }) => [styles.miniCard, pressed && styles.ctaPressed]}
-                  >
-                    <Image
-                      source={lessonArtSource(lesson.vehicle?.licenseCategory ?? studentLicenseCategory)}
-                      style={styles.miniCardIcon}
-                    />
-                    <Text style={styles.miniCardTime} numberOfLines={1}>
-                      {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
-                    </Text>
-                    <Text style={styles.miniCardDate} numberOfLines={1}>
-                      {formatDay(lesson.startsAt)}
-                    </Text>
-                    {lesson.location ? (
-                      <View style={styles.miniCardPlace}>
-                        <Ionicons name="location-outline" size={11} color={colors.textSecondary} />
-                        <Text style={styles.miniCardPlaceText} numberOfLines={1}>{lesson.location.name}</Text>
-                      </View>
-                    ) : null}
-                    {mySwapByAppointment.has(lesson.id) ? (
-                      <Text style={styles.miniCardSwap} numberOfLines={1}>
-                        Sostituzione richiesta
-                      </Text>
-                    ) : (
-                      <Text style={styles.miniCardInstructor} numberOfLines={1}>
-                        {lesson.instructor?.name ?? 'Da assegnare'}
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
-        )}
-
-        {/* ── Guide di gruppo — teal section (enrolled, tap → withdraw sheet) ── */}
-        {upcomingGroupLessons.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(160).duration(280).springify()}>
-            <Text style={styles.glSectionLabel}>Guide di gruppo</Text>
-            {upcomingGroupLessons.map((appt) => {
-              const seats = appt.groupLessonId ? groupSeats[appt.groupLessonId] : undefined;
-              const capacity = seats?.capacity ?? 3;
-              const filled = seats?.filled ?? 0;
-              const isMotoGl = seats?.kind === 'moto';
-              return (
-                <Pressable
-                  key={appt.id}
-                  onPress={() => openGroupLessonDetail(appt)}
-                  style={({ pressed }) => [styles.glCard, isMotoGl && styles.glCardMoto, pressed && styles.ctaPressed]}
-                >
-                  <View style={[styles.glIcon, isMotoGl && styles.glIconMoto]}>
-                    <Ionicons name="people" size={24} color={isMotoGl ? '#C2410C' : '#0F766E'} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.glLabel, isMotoGl && styles.glLabelMoto]}>{isMotoGl ? 'Guida di gruppo moto' : 'Guida di gruppo'}</Text>
-                    {/* Tipo guida moto (birilli/strada): chip compatto, stesso
-                        pattern del badge agenda. Mostra info già esistente. */}
-                    {isMotoGl && appt.groupLessonMotoType ? (
-                      <View style={styles.glMotoTypeChip}>
-                        <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[appt.groupLessonMotoType]} size={11} color="#C2410C" />
-                        <Text style={styles.glMotoTypeChipText}>{MOTO_LESSON_TYPE_LABELS[appt.groupLessonMotoType]}</Text>
-                      </View>
-                    ) : null}
-                    <Text style={styles.glTime} numberOfLines={1}>
-                      {formatTime(appt.startsAt)}{appt.endsAt ? ` – ${formatTime(appt.endsAt)}` : ''}
-                    </Text>
-                    <Text style={styles.glDate} numberOfLines={1}>{formatDay(appt.startsAt)}</Text>
-                  </View>
-                  {seats ? (
-                    <View style={styles.glSeats}>
-                      {Array.from({ length: capacity }).map((_, i) => (
-                        <View key={i} style={[styles.glSeat, isMotoGl && styles.glSeatMoto, i >= filled && (isMotoGl ? styles.glSeatEmptyMoto : styles.glSeatEmpty)]} />
-                      ))}
-                    </View>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </Animated.View>
-        )}
-
-        {/* ── Scambi — open swap offers from other students ── */}
-        {swapEnabled && (
-          <Animated.View entering={FadeInUp.delay(180).duration(280).springify()}>
-            <Pressable
-              onPress={() => router.push('/(tabs)/home/swaps')}
-              style={({ pressed }) => [styles.swapCard, pressed && styles.ctaPressed]}
-            >
-              <Image source={require('../../assets/icons3d-ai/scambio.png')} style={styles.swapIcon} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.swapTitle}>Scambi</Text>
-                <Text style={styles.swapSub} numberOfLines={1}>
-                  {swapOffersCount == null
-                    ? 'Guide libere da altri allievi'
-                    : swapOffersCount > 0
-                      ? `${swapOffersCount} guid${swapOffersCount === 1 ? 'a disponibile' : 'e disponibili'} da altri allievi`
-                      : 'Nessuna guida disponibile al momento'}
-                </Text>
-              </View>
-              {swapOffersCount != null && swapOffersCount > 0 && (
-                <View style={styles.swapBadge}>
-                  <Text style={styles.swapBadgeText}>{swapOffersCount}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </Pressable>
-          </Animated.View>
-        )}
-
-        {/* ── Guide di gruppo — open invites for opted-in students ── */}
-        {groupLessonsEligible && (
-          <Animated.View entering={FadeInUp.delay(200).duration(280).springify()}>
-            <Pressable
-              onPress={() => router.push('/(tabs)/home/group-lesson-invites')}
-              style={({ pressed }) => [styles.swapCard, pressed && styles.ctaPressed]}
-            >
-              <Image source={require('../../assets/icons3d-ai/persone.png')} style={styles.groupIcon} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.swapTitle}>Guide di gruppo</Text>
-                <Text style={styles.swapSub} numberOfLines={1}>
-                  {groupInvitesCount == null
-                    ? 'Guide in compagnia di altri allievi'
-                    : groupInvitesCount > 0
-                      ? `${groupInvitesCount} ${groupInvitesCount === 1 ? 'posto libero' : 'posti liberi'} per te`
-                      : 'Nessun invito al momento'}
-                </Text>
-              </View>
-              {groupInvitesCount != null && groupInvitesCount > 0 && (
-                <View style={styles.groupBadge}>
-                  <Text style={styles.swapBadgeText}>{groupInvitesCount}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </Pressable>
-          </Animated.View>
-        )}
-
-        {/* ── Segnala assenza — slim, low-emphasis row ── */}
-        {isLockedToInstructor && assignedInstructorName && weeklyAbsenceEnabled && (
-          <Animated.View entering={FadeInUp.delay(220).duration(280).springify()}>
-            <Pressable
-              disabled={weeklyAbsenceLoading || weeklyAbsenceDeclared}
-              onPress={handleDeclareAbsence}
-              style={({ pressed }) => [styles.absenceRow, pressed && !weeklyAbsenceDeclared && { opacity: 0.6 }]}
-            >
-              <Ionicons
-                name={weeklyAbsenceDeclared ? 'checkmark-circle' : 'calendar-outline'}
-                size={18}
-                color={weeklyAbsenceDeclared ? '#22C55E' : colors.textMuted}
-              />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.absenceTitle}>
-                  {weeklyAbsenceDeclared ? 'Assenza segnalata questa settimana' : 'Sarai assente questa settimana?'}
-                </Text>
-                <Text style={styles.absenceSub} numberOfLines={1}>
-                  {weeklyAbsenceDeclared ? assignedInstructorName : `Avvisa ${assignedInstructorName}`}
-                </Text>
-              </View>
-              {!weeklyAbsenceDeclared && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
-            </Pressable>
-          </Animated.View>
-        )}
-
-        <View style={{ height: 100 }} />
-      </Animated.ScrollView>
-
-      {/* Booking is now triggered from the in-row "Prenota una guida" CTA card
-          (and the empty-state button) instead of a floating FAB. */}
-
-      {/* Booking flow — now an Expo Router formSheet screen at /(tabs)/home/booking-flow */}
-      {/* Lesson Detail — now an Expo Router formSheet screen at /(tabs)/home/lesson-detail */}
-      <CalendarDrawer
-        visible={calendarDrawerOpen}
-        onClose={() => setCalendarDrawerOpen(false)}
-        onSelectDate={(date) => setSelectedDate(date)}
-        selectedDate={selectedDate}
-        maxWeeks={Number(settings?.availabilityWeeks) || 4}
-        bookedDates={bookedDatesSet}
+        }
       />
-      {/* Free Choice BottomSheet removed — unified into Booking PageSheet */}
+
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink3} />}
+      >
+        <HomeGreeting greeting={greeting} name={firstName} mood={dataReady ? mood : null} />
+
+        {!dataReady ? (
+          <Animated.View exiting={FadeOut.duration(150)} style={styles.skeleton}>
+            <SkeletonBlock width="100%" height={258} radius={28} />
+            <View style={styles.skeletonTiles}>
+              <SkeletonBlock width="48%" height={74} radius={22} />
+              <SkeletonBlock width="48%" height={74} radius={22} />
+            </View>
+            <SkeletonBlock width="100%" height={54} radius={27} />
+          </Animated.View>
+        ) : (
+          <Animated.View entering={FadeIn.duration(220)}>
+            {/* ── Esame prenotato: è SEMPRE la card protagonista (Tiziano 10/11),
+                la prossima guida scende in una card compatta subito sotto. ── */}
+            {examHome ? (
+              <>
+                <ExamHeroCard
+                  big={examHome.big}
+                  unit={examHome.unit}
+                  whenLine={examHome.whenLine}
+                  lessonPositions={examHome.lessonPositions}
+                  onPress={openExam}
+                />
+                {nextLesson && examHome.compact ? (
+                  <CompactLessonCard
+                    kicker={examHome.compact.kicker}
+                    title={examHome.compact.title}
+                    onPress={() => openLessonDetail(nextLesson)}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
+            {/* ── Prenotazioni in pausa ── */}
+            {policyHold === 'blocked' ? (
+              <PausedCard
+                title="Prenotazioni in pausa"
+                count={
+                  bookingOptions?.bookingBlockReason === 'unpaid_threshold' && bookingOptions.unpaidLessonCount
+                    ? bookingOptions.unpaidLessonCount
+                    : null
+                }
+                countLabel={
+                  bookingOptions?.bookingBlockReason === 'unpaid_threshold' && bookingOptions.unpaidLessonCount
+                    ? bookingOptions.unpaidLessonCount === 1
+                      ? 'guida da pagare'
+                      : 'guide da pagare'
+                    : 'Sospese dalla segreteria'
+                }
+                text={
+                  bookingOptions?.bookingBlockReason === 'unpaid_threshold'
+                    ? 'Finché non le saldi non puoi prenotare né prendere posti liberi. Quando paghi in segreteria si riaprono da sole.'
+                    : 'Non puoi prenotare né prendere posti liberi. Per riaprirle parla con la segreteria.'
+                }
+              />
+            ) : null}
+
+            {/* ── Posto liberato in evidenza ── */}
+            {!policyHold && featuredOffer ? (
+              <LiveOfferCard
+                offer={featuredOffer}
+                day={`${shortDay(featuredOffer.slot.startsAt)} · ${formatTime(featuredOffer.slot.startsAt)}`}
+                onTake={() => openSlotOffer(featuredOffer.id)}
+              />
+            ) : null}
+
+            {/* ── Solo eccezioni senza posti: quando puoi prenotare tu ── */}
+            {!policyHold && policyMode === 'exceptions' && !featuredOffer && freeRows.length === 0 && bookingCases.length ? (
+              <HomeSection
+                title="Quando puoi prenotare tu"
+                right="Ora nessun posto"
+                footer="Per tutte le altre guide chiedi in segreteria o al tuo istruttore."
+              >
+                <BookingCasesCard cases={bookingCases} />
+              </HomeSection>
+            ) : null}
+
+            {/* ── Altri posti liberi ── */}
+            {!policyHold && freeRows.length ? (
+              <HomeSection
+                title={featuredOffer ? 'Altri posti liberi' : 'Posti liberi'}
+                footer={policyMode === 'exceptions' ? 'Questi li prenoti tu. Tutte le altre guide le fissa la tua autoscuola.' : null}
+              >
+                <HomeRowsList rows={freeRows} />
+              </HomeSection>
+            ) : null}
+
+            {/* ── Prossima guida (o stato vuoto con l'immagine) ── */}
+            <View style={policyMode === 'exceptions' && !policyHold ? styles.afterCases : undefined}>
+              {examHome ? null : nextLessonCard ?? emptyCard}
+            </View>
+
+            {examHome ? null : <StatTiles tiles={tiles} />}
+
+            {canFreelyBook ? <ClayButton title="Prenota una guida" onPress={openBookingFlow} style={styles.cta} testID="home-book" /> : null}
+
+            {lessonRows.length ? (
+              <HomeSection title="Le tue guide" right={upcoming.length > 1 ? 'Tutte' : null} onRightPress={openAllLessons}>
+                <LessonsList rows={lessonRows} />
+              </HomeSection>
+            ) : !nextLesson && pastRows.length && policyMode !== 'open' ? (
+              <HomeSection title="Guide fatte">
+                <LessonsList rows={pastRows} />
+              </HomeSection>
+            ) : null}
+
+            {moreRows.length ? (
+              <HomeSection title="Altro">
+                <HomeRowsList rows={moreRows} />
+              </HomeSection>
+            ) : null}
+
+            {policyHold && policyHold !== 'blocked' ? <Text style={styles.holdNote}>{bookingHoldMessage(policyHold)}</Text> : null}
+          </Animated.View>
+        )}
+      </Animated.ScrollView>
     </View>
   );
 };
 
+/** Posto liberato in evidenza: il conto alla rovescia vive qui (timer locale, non nella schermata). */
+const OFFER_WINDOW_MS = 15 * 60 * 1000;
+const LiveOfferCard = React.memo(function LiveOfferCard({
+  offer,
+  day,
+  onTake,
+}: {
+  offer: AutoscuolaWaitlistOfferWithSlot;
+  day: string;
+  onTake: () => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 20000);
+    return () => clearInterval(id);
+  }, []);
+  const leftMs = Math.max(0, new Date(offer.expiresAt).getTime() - now);
+  const minutesLeft = Math.ceil(leftMs / 60000);
+  const total = Math.max(OFFER_WINDOW_MS, new Date(offer.expiresAt).getTime() - new Date(offer.sentAt).getTime());
+  const minutes = offer.slot.endsAt
+    ? Math.round((new Date(offer.slot.endsAt).getTime() - new Date(offer.slot.startsAt).getTime()) / 60000)
+    : null;
+  const detail = [offer.locationName, minutes ? `${minutes} min` : null].filter(Boolean).join(' · ') || 'Guida singola';
+  if (leftMs <= 0) return null;
+  return <FeaturedOfferCard day={day} detail={detail} minutesLeft={minutesLeft} progress={leftMs / total} onTake={onTake} />;
+});
+
 const styles = StyleSheet.create({
-  /* ── Sticky blur header ── */
-  headerWrap: {
-    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-  },
-  headerBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
-  },
-  headerRow: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md,
-  },
-  compactHeader: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-  },
-  compactTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
-  headerBellBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-    position: 'absolute', right: spacing.md,
-  },
-  headerBellDot: {
-    position: 'absolute', top: 4, right: 4,
-    width: 8, height: 8, borderRadius: 999,
-    backgroundColor: '#111111', borderWidth: 2, borderColor: colors.background,
-  },
-
-  /* ── Large title ── */
-  largeTitleWrap: { paddingTop: 4, paddingBottom: 2 },
-  largeTitleText: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: '#111111' },
-  largeTitleSub: { fontSize: 13, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
-  largeTitleSchoolRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  largeTitleSchoolIcon: { width: 16, height: 16 },
-
-  /* ── Scambi (swap offers) slot ── */
-  swapCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.surface, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08, shadowRadius: 6, elevation: 3,
-  },
-  swapIcon: { width: 36, height: 36 },
-  swapTitle: { fontSize: 15, fontWeight: '700', color: '#111111', letterSpacing: -0.2 },
-  swapSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
-  swapBadge: {
-    backgroundColor: colors.primary, borderRadius: 12, minWidth: 22, height: 22,
-    paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
-  },
-  swapBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  groupIcon: { width: 36, height: 36 },
-  groupBadge: {
-    backgroundColor: '#0F766E', borderRadius: 12, minWidth: 22, height: 22,
-    paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
-  },
-
-  /* ── Segnala assenza — slim row ── */
-  absenceRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 12, paddingHorizontal: 4,
-  },
-  absenceTitle: { fontSize: 13.5, fontWeight: '600', color: colors.textSecondary },
-  absenceSub: { fontSize: 12, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
-
-  /* ── Scroll content ── */
-  scrollContent: { paddingHorizontal: spacing.md, gap: 20 },
-
-  /* ── Press feedback ── */
-  ctaPressed: { opacity: 0.95, transform: [{ scale: 0.97 }] },
-
-  /* ── Booking CTA — white Airbnb card, lifted, Reglo-colored shadow ── */
-  bookCard: {
-    width: 150, borderRadius: 20, padding: 14,
-    alignItems: 'flex-start', justifyContent: 'center', gap: 4,
-    backgroundColor: colors.surface,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.17, shadowRadius: 28, elevation: 12,
-  },
-  bookCardIcon: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#929292', borderStyle: 'dashed',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
-  },
-  bookCardTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  bookCardSub: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted },
-
-  /* ── HERO card: next lesson — warm elevated card ── */
-  heroCard: {
-    backgroundColor: colors.surface, borderRadius: 26,
-    padding: 20, gap: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
-  },
-  heroTop: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-  },
-  heroWhen: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 4 },
-  heroTime: {
-    fontSize: 30, fontWeight: '600', color: '#111111',
-    letterSpacing: -0.8, lineHeight: 36,
-  },
-  heroDate: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 2 },
-  heroIcon: { width: 72, height: 72 },
-  heroFooter: {
-    gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
-    paddingTop: 12,
-  },
-  heroLine: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
-  heroLineText: { flexShrink: 1, fontSize: 14, fontWeight: '500', color: '#3A3A3C' },
-  heroLineAddr: { fontWeight: '400', color: colors.textMuted },
-  heroLineDim: { fontWeight: '400', color: colors.textMuted },
-
-  /* ── Mini-cards: horizontal upcoming lessons ── */
-  upcomingScroll: { gap: 12, paddingRight: spacing.md, paddingVertical: 6 },
-  miniCard: {
-    width: 150, borderRadius: 20, padding: 14,
-    alignItems: 'flex-start', gap: 4, backgroundColor: colors.surface,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10, shadowRadius: 10, elevation: 5,
-  },
-  miniCardIcon: { width: 32, height: 32, marginBottom: 4 },
-  miniCardTime: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.3 },
-  miniCardDate: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
-  miniCardInstructor: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
-  miniCardSwap: { fontSize: 11, fontWeight: '600', color: '#0A0A0A', marginTop: 2 },
-  miniCardPlace: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, maxWidth: '100%' },
-  miniCardPlaceText: { flexShrink: 1, fontSize: 11, fontWeight: '600', color: '#3A3A3C' },
-
-  /* ── Guide di gruppo — teal card (modelled on the instructor agenda card) ── */
-  glSectionLabel: {
-    fontSize: 12, fontWeight: '600', letterSpacing: 0.7, color: colors.textMuted,
-    textTransform: 'uppercase', marginTop: 22, marginBottom: 10, marginLeft: 4,
-  },
-  glCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: '#ECFDF5', borderRadius: 22, padding: 16, marginBottom: 12,
-    shadowColor: '#10B981', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 5 }, elevation: 4,
-  },
-  // Moto group: identical style, orange tint.
-  glCardMoto: { backgroundColor: '#FFF4EA', shadowColor: '#F97316' },
-  glIcon: {
-    width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(16,185,129,0.14)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  glIconMoto: { backgroundColor: 'rgba(249,115,22,0.14)' },
-  glLabel: { fontSize: 12, fontWeight: '600', color: '#0F766E', letterSpacing: 0.2 },
-  glLabelMoto: { color: '#C2410C' },
-  glMotoTypeChip: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FFFFFF' },
-  glMotoTypeChipText: { fontSize: 10.5, fontWeight: '700', color: '#C2410C', letterSpacing: 0.2 },
-  glTime: { fontSize: 22, fontWeight: '600', color: '#111111', letterSpacing: -0.4, marginTop: 3 },
-  glDate: { fontSize: 13, fontWeight: '400', color: '#717171', marginTop: 2 },
-  // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
-  glSeats: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginLeft: 6, maxWidth: 66 },
-  glSeat: { width: 10, height: 10, borderRadius: 3, backgroundColor: '#10B981' },
-  glSeatEmpty: { backgroundColor: '#BDEAD6' },
-  glSeatMoto: { backgroundColor: '#F97316' },
-  glSeatEmptyMoto: { backgroundColor: '#FCD9B8' },
-  seeAllBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    alignSelf: 'flex-start', paddingVertical: 8, marginBottom: 4,
-  },
-  seeAllText: { fontSize: 13, fontWeight: '600', color: colors.primary },
-
-  /* ── Exam countdown card ── */
-  examCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#F7F7F7', borderRadius: 22, padding: 16,
-    shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 12, elevation: 6,
-  },
-  examIcon: { width: 44, height: 44 },
-  examLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
-  examDate: { fontSize: 15, fontWeight: '700', color: '#111111', marginTop: 2 },
-  examBadge: {
-    backgroundColor: '#8B5CF6', borderRadius: 16,
-    paddingHorizontal: spacing.sm, paddingVertical: 6, alignItems: 'center', minWidth: 64,
-  },
-  examBadgeNum: { color: '#FFF', fontSize: 22, fontWeight: '800', lineHeight: 24 },
-  examBadgeUnit: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.9 },
-
-  /* ── Exam HERO (dedicated empty-state when exam scheduled but no lessons) ── */
-  examHero: {
-    backgroundColor: '#7C3AED', borderRadius: 26, padding: 22,
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35, shadowRadius: 16, elevation: 8,
-  },
-  examHeroTop: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  examHeroEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  examHeroIcon: { width: 34, height: 34 },
-  examHeroEyebrow: {
-    fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.85)', letterSpacing: 1,
-  },
-  examHeroCountWrap: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 16, marginBottom: 20,
-  },
-  examHeroNum: {
-    fontSize: 64, fontWeight: '800', color: '#FFFFFF', lineHeight: 62, letterSpacing: -2,
-  },
-  examHeroUnit: {
-    fontSize: 18, fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: 11,
-  },
-  examHeroToday: {
-    fontSize: 50, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1.5,
-    marginTop: 16, marginBottom: 20,
-  },
-  examHeroFooter: {
-    flexDirection: 'row', gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.25)',
-    paddingTop: 16,
-  },
-  examHeroChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 7,
-  },
-  examHeroChipText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
-
-  examPrompt: { alignItems: 'center', paddingTop: 20, paddingHorizontal: 16, gap: 6 },
-  examPromptIcon: { width: 72, height: 72, marginBottom: 4 },
-  examPromptTitle: {
-    fontSize: 17, fontWeight: '800', color: '#111111', letterSpacing: -0.3, textAlign: 'center',
-  },
-  examPromptSub: {
-    fontSize: 14, fontWeight: '400', color: colors.textMuted, textAlign: 'center',
-    lineHeight: 20, maxWidth: 300,
-  },
-  examPromptCta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderRadius: 26, paddingHorizontal: 24, minHeight: 50,
-    marginTop: 14, alignSelf: 'stretch',
-    ...primaryCtaShadow,
-  },
-  examPromptCtaText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-
-  /* ── Empty state ── */
-  emptyState: {
-    alignItems: 'center', paddingVertical: 10, paddingHorizontal: 30, gap: 6,
-  },
-  emptyStateIcon: { width: 120, height: 120, marginBottom: 12 },
-  emptyStateTitle: {
-    fontSize: 18, fontWeight: '700', color: '#1a120a', letterSpacing: -0.3, textAlign: 'center',
-  },
-  emptyStateSub: {
-    fontSize: 14, fontWeight: '400', color: '#929292', textAlign: 'center', lineHeight: 20,
-  },
-  /* ── Booking Flow Calendar ── */
-  bkBackBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-  },
-  bkBackBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#111111',
-  },
-  bkMonthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  bkMonthLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a120a',
-  },
-  bkMonthArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.08)',
-  },
-  bkWeekdayRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  bkWeekdayCell: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  bkWeekdayText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#929292',
-    letterSpacing: 0.5,
-  },
-  bkGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  bkDayWrapper: {
-    width: '14.28%',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  bkDayCell: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bkDayCellToday: {
-    borderWidth: 2,
-    borderColor: '#111111',
-  },
-  bkDayCellSelected: {
-    backgroundColor: '#1a120a',
-  },
-  bkDayText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1a120a',
-  },
-  bkDayTextToday: {
-    fontWeight: '700',
-    color: '#111111',
-  },
-  bkDayTextSelected: {
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  bkDayDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#111111',
-    marginTop: 2,
-  },
-  bkInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-  },
-  bkInfoText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#929292',
-  },
-
-  /* ── Legacy styles removed — old pills, fixed CTA, exam card ── */
-
-  /* ── Blocked by exam priority ── */
-  blockedByExamBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: '#F8F8F8',
-    borderWidth: 1,
-    borderColor: '#E6E6E6',
-  },
-  blockedByExamIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F1F1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  blockedByExamTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#4C1D95',
-  },
-  blockedByExamDesc: {
-    fontSize: 13,
-    color: '#5B21B6',
-    marginTop: 2,
-    lineHeight: 18,
-  },
-
-  /* ── Old nextLesson/calendar/CTA styles removed ── */
-  swapDetailsCard: {
-    backgroundColor: '#F7F7F7',
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-  },
-  swapDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  swapDetailIcon: {
-    fontSize: 16,
-    width: 24,
-    textAlign: 'center',
-  },
-  swapDetailText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  swapIgnoreBtn: {
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  swapIgnoreBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-
-  /* ── Agenda Section ── */
-  agendaSection: {
-    gap: spacing.sm,
-  },
-  agendaSectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  agendaList: {
-    gap: spacing.sm,
-  },
-  carouselCard: {
-    borderRadius: 28,
-    flex: 1,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 28,
-    elevation: 12,
-  },
-  carouselCardImageStyle: {
-    borderRadius: 28,
-  },
-  carouselCardContent: {
-    flex: 1,
-    padding: 24,
-  },
-  carouselCardNumber: {
-    fontSize: 64,
-    fontWeight: '800',
-    color: 'rgba(77,3,32,0.15)',
-    position: 'absolute',
-    top: 16,
-    right: 22,
-    lineHeight: 68,
-  },
-  carouselCardDate: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#4c0320',
-    marginTop: 8,
-  },
-  carouselCardTime: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#4c0320',
-    marginTop: 2,
-  },
-  carouselCardMeta: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#fd94cd',
-    marginTop: 4,
-  },
-  carouselCardActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
-
-  // Lessons list (scroll down view)
-  lessonsListSection: {
-    gap: 12,
-    marginTop: 8,
-  },
-  lessonsListTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111111',
-    letterSpacing: -0.3,
-    marginBottom: 4,
-  },
-  lessonListRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 12,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#B0B0B0',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  lessonListThumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  lessonListThumbImage: {
-    borderRadius: 16,
-  },
-  lessonListInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  lessonListDate: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
-  },
-  lessonListTime: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6A6A6A',
-  },
-  lessonListInstructor: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#929292',
-  },
-
-  cardCtaRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  cardCtaBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    paddingVertical: 14,
-    borderRadius: 20,
-  },
-  cardCtaDetail: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  cardCtaDetailText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
-  },
-  cardCtaCancel: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  cardCtaCancelText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  dateGroupHeader: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    marginTop: 14,
-    marginBottom: 4,
-    paddingHorizontal: 2,
-  },
-  nextLessonSkeleton: {
-    backgroundColor: '#FEF9C3',
-    paddingHorizontal: 22,
-    paddingVertical: 24,
-    gap: 12,
-  },
-  agendaRowSkeleton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: 10,
-  },
-  agendaRow: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.xs,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  agendaExamRow: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  agendaExamHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  agendaExamIconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: '#F2F2F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  agendaExamTime: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#595959',
-  },
-  agendaExamBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: '#111111',
-  },
-  agendaExamTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  agendaExamMeta: {
-    fontSize: 13,
-    color: '#6A6A6A',
-    fontWeight: '500',
-  },
-  agendaTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  agendaTime: {
-    fontSize: 16,
-    lineHeight: 21,
-    fontWeight: '700',
-    color: '#222222',
-    flex: 1,
-  },
-  agendaInstructor: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#222222',
-    fontWeight: '500',
-  },
-  agendaMeta: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    color: '#6A6A6A',
-  },
-  agendaCtaWrap: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  agendaToggleWrap: {
-    marginTop: spacing.xs,
-  },
-  historyPaymentMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: 'none',
-    letterSpacing: 0,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-
-  /* ── BottomSheet / Booking Preferences (unchanged styles) ── */
-  pickerRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  bookingFormBlock: {
-    gap: spacing.xs,
-  },
-  durationWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    alignItems: 'center',
-  },
-  durationChip: {
-    minWidth: 62,
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  durationChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  durationText: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  durationTextActive: {
-    ...typography.body,
-    color: '#FFFFFF',
-  },
-  _oldBookingCreditsInline: {
-    display: 'none',
-  },
-  bookingCreditsInlineLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    letterSpacing: 0,
-    textTransform: 'none',
-    fontWeight: '500',
-  },
-  bookingCreditsInlineValue: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  sheetContent: {
-    gap: spacing.xs,
-  },
-  sheetScrollContent: {
-    gap: spacing.xs,
-    paddingBottom: spacing.sm,
-  },
-  sheetScrollContainer: {
-    width: '100%',
-    position: 'relative',
-  },
-  paymentDetailsScroll: {
-    width: '100%',
-  },
-  sheetText: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  sheetMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  sheetDivider: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-    textTransform: 'uppercase',
-  },
-  paymentDocumentActions: {
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    overflow: 'visible',
-  },
-  paymentDocumentActionWrap: {
-    width: '100%',
-    alignSelf: 'stretch',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 2,
-    overflow: 'visible',
-  },
-  paymentEventsList: {
-    gap: spacing.sm,
-  },
-  paymentEventRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  paymentEventMain: {
-    flex: 1,
-    gap: 2,
-  },
-  paymentEventTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  paymentEventMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: 'none',
-    letterSpacing: 0,
-  },
-  scrollHintBottom: {
-    bottom: spacing.sm,
-  },
-  scrollHintTop: {
-    top: spacing.xs,
-  },
-  sheetActionsDock: {
-    gap: spacing.sm,
-    alignItems: 'stretch',
-    width: '100%',
-  },
-  fullWidthButtonWrap: {
-    width: '100%',
-    alignSelf: 'stretch',
-  },
-  empty: {
-    ...typography.body,
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  /* ── BottomSheet shared styles ── */
-  sheetInfoCard: {
-    backgroundColor: '#FEF9C3',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    padding: 16,
-    gap: 4,
-  },
-  sheetInfoLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#CA8A04',
-  },
-  sheetInfoDateTime: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#111111',
-  },
-  sheetInfoMeta: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#111111',
-  },
-  sheetFormLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6A6A6A',
-  },
-  sheetTextAction: {
-    alignSelf: 'center',
-    paddingVertical: 6,
-  },
-  sheetTextActionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#C13515',
-    textAlign: 'center',
-  },
-  bookingDateCard: {
-    backgroundColor: '#F7F7F7',
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  bookingDateIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEF9C3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookingDateText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  detailInfoCard: {
-    backgroundColor: '#F7F7F7',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    padding: 14,
-    gap: 2,
-  },
-  detailDateTime: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  detailStatus: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6A6A6A',
-    marginTop: 2,
-  },
-  detailDuration: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#929292',
-    marginTop: 2,
-  },
-  detailSection: {
-    gap: 2,
-  },
-  detailSectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#929292',
-    letterSpacing: 0.5,
-  },
-  detailSectionValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  detailPaymentInfo: {
-    fontSize: 13,
-    fontWeight: '400',
-    fontStyle: 'italic',
-    color: '#6A6A6A',
-  },
-
-  /* ── Chunky Google-style BottomSheet styles ── */
-  chunkyYellowCard: {
-    backgroundColor: '#FEF9C3',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    padding: 20,
-    gap: 6,
-  },
-  chunkyYellowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#CA8A04',
-  },
-  chunkyYellowLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#CA8A04',
-    textTransform: 'uppercase',
-  },
-  chunkyYellowTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  chunkyYellowSub: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#6A6A6A',
-  },
-  chunkyPinkCta: {
-    backgroundColor: colors.primary,
-    height: 54,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  chunkyPinkCtaText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  chunkyOutlineBtn: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#DDDDDD',
-    height: 54,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chunkyOutlineBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  chunkyRedLink: {
-    alignSelf: 'center',
-    paddingVertical: 10,
-  },
-  chunkyRedLinkText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#C13515',
-    textAlign: 'center',
-  },
-  chunkyFormLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#929292',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  chunkyDateCard: {
-    backgroundColor: '#F7F7F7',
-    borderRadius: 20,
-    padding: 18,
-    height: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  chunkyDateText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  chunkyChipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    alignItems: 'center',
-  },
-  chunkyChip: {
-    height: 44,
-    paddingHorizontal: 20,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chunkyChipActive: {
-    backgroundColor: '#111111',
-    borderColor: '#111111',
-    shadowColor: '#111111',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  chunkyChipText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222222',
-  },
-  chunkyChipTextActive: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  chunkyCreditsRow: {
-    backgroundColor: '#F7F7F7',
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-  },
-  chunkyCreditsLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6A6A6A',
-  },
-  chunkyCreditsValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#222222',
-  },
-
-  /* ── Booking drawer (chunky redesign) ── */
-  bookingCreditsBadge: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  bookingCreditsBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1a120a',
-  },
-  bookingSection: {
-    gap: 12,
-  },
-  bookingSectionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  bookingDateCardChunky: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.08)',
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    shadowColor: '#9c8a76',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  bookingDateIconLg: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
-    backgroundColor: '#fbd6e6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookingDateFluent: {
-    width: 42,
-    height: 42,
-  },
-  bookingDateMainText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a120a',
-  },
-  bookingDateHint: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#929292',
-    marginTop: 2,
-  },
-  bookingDurationSingle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a120a',
-  },
-  bookingChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  bookingChipChunky: {
-    height: 46,
-    paddingHorizontal: 22,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookingChipChunkyActive: {
-    backgroundColor: '#1a120a',
-    borderColor: '#1a120a',
-  },
-  bookingChipChunkyText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  bookingChipChunkyTextActive: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  bookingInstructorCaption: {
-    fontSize: 12,
-    color: '#929292',
-    marginTop: 6,
-    lineHeight: 16,
-  },
-  bookingUnavailableCaption: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#c4334e',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  timelineSubtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#929292',
-    marginBottom: 16,
-  },
-  timelineContainer: {
-    paddingBottom: 12,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    minHeight: 62,
-  },
-  timelineLeft: {
-    width: 52,
-    alignItems: 'center',
-    paddingTop: 16,
-  },
-  timelineHour: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#929292',
-  },
-  timelineLine: {
-    width: 1.5,
-    flex: 1,
-    backgroundColor: 'rgba(26,18,10,0.08)',
-    marginTop: 8,
-    minHeight: 20,
-  },
-  timelineCard: {
-    flex: 1,
-    height: 52,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(26,18,10,0.08)',
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    marginBottom: 10,
-    shadowColor: '#9c8a76',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  timelineCardActive: {
-    backgroundColor: '#1a120a',
-    borderColor: '#1a120a',
-    shadowColor: '#1a120a',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  timelineCardText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a120a',
-  },
-  timelineCardTextActive: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  timelineCheck: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timelineCheckText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  /* ── Assigned Instructor Row ── */
-  assignedInstructorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    padding: 12,
-    marginTop: 16,
-    marginBottom: 8,
-    gap: 12,
-  },
-  assignedInstructorAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#EBEBEB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  assignedInstructorInfo: {
-    flex: 1,
-    gap: 1,
-  },
-  assignedInstructorLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#929292',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  assignedInstructorName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222222',
-  },
-  assignedInstructorActions: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  assignedInstructorBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  assignedInstructorBtnWhatsApp: {
-    backgroundColor: '#F0FDF4',
-  },
-  assignedInstructorBtnCall: {
-    backgroundColor: '#F4F4F4',
-  },
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  scroll: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 },
+  skeleton: { marginTop: 18, gap: 14 },
+  skeletonTiles: { flexDirection: 'row', justifyContent: 'space-between' },
+  afterCases: { marginTop: 6 },
+  cta: { marginTop: 18 },
+  holdNote: { fontSize: 13.5, lineHeight: 19, color: CLAY.ink3, marginTop: 18, paddingHorizontal: 4 },
 });

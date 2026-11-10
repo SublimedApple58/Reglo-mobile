@@ -1,16 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, StyleSheet } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../hooks/queries/queryKeys';
-import { BottomSheet } from './BottomSheet';
-import { Button } from './Button';
-import { BookingCelebration } from './BookingCelebration';
 import { ToastNotice, ToastTone } from './ToastNotice';
-import { GradientCTABackground, primaryCtaShadow } from './GradientCTA';
 import { useSession } from '../context/SessionContext';
 import { useStudentPhase } from '../hooks/useStudentPhase';
 import { regloApi } from '../services/regloApi';
@@ -26,14 +20,11 @@ import {
 import {
   AutoscuolaSwapOfferWithDetails,
   AutoscuolaWaitlistOfferWithSlot,
-  AutoscuolaAppointmentWithRelations,
   AutoscuolaStudent,
-  AvailableSlot,
 } from '../types/regloApi';
 import { NotificationItem, ConfirmationData, AvailableSlotsData, PersistedNotification } from '../types/notifications';
-import { colors, spacing, typography } from '../theme';
-import { formatDay, formatTime } from '../utils/date';
-import { isSameSlot, slotKey, slotLocationParam, slotLocationMode } from '../utils/slotLocation';
+import { colors } from '../theme';
+import { readAcceptedOfferIds } from '../screens/bookingExceptionParts';
 
 const lessonTypeLabelMap: Record<string, string> = {
   manovre: 'Manovre',
@@ -78,7 +69,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
   const { phase: studentPhase } = useStudentPhase();
   const router = useRouter();
   const pathname = usePathname();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   // ── Persistent inbox ──
@@ -100,28 +90,15 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
   // swap-accepted notifications route to the Scambi section) ──
   const [confirmations, setConfirmations] = useState<ConfirmationData[]>([]);
 
-  // ── Waitlist (all) ──
+  // ── Waitlist (all) ── offerte attive: badge, posta e apertura automatica.
+  // Il foglio dell'offerta è la rotta `/(tabs)/home/slot-offer` (FORM_SHEET,
+  // `SlotOfferSheet`); i posti liberi del giorno / dell'ultimo minuto sono
+  // `/(tabs)/home/last-minute` (`LastMinuteSheet`). Prima erano BottomSheet
+  // fatti a mano qui («Slot liberato!», «Scegli un orario», «Già fatto!»).
   const [waitlistOffers, setWaitlistOffers] = useState<AutoscuolaWaitlistOfferWithSlot[]>([]);
-  const [waitlistOffer, setWaitlistOffer] = useState<AutoscuolaWaitlistOfferWithSlot | null>(null);
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const [waitlistLoading, setWaitlistLoading] = useState(false);
-
-  // ── Available slots (from push notification) ──
-  const [availableSlotsDate, setAvailableSlotsDate] = useState<string | null>(null);
-  const [availableSlotsList, setAvailableSlotsList] = useState<AvailableSlot[]>([]);
-  const [availableSlotsOpen, setAvailableSlotsOpen] = useState(false);
-  const [availableSlotsSelected, setAvailableSlotsSelected] = useState<AvailableSlot | null>(null);
-  const [availableSlotsBooking, setAvailableSlotsBooking] = useState(false);
-  const [availableSlotsDurations, setAvailableSlotsDurations] = useState<number[]>([60]);
-  const [availableSlotsDuration, setAvailableSlotsDuration] = useState(60);
-  const [availableSlotsLoading, setAvailableSlotsLoading] = useState(false);
-  // REG-705e: un luogo solo → sotto il titolo; più luoghi → su ogni slot.
-  const availableSlotsLocationMode = useMemo(() => slotLocationMode(availableSlotsList), [availableSlotsList]);
 
   // ── UI ──
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
-  const [celebrationVisible, setCelebrationVisible] = useState(false);
-  const [celebrationVariant, setCelebrationVariant] = useState<'booking' | 'swap'>('booking');
 
   // ── Bubble animation ──
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
@@ -131,15 +108,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
 
   // ── Auto-open tracking ──
   const autoOpenedIds = useRef(new Set<string>());
-
-  // ── Accepted / expired tracking ──
-  const acceptedIds = useRef(new Set<string>());
-  const acceptedLoaded = useRef(false);
-  const [staleDrawerKind, setStaleDrawerKind] = useState<'accepted' | null>(null);
-
-  // ── Student scheduled appointments (for overlap check) ──
-  const [scheduledAppointments, setScheduledAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
-  const [busySlotLabel, setBusySlotLabel] = useState<string | null>(null);
 
   // ── Keep ref in sync with state ──
   useEffect(() => {
@@ -215,22 +183,8 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
       });
   }, []);
 
-  // ── SecureStore: load accepted notification IDs ──
-  useEffect(() => {
-    SecureStore.getItemAsync('reglo_accepted_notification_ids')
-      .then((raw) => {
-        if (raw) {
-          try {
-            const ids = JSON.parse(raw) as string[];
-            for (const id of ids) acceptedIds.current.add(id);
-          } catch {}
-        }
-        acceptedLoaded.current = true;
-      })
-      .catch(() => {
-        acceptedLoaded.current = true;
-      });
-  }, []);
+  // Offerte già accettate: le legge `openSlotOffer` al momento (SecureStore,
+  // chiave condivisa con `SlotOfferSheet`, che la scrive dopo un «sì»).
 
   // ── Scope inbox per user ──
   useEffect(() => {
@@ -324,33 +278,15 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     }
   }, []);
 
-  const loadScheduled = useCallback(async (sid: string) => {
-    try {
-      const now = new Date();
-      const future = new Date();
-      future.setDate(future.getDate() + 60);
-      const appointments = await regloApi.getAppointments({
-        studentId: sid,
-        from: now.toISOString(),
-        to: future.toISOString(),
-        status: 'scheduled',
-      });
-      setScheduledAppointments(appointments);
-    } catch {
-      // silent
-    }
-  }, []);
-
   const loadAll = useCallback(
     (sid: string) => {
       loadWaitlistOffers(sid);
-      loadScheduled(sid);
       if (swapEnabled) {
         loadSwapOffers(sid);
         checkMyAcceptedSwaps(sid);
       }
     },
-    [swapEnabled, loadSwapOffers, checkMyAcceptedSwaps, loadWaitlistOffers, loadScheduled],
+    [swapEnabled, loadSwapOffers, checkMyAcceptedSwaps, loadWaitlistOffers],
   );
 
   // ── Initial load ──
@@ -376,95 +312,62 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     return () => clearInterval(interval);
   }, [loadSwapOffers, checkMyAcceptedSwaps, studentId, isStudent, swapEnabled]);
 
-  // ── Handlers: Available Slots ──
+  // ── Fogli dell'allievo: offerta di uno slot liberato e posti liberi ──
+  // Push e apertura automatica possono chiedere lo stesso foglio due volte
+  // (notifica ricevuta in primo piano + tocco sulla notifica): una volta sola.
+  const lastOpened = useRef<{ key: string; at: number } | null>(null);
+  const shouldOpen = useCallback((key: string) => {
+    const now = Date.now();
+    if (lastOpened.current && lastOpened.current.key === key && now - lastOpened.current.at < 60_000) return false;
+    lastOpened.current = { key, at: now };
+    return true;
+  }, []);
 
-  const handleAvailableSlotsNotification = useCallback(async (date: string) => {
-    if (!studentId) return;
-    setAvailableSlotsLoading(true);
-    setAvailableSlotsDate(date);
-    try {
-      const optionsRes = await regloApi.getBookingOptions(studentId);
-      const durations = optionsRes.bookingSlotDurations ?? [60];
-      setAvailableSlotsDurations(durations);
-      const duration = durations[0] ?? 60;
-      setAvailableSlotsDuration(duration);
+  const openSlotOffer = useCallback(async (hint: { offerId: string; startsAt?: string; endsAt?: string; expiresAt?: string }) => {
+    if (!hint.offerId || !shouldOpen(`offer_${hint.offerId}`)) return;
+    const accepted = await readAcceptedOfferIds();
+    const params: Record<string, string> = { offerId: hint.offerId };
+    if (studentId) params.studentId = studentId;
+    if (hint.startsAt) params.startsAt = hint.startsAt;
+    if (hint.endsAt) params.endsAt = hint.endsAt;
+    if (hint.expiresAt) params.expiresAt = hint.expiresAt;
+    if (accepted.has(hint.offerId)) params.accepted = '1';
+    router.push({ pathname: '/(tabs)/home/slot-offer', params });
+  }, [router, shouldOpen, studentId]);
 
-      const slotsRes = await regloApi.getAvailableSlots({
-        studentId,
-        date,
-        durationMinutes: duration,
-      });
-      if (!slotsRes.length) {
-        setToast({ text: 'Posti gi\u00E0 esauriti per questo giorno', tone: 'info' });
-        setAvailableSlotsLoading(false);
-        return;
-      }
-      setAvailableSlotsList(slotsRes);
-      setAvailableSlotsSelected(null);
-      setAvailableSlotsOpen(true);
-    } catch {
-      setToast({ text: 'Errore nel caricamento degli slot', tone: 'danger' });
-    } finally {
-      setAvailableSlotsLoading(false);
-    }
-  }, [studentId]);
+  /**
+   * Push `available_slots`: con `lastMinute` (prenotazione «solo eccezioni»)
+   * il foglio «Posti liberi a breve» sulla finestra dell'ultimo minuto; senza
+   * (prenotazione aperta) lo stesso foglio sul giorno della notifica. Il flusso
+   * di prenotazione completo della home (`booking-flow`) vive nello store della
+   * home e chiede durata, tipo, istruttore: per «si sono liberati posti
+   * giovedì» basta scegliere l'orario, come faceva il vecchio «Scegli un orario».
+   */
+  const openFreeSlots = useCallback((data: { date?: string; lastMinute?: boolean }) => {
+    const key = data.lastMinute ? 'last_minute' : `free_${data.date ?? ''}`;
+    if (!shouldOpen(key)) return;
+    const params: Record<string, string> = {};
+    if (studentId) params.studentId = studentId;
+    if (!data.lastMinute && data.date) params.date = data.date;
+    router.push({ pathname: '/(tabs)/home/last-minute', params });
+  }, [router, shouldOpen, studentId]);
 
-  const handleAvailableSlotsDurationChange = useCallback(async (duration: number) => {
-    if (!studentId || !availableSlotsDate) return;
-    setAvailableSlotsDuration(duration);
-    setAvailableSlotsSelected(null);
-    setAvailableSlotsLoading(true);
-    try {
-      const slotsRes = await regloApi.getAvailableSlots({
-        studentId,
-        date: availableSlotsDate,
-        durationMinutes: duration,
-      });
-      setAvailableSlotsList(slotsRes);
-      if (!slotsRes.length) {
-        setToast({ text: 'Nessuno slot disponibile per questa durata', tone: 'info' });
-      }
-    } catch {
-      setToast({ text: 'Errore nel caricamento degli slot', tone: 'danger' });
-    } finally {
-      setAvailableSlotsLoading(false);
-    }
-  }, [studentId, availableSlotsDate]);
-
-  const handleConfirmAvailableSlot = useCallback(async () => {
-    if (!studentId || !availableSlotsSelected || !availableSlotsDate || availableSlotsBooking) return;
-    setAvailableSlotsBooking(true);
-    setToast(null);
-    try {
-      const response = await regloApi.createBookingRequest({
-        studentId,
-        preferredDate: availableSlotsDate,
-        durationMinutes: availableSlotsDuration,
-        selectedStartsAt: availableSlotsSelected.startsAt,
-        ...slotLocationParam(availableSlotsSelected),
-      });
-      if (response.matched) {
-        setToast({ text: 'Guida prenotata', tone: 'success' });
-        setCelebrationVariant('booking');
-        setCelebrationVisible(false);
-        setTimeout(() => setCelebrationVisible(true), 0);
-        setAvailableSlotsOpen(false);
-        setAvailableSlotsSelected(null);
-        setAvailableSlotsList([]);
-        notificationEvents.emitDataChanged();
-      } else {
-        setToast({ text: 'Richiesta inviata', tone: 'success' });
-        setAvailableSlotsOpen(false);
-      }
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore nella prenotazione',
-        tone: 'danger',
-      });
-    } finally {
-      setAvailableSlotsBooking(false);
-    }
-  }, [studentId, availableSlotsSelected, availableSlotsDate, availableSlotsBooking, availableSlotsDuration]);
+  /** Salva in posta la push `available_slots` (anche `lastMinute`). */
+  const persistAvailableSlots = useCallback((date: string, lastMinute: boolean) => {
+    const persisted: PersistedNotification = {
+      kind: 'available_slots',
+      id: `available_slots_${date}_${Date.now()}`,
+      data: { date, ...(lastMinute ? { lastMinute: true } : {}) },
+      receivedAt: new Date().toISOString(),
+      read: false,
+      dismissed: false,
+    };
+    const merged = mergeFromApi(inboxRef.current, [persisted]);
+    inboxRef.current = merged;
+    setInboxItems(merged);
+    saveInbox(merged);
+    notificationEvents.emitInboxUpdated();
+  }, []);
 
   // ── Push intents ──
   useEffect(() => {
@@ -472,6 +375,15 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     const unsub = subscribePushIntent((intent, data) => {
       if (intent === 'slot_fill_offer') {
         loadWaitlistOffers(studentId);
+        const offerId = String(data?.offerId ?? '');
+        if (offerId) {
+          openSlotOffer({
+            offerId,
+            startsAt: data?.startsAt ? String(data.startsAt) : undefined,
+            endsAt: data?.endsAt ? String(data.endsAt) : undefined,
+            expiresAt: data?.expiresAt ? String(data.expiresAt) : undefined,
+          });
+        }
         return;
       }
       if (intent === 'swap_offer' && swapEnabled) {
@@ -497,23 +409,10 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
       }
       if (intent === 'available_slots') {
         const date = String(data?.date ?? '');
-        if (date) {
-          const notifId = `available_slots_${date}_${Date.now()}`;
-          const persisted: PersistedNotification = {
-            kind: 'available_slots',
-            id: notifId,
-            data: { date },
-            receivedAt: new Date().toISOString(),
-            read: false,
-            dismissed: false,
-          };
-          const merged = mergeFromApi(inboxRef.current, [persisted]);
-          inboxRef.current = merged;
-          setInboxItems(merged);
-          saveInbox(merged);
-          notificationEvents.emitInboxUpdated();
-
-          handleAvailableSlotsNotification(date);
+        const lastMinute = data?.lastMinute === true || data?.lastMinute === 'true';
+        if (date || lastMinute) {
+          persistAvailableSlots(date || new Date().toISOString().slice(0, 10), lastMinute);
+          openFreeSlots({ date, lastMinute });
         }
         return;
       }
@@ -686,7 +585,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
       }
     });
     return unsub;
-  }, [loadSwapOffers, loadWaitlistOffers, handleAvailableSlotsNotification, studentId, isStudent, swapEnabled]);
+  }, [loadSwapOffers, loadWaitlistOffers, openSlotOffer, openFreeSlots, persistAvailableSlots, studentId, isStudent, swapEnabled]);
 
   // ── Cold start: consume pending push intent ──
   useEffect(() => {
@@ -696,25 +595,22 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
       const { intent, data } = result;
       if (intent === 'available_slots') {
         const date = String(data?.date ?? '');
-        if (date) {
-          const notifId = `available_slots_${date}_${Date.now()}`;
-          const persisted: PersistedNotification = {
-            kind: 'available_slots',
-            id: notifId,
-            data: { date },
-            receivedAt: new Date().toISOString(),
-            read: false,
-            dismissed: false,
-          };
-          const merged = mergeFromApi(inboxRef.current, [persisted]);
-          inboxRef.current = merged;
-          setInboxItems(merged);
-          saveInbox(merged);
-          notificationEvents.emitInboxUpdated();
-          handleAvailableSlotsNotification(date);
+        const lastMinute = data?.lastMinute === true || data?.lastMinute === 'true';
+        if (date || lastMinute) {
+          persistAvailableSlots(date || new Date().toISOString().slice(0, 10), lastMinute);
+          openFreeSlots({ date, lastMinute });
         }
       } else if (intent === 'slot_fill_offer') {
         loadWaitlistOffers(studentId);
+        const offerId = String(data?.offerId ?? '');
+        if (offerId) {
+          openSlotOffer({
+            offerId,
+            startsAt: data?.startsAt ? String(data.startsAt) : undefined,
+            endsAt: data?.endsAt ? String(data.endsAt) : undefined,
+            expiresAt: data?.expiresAt ? String(data.expiresAt) : undefined,
+          });
+        }
       } else if (intent === 'swap_offer' && swapEnabled) {
         loadSwapOffers(studentId);
       }
@@ -912,74 +808,30 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     return unsub;
   }, [isOwner]);
 
-  // ── Check slot overlap ──
-  const checkBusy = useCallback((startsAt: string, endsAt: string | null): string | null => {
-    const offerStart = new Date(startsAt).getTime();
-    const offerEnd = endsAt
-      ? new Date(endsAt).getTime()
-      : offerStart + 30 * 60 * 1000; // default 30 min
-    for (const appt of scheduledAppointments) {
-      const aStart = new Date(appt.startsAt).getTime();
-      const aEnd = appt.endsAt
-        ? new Date(appt.endsAt).getTime()
-        : aStart + 30 * 60 * 1000;
-      if (offerStart < aEnd && offerEnd > aStart) {
-        return `Hai già una guida ${formatDay(appt.startsAt)} alle ${formatTime(appt.startsAt)}`;
-      }
-    }
-    return null;
-  }, [scheduledAppointments]);
-
-  // ── Open drawer for a specific notification item ──
+  // ── Open the sheet for a notification item (inbox tap, auto-open) ──
+  // L'offerta si apre SEMPRE nel suo foglio, anche se non è più nell'elenco:
+  // è il foglio a dire «già presa», «scaduta», «sovrapposta» o «è tua»
+  // (prima: toast «Offerta non più disponibile» o il drawer «Già fatto!»).
   const openDrawerForItem = useCallback((item: NotificationItem) => {
-    // Swap offers no longer open a drawer — they are handled in the dedicated
-    // "Scambi" section (the inbox navigates there on tap). Swap-accepted
-    // confirmations are swap-related too → no drawer, handled via the inbox
-    // routing to Scambi.
+    // Swap offers / confirmations → sezione «Scambi» (la posta naviga lì).
     if (item.kind === 'swap' || item.kind === 'confirmation') return;
-    // Available slots: loads fresh from API, no stale check needed
     if (item.kind === 'available_slots') {
-      handleAvailableSlotsNotification(item.data.date);
+      const data = item.data as AvailableSlotsData & { lastMinute?: boolean };
+      openFreeSlots({ date: data.date, lastMinute: data.lastMinute === true });
       return;
     }
-    // Check if already accepted by the user
-    if (acceptedIds.current.has(item.id)) {
-      setStaleDrawerKind('accepted');
-      return;
-    }
-    // The "stale" / "expired" path below applies ONLY to interactive offer kinds.
-    // For info-only kinds (appointment_cancelled, appointment_rescheduled, weekly_absence,
-    // holiday_declared, availability_published, sick_leave_cancelled, ...) there is no
-    // drawer to open — bail silently. Otherwise the stillAvailable check would always
-    // be false (the 3 OR clauses can never match a non-offer kind) and the user would
-    // see the misleading "Troppo tardi!" drawer pop up out of nowhere.
-    const isOfferKind = item.kind === 'waitlist';
-    if (!isOfferKind) return;
-
-    // Check if the offer is still in the current API arrays
-    const stillAvailable =
-      item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id);
-
-    if (!stillAvailable) {
-      // The offer was taken/expired — light toast instead of a drawer.
-      setToast({ text: 'Offerta non più disponibile', tone: 'info' });
-      return;
-    }
-
-    // Check overlap with scheduled appointments
-    let busy: string | null = null;
-    if (item.kind === 'waitlist') {
-      busy = checkBusy(item.data.slot.startsAt, item.data.slot.endsAt);
-    }
-    setBusySlotLabel(busy);
-
-    switch (item.kind) {
-      case 'waitlist':
-        setWaitlistOffer(item.data);
-        setWaitlistOpen(true);
-        break;
-    }
-  }, [waitlistOffers, checkBusy, handleAvailableSlotsNotification]);
+    // Solo i kind con un foglio: gli altri (annullate, festivi, …) sono notizie.
+    if (item.kind !== 'waitlist') return;
+    // Dalla push l'id in posta è l'offerta; dal recupero server è `waitlist_<id>`.
+    const data = item.data as Partial<AutoscuolaWaitlistOfferWithSlot>;
+    const offerId = data.id ?? item.id.replace(/^waitlist_/, '');
+    openSlotOffer({
+      offerId,
+      startsAt: data.slot?.startsAt,
+      endsAt: data.slot?.endsAt,
+      expiresAt: data.expiresAt,
+    });
+  }, [openFreeSlots, openSlotOffer]);
 
   // ── Listen for openDrawer events from inbox screen ──
   useEffect(() => {
@@ -1007,8 +859,9 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
       // For offer-type items, verify they are still live before auto-opening.
       const isOfferKind = item.kind === 'waitlist';
       if (isOfferKind) {
+        const offerId = (item.data as { id?: string }).id ?? item.id;
         const stillAvailable =
-          item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === item.id);
+          item.kind === 'waitlist' && waitlistOffers.some((w) => w.id === offerId);
         if (!stillAvailable) {
           // Silently mark as read without opening any drawer.
           autoOpenedIds.current.add(item.id);
@@ -1054,74 +907,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     }
   }, [unreadCount, bubbleOpacity, bubbleTranslateX]);
 
-  // ── Helper: persist accepted ID ──
-  const markAccepted = useCallback((id: string) => {
-    acceptedIds.current.add(id);
-    SecureStore.setItemAsync(
-      'reglo_accepted_notification_ids',
-      JSON.stringify([...acceptedIds.current]),
-    ).catch(() => {});
-  }, []);
-
-  // ── Handlers: Swap ──
-
-  // ── Handlers: Waitlist ──
-
-  const handleAcceptWaitlist = async () => {
-    if (!studentId || !waitlistOffer) return;
-    setWaitlistLoading(true);
-    setToast(null);
-    try {
-      const response = await regloApi.respondWaitlistOffer(waitlistOffer.id, {
-        studentId,
-        response: 'accept',
-      });
-      if (response.accepted) {
-        markAccepted(waitlistOffer.id);
-        setToast({ text: 'Slot accettato e guida prenotata', tone: 'success' });
-        setCelebrationVariant('booking');
-        setCelebrationVisible(false);
-        setTimeout(() => setCelebrationVisible(true), 0);
-        setWaitlistOpen(false);
-        setWaitlistOffers((prev) => prev.filter((o) => o.id !== waitlistOffer.id));
-        notificationEvents.emitDataChanged();
-      } else {
-        setToast({ text: 'Slot non più disponibile', tone: 'info' });
-      }
-      await loadWaitlistOffers(studentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante accettazione slot',
-        tone: 'danger',
-      });
-    } finally {
-      setWaitlistLoading(false);
-    }
-  };
-
-  const handleDeclineWaitlist = async () => {
-    if (!studentId || !waitlistOffer || waitlistLoading) return;
-    setWaitlistLoading(true);
-    setToast(null);
-    try {
-      await regloApi.respondWaitlistOffer(waitlistOffer.id, {
-        studentId,
-        response: 'decline',
-      });
-      setToast({ text: 'Proposta rifiutata', tone: 'info' });
-      setWaitlistOpen(false);
-      setWaitlistOffers((prev) => prev.filter((o) => o.id !== waitlistOffer.id));
-      await loadWaitlistOffers(studentId);
-    } catch (err) {
-      setToast({
-        text: err instanceof Error ? err.message : 'Errore durante rifiuto slot',
-        tone: 'danger',
-      });
-    } finally {
-      setWaitlistLoading(false);
-    }
-  };
-
   // ── Handle bell tap — navigate to inbox ──
   const handleBellPress = () => {
     bubbleDismissed.current = true;
@@ -1139,231 +924,6 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
         tone={toast?.tone}
         onHide={() => setToast(null)}
       />
-      <BookingCelebration
-        visible={isStudent && celebrationVisible}
-        variant={celebrationVariant}
-        onHidden={() => setCelebrationVisible(false)}
-      />
-
-
-      {/* ── Waitlist Offer ── */}
-      {/* REG-705e: righe discrete (quando, durata, luogo) come il resto dell'app;
-          «No, grazie» chiude il foglio e lascia l'offerta nella posta. */}
-      <BottomSheet
-        visible={isStudent && waitlistOpen && !!waitlistOffer}
-        onClose={waitlistLoading ? () => {} : () => { setWaitlistOpen(false); setWaitlistOffer(null); }}
-        closeDisabled={waitlistLoading}
-        footer={
-          busySlotLabel ? (
-            <View style={styles.busyFooter}>
-              <View style={styles.busyButton}>
-                <Text style={styles.busyButtonText}>{busySlotLabel}</Text>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.waitlistActions}>
-              <Pressable
-                onPress={waitlistLoading ? undefined : () => { setWaitlistOpen(false); setWaitlistOffer(null); }}
-                disabled={waitlistLoading}
-                style={({ pressed }) => [styles.waitlistGhost, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.waitlistGhostText}>No, grazie</Text>
-              </Pressable>
-              <Pressable
-                onPress={waitlistLoading ? undefined : handleAcceptWaitlist}
-                disabled={waitlistLoading}
-                style={[styles.waitlistCta, waitlistLoading && { opacity: 0.6 }]}
-              >
-                <GradientCTABackground radius={26} />
-                {waitlistLoading
-                  ? <ActivityIndicator color="#FFFFFF" />
-                  : <Text style={styles.waitlistCtaText}>Prenota</Text>}
-              </Pressable>
-            </View>
-          )
-        }
-      >
-        {waitlistOffer ? (
-          <View style={{ gap: 18 }}>
-            <View style={styles.waitlistHero}>
-              <Text style={styles.waitlistHeroTitle}>Slot liberato!</Text>
-              <Text style={styles.waitlistHeroSub}>
-                Si {'\u00E8'} liberato un posto che fa per te.
-              </Text>
-            </View>
-            <View style={styles.waitlistCard}>
-              <View style={styles.waitlistCardRow}>
-                <Ionicons name="calendar-outline" size={19} color="#111111" />
-                <Text style={styles.waitlistCardText}>
-                  {formatDay(waitlistOffer.slot.startsAt)} {'\u00B7'} {formatTime(waitlistOffer.slot.startsAt)}
-                </Text>
-              </View>
-              <View style={styles.waitlistCardDivider} />
-              <View style={styles.waitlistCardRow}>
-                <Ionicons name="time-outline" size={19} color="#111111" />
-                <Text style={styles.waitlistCardText}>
-                  {Math.max(0, Math.round((new Date(waitlistOffer.slot.endsAt).getTime() - new Date(waitlistOffer.slot.startsAt).getTime()) / 60000))} min
-                </Text>
-              </View>
-              {waitlistOffer.locationName ? (
-                <>
-                  <View style={styles.waitlistCardDivider} />
-                  <View style={styles.waitlistCardRow}>
-                    <Ionicons name="location-outline" size={19} color="#111111" />
-                    <Text style={styles.waitlistCardText} numberOfLines={1}>{waitlistOffer.locationName}</Text>
-                  </View>
-                </>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-      </BottomSheet>
-
-      {/* ── Available Slots ── */}
-      <BottomSheet
-        visible={isStudent && availableSlotsOpen && availableSlotsList.length > 0}
-        onClose={() => {
-          if (!availableSlotsBooking) {
-            setAvailableSlotsOpen(false);
-            setAvailableSlotsSelected(null);
-          }
-        }}
-        title="Scegli un orario"
-        closeDisabled={availableSlotsBooking}
-        showHandle
-        footer={
-          <Pressable
-            onPress={availableSlotsBooking || !availableSlotsSelected ? undefined : handleConfirmAvailableSlot}
-            disabled={availableSlotsBooking || !availableSlotsSelected}
-            style={[
-              styles.chunkyPinkCta,
-              (availableSlotsBooking || !availableSlotsSelected) && { opacity: 0.5 },
-            ]}
-          >
-            <GradientCTABackground radius={20} />
-            <Text style={styles.chunkyPinkCtaText}>
-              {availableSlotsBooking
-                ? 'Attendi...'
-                : availableSlotsLocationMode.mode === 'multi' && availableSlotsSelected?.locationName
-                  ? `Prenota a ${availableSlotsSelected.locationName}`
-                  : 'Prenota'}
-            </Text>
-          </Pressable>
-        }
-      >
-        <View style={styles.availableSlotsSubtitleRow}>
-          <Text style={styles.availableSlotsSubtitle} numberOfLines={1}>
-            {availableSlotsDate ? formatDay(`${availableSlotsDate}T00:00:00Z`) : ''} {'\u2022'} {availableSlotsDuration} min
-            {availableSlotsLocationMode.mode === 'single' ? ` ${'\u2022'} ` : ''}
-          </Text>
-          {availableSlotsLocationMode.mode === 'single' ? (
-            <>
-              <Ionicons name="location-outline" size={14} color="#6A6A6A" />
-              <Text style={[styles.availableSlotsSubtitle, { flexShrink: 1 }]} numberOfLines={1}>
-                {availableSlotsLocationMode.name}
-              </Text>
-            </>
-          ) : null}
-        </View>
-
-        {availableSlotsDurations.length > 1 ? (
-          <View style={styles.availableSlotsDurationRow}>
-            {availableSlotsDurations.map((d) => {
-              const isActive = d === availableSlotsDuration;
-              return (
-                <Pressable
-                  key={`asd-${d}`}
-                  style={[styles.availableSlotsDurationChip, isActive && styles.availableSlotsDurationChipActive]}
-                  onPress={() => handleAvailableSlotsDurationChange(d)}
-                >
-                  <Text style={isActive ? styles.availableSlotsDurationTextActive : styles.availableSlotsDurationText}>
-                    {d} min
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : null}
-
-        {availableSlotsLoading ? (
-          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, color: '#929292' }}>Caricamento...</Text>
-          </View>
-        ) : (
-          <ScrollView
-            style={{ maxHeight: 380 }}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.availableSlotsTimeline}>
-              {availableSlotsList.map((slot, index) => {
-                const isActive = isSameSlot(availableSlotsSelected, slot);
-                const isLast = index === availableSlotsList.length - 1;
-                return (
-                  <View key={slotKey(slot)} style={styles.availableSlotsTimelineRow}>
-                    <View style={styles.availableSlotsTimelineLeft}>
-                      <Text style={styles.availableSlotsTimelineHour}>{formatTime(slot.startsAt)}</Text>
-                      {!isLast ? <View style={styles.availableSlotsTimelineLine} /> : null}
-                    </View>
-                    <Pressable
-                      style={[styles.availableSlotsTimelineCard, isActive && styles.availableSlotsTimelineCardActive]}
-                      onPress={() => setAvailableSlotsSelected(slot)}
-                    >
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={isActive ? styles.availableSlotsTimelineCardTextActive : styles.availableSlotsTimelineCardText}>
-                          {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
-                        </Text>
-                        {availableSlotsLocationMode.mode === 'multi' && slot.locationName ? (
-                          <View style={styles.availableSlotsTimelineMeta}>
-                            <Ionicons name="location-outline" size={13} color="#6A6A6A" />
-                            <Text style={styles.availableSlotsTimelineMetaText} numberOfLines={1}>
-                              {slot.locationName}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      {isActive ? (
-                        <View style={styles.availableSlotsTimelineCheck}>
-                          <Text style={styles.availableSlotsTimelineCheckText}>{'\u2713'}</Text>
-                        </View>
-                      ) : null}
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
-        )}
-      </BottomSheet>
-
-      {/* ── Already Accepted ── */}
-      <BottomSheet
-        visible={isStudent && staleDrawerKind === 'accepted'}
-        onClose={() => setStaleDrawerKind(null)}
-        showHandle
-        footer={
-          <Pressable
-            onPress={() => setStaleDrawerKind(null)}
-            style={styles.staleAcceptedCta}
-          >
-            <Text style={styles.staleCtaText}>Tutto chiaro!</Text>
-          </Pressable>
-        }
-      >
-        <View style={{ gap: 16 }}>
-          <View style={styles.staleHero}>
-            <Text style={styles.staleHeroEmoji}>{'\u2705'}</Text>
-            <Text style={styles.staleAcceptedTitle}>Già fatto!</Text>
-            <Text style={styles.staleSub}>
-              Hai già accettato questa proposta.{'\n'}Ci pensiamo noi al resto!
-            </Text>
-          </View>
-          <View style={styles.staleAcceptedCard}>
-            <Text style={styles.staleAcceptedCardText}>
-              {'\u{1F4AA}'} La tua guida è confermata e ti aspetta in calendario
-            </Text>
-          </View>
-        </View>
-      </BottomSheet>
     </>
   );
 };
@@ -1492,389 +1052,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
     paddingHorizontal: 8,
-  },
-
-  // ── Waitlist ──
-  waitlistHero: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  waitlistHeroTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#111111',
-    letterSpacing: -0.5,
-  },
-  waitlistHeroSub: {
-    fontSize: 15,
-    color: '#6A6A6A',
-    textAlign: 'center',
-    lineHeight: 21,
-  },
-  waitlistCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingHorizontal: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(17,17,17,0.10)',
-    shadowColor: '#111111',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
-  waitlistCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 15,
-  },
-  waitlistCardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(17,17,17,0.10)',
-    marginLeft: 33,
-  },
-  waitlistCardText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111111',
-    flex: 1,
-  },
-  waitlistActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  waitlistGhost: {
-    flex: 1,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(17,17,17,0.10)',
-  },
-  waitlistGhostText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111111',
-  },
-  waitlistCta: {
-    flex: 1,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  waitlistCtaText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-
-  // ── Proposal ──
-  chunkyYellowCard: {
-    backgroundColor: '#FEF9C3',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    padding: 20,
-    gap: 6,
-  },
-  chunkyYellowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#CA8A04',
-  },
-  chunkyYellowLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#CA8A04',
-    textTransform: 'uppercase',
-  },
-  chunkyYellowTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  chunkyYellowSub: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#6A6A6A',
-  },
-  chunkyPinkCta: {
-    height: 54,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...primaryCtaShadow,
-  },
-  chunkyPinkCtaText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  chunkyOutlineBtn: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#DDDDDD',
-    height: 54,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chunkyOutlineBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222222',
-  },
-  chunkyRedLink: {
-    alignSelf: 'center',
-    paddingVertical: 10,
-  },
-  chunkyRedLinkText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#C13515',
-    textAlign: 'center',
-  },
-
-  // ── Busy slot ──
-  busyFooter: {
-    alignItems: 'stretch',
-  },
-  busyButton: {
-    backgroundColor: '#F2F2F2',
-    height: 54,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-  },
-  busyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#929292',
-    textAlign: 'center',
-  },
-
-  // ── Stale drawers (accepted / expired) ──
-  staleHero: {
-    alignItems: 'center',
-    gap: 6,
-    paddingBottom: 4,
-  },
-  staleHeroEmoji: {
-    fontSize: 52,
-    marginBottom: 2,
-  },
-  staleSub: {
-    fontSize: 15,
-    color: '#6A6A6A',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  staleAcceptedTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#16A34A',
-    letterSpacing: -0.5,
-  },
-  staleAcceptedCard: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    padding: 18,
-  },
-  staleAcceptedCardText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#15803D',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  staleAcceptedCta: {
-    backgroundColor: '#22C55E',
-    height: 54,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#22C55E',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-  },
-  staleExpiredTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#CA8A04',
-    letterSpacing: -0.5,
-  },
-  staleExpiredCard: {
-    backgroundColor: '#FEF9C3',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    padding: 18,
-  },
-  staleExpiredCardText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#854D0E',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  staleExpiredCta: {
-    backgroundColor: '#FACC15',
-    height: 54,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FACC15',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-  },
-  staleCtaText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  staleExpiredCtaText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#222222',
-  },
-
-  // ── Available Slots ──
-  availableSlotsSubtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 12,
-  },
-  availableSlotsSubtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6A6A6A',
-  },
-  availableSlotsTimelineMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
-  },
-  availableSlotsTimelineMetaText: {
-    flexShrink: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6A6A6A',
-  },
-  availableSlotsDurationRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  availableSlotsDurationChip: {
-    height: 46,
-    paddingHorizontal: 22,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#F7F7F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  availableSlotsDurationChipActive: {
-    backgroundColor: '#FACC15',
-    borderColor: '#FACC15',
-  },
-  availableSlotsDurationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6A6A6A',
-  },
-  availableSlotsDurationTextActive: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  availableSlotsTimeline: {
-    gap: 0,
-  },
-  availableSlotsTimelineRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    minHeight: 56,
-  },
-  availableSlotsTimelineLeft: {
-    width: 50,
-    alignItems: 'center',
-    paddingTop: 4,
-  },
-  availableSlotsTimelineHour: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#929292',
-    marginBottom: 6,
-  },
-  availableSlotsTimelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#DDDDDD',
-    borderRadius: 1,
-    minHeight: 20,
-  },
-  availableSlotsTimelineCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F7F7F7',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#DDDDDD',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 8,
-  },
-  availableSlotsTimelineCardActive: {
-    backgroundColor: '#F4F4F4',
-    borderColor: '#111111',
-    shadowColor: '#111111',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  availableSlotsTimelineCardText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#595959',
-  },
-  availableSlotsTimelineCardTextActive: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
-  },
-  availableSlotsTimelineCheck: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  availableSlotsTimelineCheckText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
   },
 });

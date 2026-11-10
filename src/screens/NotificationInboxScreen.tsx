@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, SharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSession } from '../context/SessionContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
+import { ClayLargeTitle, ClayLargeTitleScroll, ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { notificationEvents } from '../services/notificationEvents';
@@ -202,8 +202,9 @@ const groupByDay = (list: PersistedNotification[]) => {
 
 type CardProps = {
   item: PersistedNotification;
-  onTap: () => void;
-  onDismiss: () => void;
+  /** Stabili (useCallback): la riga è memo e non si ridisegna a ogni cambio. */
+  onTap: (item: PersistedNotification) => void;
+  onDismiss: (id: string) => void;
   /** Li imposta `ClayList`. */
   divider?: boolean;
   first?: boolean;
@@ -252,8 +253,8 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, l
 
   const handleDelete = useCallback(() => {
     swipeableRef.current?.close();
-    onDismiss();
-  }, [onDismiss]);
+    onDismiss(item.id);
+  }, [onDismiss, item.id]);
 
   const title = getTitle(item);
   const subtitle = getSubtitle(item);
@@ -268,12 +269,12 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, l
         rightThreshold={80}
         renderRightActions={(_, drag) => <RightAction drag={drag} onPress={handleDelete} />}
         onSwipeableOpen={(direction) => {
-          if (direction === 'right') onDismiss();
+          if (direction === 'right') onDismiss(item.id);
         }}
         overshootRight={false}
       >
         <Pressable
-          onPress={onTap}
+          onPress={() => onTap(item)}
           style={({ pressed }) => [styles.row, clayRowPadding({ first, last }, 13), pressed && CLAY_ROW_PRESSED]}
           accessibilityRole="button"
           accessibilityLabel={`${item.read ? '' : 'Da leggere. '}${title}${subtitle ? `, ${subtitle}` : ''}`}
@@ -300,6 +301,33 @@ const NotificationCard = React.memo(({ item, onTap, onDismiss, divider, first, l
   );
 });
 markClayRow(NotificationCard);
+
+type DayGroup = { key: string; title: string; items: PersistedNotification[] };
+
+/** Un giorno = una sezione con la sua lista clay (l'ombra sta sulla lista, non sulle righe). */
+const DaySection = React.memo(function DaySection({
+  group,
+  first,
+  onTap,
+  onDismiss,
+}: {
+  group: DayGroup;
+  first: boolean;
+  onTap: (item: PersistedNotification) => void;
+  onDismiss: (id: string) => void;
+}) {
+  return (
+    <ClaySection title={group.title} style={first ? styles.firstSection : undefined}>
+      <ClayList>
+        {group.items.map((item) => (
+          <NotificationCard key={item.id} item={item} onTap={onTap} onDismiss={onDismiss} />
+        ))}
+      </ClayList>
+    </ClaySection>
+  );
+});
+
+const groupKey = (g: DayGroup) => g.key;
 
 /* ── Screen ── */
 
@@ -416,6 +444,23 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
     />
   ) : null;
   const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink} />;
+  const { scrollY, onScroll } = useLargeTitleScroll();
+  const renderGroup = useCallback(
+    ({ item, index }: { item: DayGroup; index: number }) => (
+      <DaySection group={item} first={index === 0} onTap={handleTap} onDismiss={handleDismiss} />
+    ),
+    [handleTap, handleDismiss],
+  );
+  const largeTitle = <ClayLargeTitle title="Notifiche" subtitle={subtitle} />;
+  const emptyState = (
+    <Animated.View entering={FadeIn.duration(250)} style={styles.empty}>
+      <ClayEmpty
+        icon={MORALE_ART.aeroplanino}
+        title="Nessuna notifica"
+        text="Quando si libera un posto o cambia una tua guida, te lo diciamo qui."
+      />
+    </Animated.View>
+  );
   const list = (
     <>
         {groups.length === 0 ? (
@@ -431,12 +476,7 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
             <ClaySection key={g.key} title={g.title} style={i === 0 ? styles.firstSection : undefined}>
               <ClayList>
                 {g.items.map((item) => (
-                  <NotificationCard
-                    key={item.id}
-                    item={item}
-                    onTap={() => handleTap(item)}
-                    onDismiss={() => handleDismiss(item.id)}
-                  />
+                  <NotificationCard key={item.id} item={item} onTap={handleTap} onDismiss={handleDismiss} />
                 ))}
               </ClayList>
             </ClaySection>
@@ -464,34 +504,26 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
     );
   }
 
+  // App allievo: stessa testata a titolo grande che collassa (§0.5) e lista
+  // virtualizzata per giorni (§15). Dalla tab non c'è l'indietro.
   return (
-    <GestureHandlerRootView style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Testata clay (come l'Agenda): titolo grande, riga grigia, azioni a destra. */}
-      <View style={styles.hd}>
-        {!asTab ? (
-          <ClayIconButton icon="back" onPress={goBack} accessibilityLabel="Indietro" style={styles.back} testID="inbox-back" />
-        ) : null}
-        <View style={styles.hdTop}>
-          <View style={styles.hdTitles}>
-            <Text style={styles.title} accessibilityRole="header">
-              Notifiche
-            </Text>
-            <Text style={styles.sub} numberOfLines={1}>
-              {subtitle}
-            </Text>
-          </View>
-          {markAll}
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]}
+    <GestureHandlerRootView style={styles.root}>
+      <ClayNavBar title="Notifiche" scrollY={scrollY} onBack={asTab ? undefined : goBack} actions={markAll} />
+      <Animated.FlatList
+        data={groups}
+        keyExtractor={groupKey}
+        renderItem={renderGroup}
+        ListHeaderComponent={largeTitle}
+        ListEmptyComponent={emptyState}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, styles.listPad, { paddingBottom: insets.bottom + 60 }]}
+        initialNumToRender={6}
+        windowSize={7}
         refreshControl={refreshControl}
-      >
-        {list}
-      </ScrollView>
+        testID="inbox-list"
+      />
     </GestureHandlerRootView>
   );
 };
@@ -500,19 +532,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   rootPlain: { flex: 1, backgroundColor: CLAY.bg },
 
-  /* Testata */
-  hd: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 },
-  back: { marginBottom: 12 },
-  hdTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  hdTitles: { flex: 1, minWidth: 0 },
-  title: { fontSize: 32, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
-  sub: { fontSize: 15, color: CLAY.ink3, marginTop: 1 },
-
   /* Lista */
-  scroll: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  listPad: { paddingTop: 4 },
   firstSection: { marginTop: 18 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(17,17,17,0.12)', marginHorizontal: 18 },
+  // §0.7: divisore assoluto in alto, rientrato di 18, 0.5 pt (hairlineWidth non si disegna).
+  divider: { position: 'absolute', top: 0, left: 18, right: 18, height: 0.5, backgroundColor: 'rgba(17,17,17,0.12)', zIndex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18 },
   rowMain: { flex: 1, minWidth: 0 },
   faceRead: { opacity: 0.55 },

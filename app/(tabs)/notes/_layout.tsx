@@ -31,6 +31,8 @@ export default function NotesLayout() {
       <Stack.Screen name="manage-lesson-details" options={FORM_SHEET} />
       {/* REG-426: il pannello «per percorso» allunga il form: form sheet la cui radice è lo scroll (REG-639, §13.2.1). */}
       <Stack.Screen name="booking-rules" options={FORM_SHEET} />
+      {/* Prenotazione «solo eccezioni»: i casi in cui gli allievi prenotano da soli. */}
+      <Stack.Screen name="booking-exceptions" options={FORM_SHEET} />
       {/* REG-638: percorso Road di una guida dallo storico allievo. */}
       <Stack.Screen name="road-percorso" options={FORM_SHEET} />
       <Stack.Screen name="road-segnalazioni" options={FORM_SHEET} />

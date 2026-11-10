@@ -1,34 +1,63 @@
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton, ClayList } from '../../../src/components/clay';
 import { SettingToggleRow, SettingValueRow } from '../../../src/components/SettingsRows';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
 import { optionsPickerStore } from '../../../src/stores/optionsPickerStore';
+import { bookingExceptionsDraftStore } from '../../../src/stores/bookingExceptionsDraftStore';
+import type { BookingExceptionCases } from '../../../src/stores/bookingExceptionsDraftStore';
+import { regloApi } from '../../../src/services/regloApi';
+import type { InstructorClusterSettings, StudentBookingExceptions } from '../../../src/types/regloApi';
+import { CLAY } from '../../../src/theme/clay';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120] as const;
 
-const ACTOR_LABEL: Record<string, string> = {
-  students: 'Solo allievi',
-  instructors: 'Solo istruttori',
-  both: 'Entrambi',
-};
-const ACTOR_HINT: Record<string, string> = {
-  students: 'Prenotano gli allievi dall’app',
-  instructors: 'Prenoti tu per loro',
-  both: 'Gli allievi e tu',
-};
-/** Nel picker «nessun override» e «per percorso» hanno un valore proprio. */
+/**
+ * Prenotazione degli allievi dall'app (feature «solo eccezioni», stesso modello
+ * della web app):
+ * - `inherit`    → appBookingActors null + studentBookingExceptions null
+ * - `students`   → «Attiva · solo allievi» (eccezioni lasciate come sono)
+ * - `both`       → «Attiva · anche istruttori» (idem)
+ * - `exceptions` → appBookingActors 'instructors' + eccezioni enabled true
+ * - `off`        → appBookingActors 'instructors' + eccezioni enabled false
+ * Per percorso: lo stesso per moto/auto/pro con appBookingActorsByPath +
+ * studentBookingExceptionsByPath.
+ */
+type Choice = 'students' | 'both' | 'exceptions' | 'off';
+type Mode = Choice | 'inherit' | 'perPath';
+type BucketMode = Choice | 'inherit';
+type Bucket = 'moto' | 'auto' | 'pro';
+type Actor = 'students' | 'instructors' | 'both';
+
 const INHERIT = '_inherit';
 const PER_PATH = '_per_path';
 
-// REG-426: le tre righe del pannello "differenzia per percorso". Ogni riga può
-// ereditare ("Default autoscuola") oppure forzare un valore (usa ACTOR_OPTIONS).
-const PATH_BUCKETS = [
-  { key: 'moto' as const, label: 'Percorso moto', cats: 'AM · A1 · A2 · A' },
-  { key: 'auto' as const, label: 'Percorso auto', cats: 'B · BE' },
-  { key: 'pro' as const, label: 'Percorso professionali', cats: 'C · CE · D · DE' },
+const CHOICE_LABEL: Record<Choice, string> = {
+  students: 'Attiva · solo allievi',
+  both: 'Attiva · anche istruttori',
+  exceptions: 'Solo eccezioni',
+  off: 'Disattiva',
+};
+const CHOICE_HINT: Record<Choice, string> = {
+  students: 'Gli allievi prenotano quando vogliono',
+  both: 'Gli allievi quando vogliono, e anche tu dall’app',
+  exceptions: 'Gli allievi prenotano solo nei casi che scegli',
+  off: 'Le guide le fissi solo tu',
+};
+/** Valore corto a destra della riga (il valore lungo non ci sta). */
+const CHOICE_SHORT: Record<Choice, string> = {
+  students: 'Attiva',
+  both: 'Attiva',
+  exceptions: 'Solo eccezioni',
+  off: 'Disattiva',
+};
+
+const PATH_BUCKETS: { key: Bucket; label: string; cats: string }[] = [
+  { key: 'moto', label: 'Percorso moto', cats: 'AM · A1 · A2 · A' },
+  { key: 'auto', label: 'Percorso auto', cats: 'B · BE' },
+  { key: 'pro', label: 'Percorso professionali', cats: 'C · CE · D · DE' },
 ];
 
 const MODE_LABEL: Record<string, string> = {
@@ -36,99 +65,198 @@ const MODE_LABEL: Record<string, string> = {
   manual_engine: 'Manuale + motore',
 };
 
+/** Casi spenti di partenza se né il gruppo né l'autoscuola ne hanno. */
+const NO_CASES: BookingExceptionCases = { slotFill: true, groupSeats: true, lastMinute: false, lastMinuteHours: 24 };
+
+const anyCase = (c: BookingExceptionCases) => c.slotFill || c.groupSeats || c.lastMinute;
+const toCases = (e: StudentBookingExceptions | undefined | null): BookingExceptionCases | null =>
+  e ? { slotFill: e.slotFill, groupSeats: e.groupSeats, lastMinute: e.lastMinute, lastMinuteHours: e.lastMinuteHours } : null;
+
+function choiceOf(actor: string | undefined | null, exc: StudentBookingExceptions | undefined | null): Choice {
+  if (actor === 'students' || actor === 'both') return actor;
+  return exc?.enabled && anyCase(exc) ? 'exceptions' : 'off';
+}
+
+function casesSummary(c: BookingExceptionCases) {
+  const parts: string[] = [];
+  if (c.slotFill) parts.push('Annullamenti');
+  if (c.groupSeats) parts.push('Guide di gruppo');
+  if (c.lastMinute) parts.push(`Ultimo minuto ${c.lastMinuteHours} h`);
+  return parts.length ? parts.join(', ') : 'Nessun caso acceso';
+}
+
+function casesCount(c: BookingExceptionCases) {
+  const n = [c.slotFill, c.groupSeats, c.lastMinute].filter(Boolean).length;
+  return n === 0 ? 'Nessuno' : n === 1 ? '1 caso' : `${n} casi`;
+}
+
+const actorOf = (c: Choice): Actor => (c === 'students' || c === 'both' ? c : 'instructors');
+const withEnabled = (c: BookingExceptionCases, enabled: boolean): StudentBookingExceptions => ({ enabled, ...c });
+
+// Impostazioni del gruppo lette dal server: le eccezioni non sono nel draft di
+// «Il mio gruppo». Cache di modulo così riaprendo il foglio sono già pronte.
+type Loaded = {
+  settings: InstructorClusterSettings;
+  companyActors: Actor;
+  companyExceptions: StudentBookingExceptions | null;
+};
+let cache: Loaded | null = null;
+
 export default function BookingRulesScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(clusterSettingsStore.subscribe, clusterSettingsStore.get);
-  // Modalità "differenzia per percorso" — apre il pannello moto/auto/pro. Locale
-  // (hook prima dell'early return); si inizializza da eventuali override dal BE.
-  const [perPathOpen, setPerPathOpen] = useState(false);
-  const seededRef = useRef(false);
+
+  const [loaded, setLoaded] = useState<Loaded | null>(cache);
+  const [loadError, setLoadError] = useState(false);
+  const [mode, setMode] = useState<Mode>('inherit');
+  const [cases, setCases] = useState<BookingExceptionCases>(NO_CASES);
+  const [bucketMode, setBucketMode] = useState<Record<Bucket, BucketMode>>({ moto: 'inherit', auto: 'inherit', pro: 'inherit' });
+  const [bucketCases, setBucketCases] = useState<Record<Bucket, BookingExceptionCases>>({ moto: NO_CASES, auto: NO_CASES, pro: NO_CASES });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const seeded = useRef(false);
+  // Dopo il picker, «Solo eccezioni» apre il sotto-foglio al ritorno del focus.
+  const pendingCases = useRef<'simple' | Bucket | null>(null);
+
   useEffect(() => {
-    if (data && !seededRef.current) {
-      const bp = data.appBookingActorsByPath;
-      if (bp && (bp.moto || bp.auto || bp.pro)) setPerPathOpen(true);
-      seededRef.current = true;
+    let alive = true;
+    regloApi
+      .getInstructorSettings()
+      .then((res) => {
+        if (!alive) return;
+        const next: Loaded = {
+          settings: res.settings,
+          companyActors: res.companyDefaults.appBookingActors,
+          companyExceptions: res.companyDefaults.studentBookingExceptions ?? null,
+        };
+        cache = next;
+        setLoaded(next);
+      })
+      .catch(() => {
+        if (alive && !cache) setLoadError(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Bozza locale seminata una volta dal server.
+  useEffect(() => {
+    if (!loaded || seeded.current) return;
+    seeded.current = true;
+    const st = loaded.settings;
+    const baseCases = toCases(st.studentBookingExceptions) ?? toCases(loaded.companyExceptions) ?? NO_CASES;
+    setCases(baseCases);
+    const byActor = st.appBookingActorsByPath ?? {};
+    const byExc = st.studentBookingExceptionsByPath ?? {};
+    const perPath = Boolean(byActor.moto || byActor.auto || byActor.pro);
+    const bm = { moto: 'inherit', auto: 'inherit', pro: 'inherit' } as Record<Bucket, BucketMode>;
+    const bc = { moto: baseCases, auto: baseCases, pro: baseCases } as Record<Bucket, BookingExceptionCases>;
+    for (const { key } of PATH_BUCKETS) {
+      bc[key] = toCases(byExc[key]) ?? baseCases;
+      if (byActor[key]) bm[key] = choiceOf(byActor[key], byExc[key] ?? st.studentBookingExceptions ?? loaded.companyExceptions);
     }
-  }, [data]);
+    setBucketMode(bm);
+    setBucketCases(bc);
+    if (perPath) setMode('perPath');
+    else if (st.appBookingActors) setMode(choiceOf(st.appBookingActors, st.studentBookingExceptions ?? loaded.companyExceptions));
+    else setMode('inherit');
+  }, [loaded]);
+
+  const openCases = useCallback(
+    (target: 'simple' | Bucket) => {
+      const bucket = target === 'simple' ? null : PATH_BUCKETS.find((b) => b.key === target) ?? null;
+      bookingExceptionsDraftStore.set({
+        subtitle: bucket ? `${bucket.label} · quando gli allievi prenotano da soli` : 'Quando gli allievi prenotano da soli',
+        value: target === 'simple' ? cases : bucketCases[target],
+        onConfirm: (v) => {
+          if (target === 'simple') setCases(v);
+          else setBucketCases((prev) => ({ ...prev, [target]: v }));
+        },
+      });
+      router.push('/(tabs)/notes/booking-exceptions' as never);
+    },
+    [cases, bucketCases, router],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const target = pendingCases.current;
+      if (!target) return;
+      pendingCases.current = null;
+      openCases(target);
+    }, [openCases]),
+  );
+
   if (!data) return <View style={s.empty} />;
 
   const {
     companyDefaults: cd,
-    appBookingActors, setAppBookingActors,
-    appBookingActorsByPath, setAppBookingActorsByPath,
+    setAppBookingActors, setAppBookingActorsByPath,
     instructorBookingMode, setInstructorBookingMode,
     bookingSlotDurations, toggleDuration,
     roundedHoursOnly, setRoundedHoursOnly,
-    saving, onSave,
   } = data;
 
-  const byPath = appBookingActorsByPath ?? {};
+  const ready = Boolean(loaded);
+  const companyChoice = loaded ? choiceOf(loaded.companyActors, loaded.companyExceptions) : null;
+  const inheritLabel = companyChoice ? `Come l’autoscuola · ${CHOICE_LABEL[companyChoice]}` : 'Come l’autoscuola';
+  const modeValue = instructorBookingMode ? MODE_LABEL[instructorBookingMode] : MODE_LABEL[cd.instructorBookingMode];
 
-  // Entra in "differenzia": semina le 3 righe col valore semplice corrente (se
-  // concreto), altrimenti tutte su "Default autoscuola". Apre il pannello.
-  const enterPerPath = () => {
-    if (appBookingActors) {
-      setAppBookingActorsByPath({ moto: appBookingActors, auto: appBookingActors, pro: appBookingActors });
-    } else {
-      setAppBookingActorsByPath({});
-    }
-    setPerPathOpen(true);
-  };
-  // Torna a un valore semplice: azzera gli override, chiude il pannello.
-  const pickSimple = (value: string | undefined) => {
-    setAppBookingActors(value);
-    setAppBookingActorsByPath(undefined);
-    setPerPathOpen(false);
-  };
-  // Imposta una riga: "Default" rimuove la chiave (eredita), altrimenti forza.
-  const pickPath = (bucket: 'moto' | 'auto' | 'pro', value: string | undefined) => {
-    const next: { moto?: string; auto?: string; pro?: string } = { ...byPath };
-    if (value) next[bucket] = value;
-    else delete next[bucket];
-    setAppBookingActorsByPath(next);
-  };
-
-  const inherit = (label: string | undefined) => (label ? `Come l’autoscuola · ${label}` : 'Come l’autoscuola');
-  const actorValue = perPathOpen ? 'Per percorso' : appBookingActors ? ACTOR_LABEL[appBookingActors] : inherit(ACTOR_LABEL[cd.appBookingActors]);
-  const modeValue = instructorBookingMode ? MODE_LABEL[instructorBookingMode] : inherit(MODE_LABEL[cd.instructorBookingMode]);
-
-  const actorOptions = (inheritLabel: string) => [
-    { value: INHERIT, label: inheritLabel },
-    ...Object.keys(ACTOR_LABEL).map((k) => ({ value: k, label: ACTOR_LABEL[k], subtitle: ACTOR_HINT[k] })),
+  const choiceOptions = (inherit: string) => [
+    { value: INHERIT, label: inherit },
+    ...(Object.keys(CHOICE_LABEL) as Choice[]).map((k) => ({ value: k, label: CHOICE_LABEL[k], subtitle: CHOICE_HINT[k] })),
   ];
 
-  // Scelte da lista: il picker unico (form sheet sopra questo foglio).
-  const pickActor = () => {
+  const pickMain = () => {
     optionsPickerStore.set({
-      title: 'Chi prenota',
-      hint: 'Chi può prenotare le guide con te',
+      title: 'Prenotazione dall’app',
+      hint: 'Come prenotano le guide i tuoi allievi',
       tone: 'mono',
       multi: false,
       options: [
-        ...actorOptions(inherit(ACTOR_LABEL[cd.appBookingActors])),
+        ...choiceOptions(inheritLabel),
         { value: PER_PATH, label: 'Per percorso', subtitle: 'Moto, auto e professionali separati' },
       ],
-      selected: [perPathOpen ? PER_PATH : appBookingActors ?? INHERIT],
+      selected: [mode === 'inherit' ? INHERIT : mode === 'perPath' ? PER_PATH : mode],
       onConfirm: ([v]) => {
+        setError(null);
         if (v === PER_PATH) {
-          if (!perPathOpen) enterPerPath();
-        } else pickSimple(v === INHERIT ? undefined : v);
+          if (mode !== 'perPath') {
+            // Si parte dal valore semplice corrente su tutte e tre le righe.
+            const seed: BucketMode = mode === 'inherit' ? 'inherit' : mode;
+            setBucketMode({ moto: seed, auto: seed, pro: seed });
+            setBucketCases({ moto: cases, auto: cases, pro: cases });
+          }
+          setMode('perPath');
+          return;
+        }
+        const next = (v === INHERIT ? 'inherit' : v) as Mode;
+        setMode(next);
+        if (next === 'exceptions') pendingCases.current = 'simple';
       },
     });
     router.push('/(tabs)/notes/select-options' as never);
   };
-  const pickBucket = (bucket: (typeof PATH_BUCKETS)[number]) => {
+
+  const pickBucket = (b: (typeof PATH_BUCKETS)[number]) => {
     optionsPickerStore.set({
-      title: bucket.label,
-      hint: bucket.cats,
+      title: b.label,
+      hint: b.cats,
       tone: 'mono',
       multi: false,
-      options: actorOptions('Come l’autoscuola'),
-      selected: [byPath[bucket.key] ?? INHERIT],
-      onConfirm: ([v]) => pickPath(bucket.key, v === INHERIT ? undefined : v),
+      options: choiceOptions('Come l’autoscuola'),
+      selected: [bucketMode[b.key] === 'inherit' ? INHERIT : bucketMode[b.key]],
+      onConfirm: ([v]) => {
+        setError(null);
+        const next = (v === INHERIT ? 'inherit' : v) as BucketMode;
+        setBucketMode((prev) => ({ ...prev, [b.key]: next }));
+        if (next === 'exceptions') pendingCases.current = b.key;
+      },
     });
     router.push('/(tabs)/notes/select-options' as never);
   };
+
   const pickMode = () => {
     optionsPickerStore.set({
       title: 'Modalità istruttore',
@@ -136,7 +264,7 @@ export default function BookingRulesScreen() {
       tone: 'mono',
       multi: false,
       options: [
-        { value: INHERIT, label: inherit(MODE_LABEL[cd.instructorBookingMode]) },
+        { value: INHERIT, label: `Come l’autoscuola · ${MODE_LABEL[cd.instructorBookingMode]}` },
         { value: 'manual_full', label: MODE_LABEL.manual_full },
         { value: 'manual_engine', label: MODE_LABEL.manual_engine },
       ],
@@ -146,7 +274,6 @@ export default function BookingRulesScreen() {
     router.push('/(tabs)/notes/select-options' as never);
   };
 
-  // Durate: scelta multipla nel picker; alla conferma si allinea la selezione.
   const pickDurations = () => {
     optionsPickerStore.set({
       title: 'Durate delle guide',
@@ -166,11 +293,92 @@ export default function BookingRulesScreen() {
     router.push('/(tabs)/notes/select-options' as never);
   };
 
+  // Una sola chiamata con tutti i campi della prenotazione; la UI si aggiorna
+  // solo sulla risposta del server (niente optimistic update).
+  const save = async () => {
+    if (!loaded || saving) return;
+    if (!bookingSlotDurations.length) {
+      setError('Scegli almeno una durata.');
+      return;
+    }
+    if (mode === 'exceptions' && !anyCase(cases)) {
+      setError('Con «Solo eccezioni» accendi almeno un caso.');
+      return;
+    }
+    if (mode === 'perPath' && PATH_BUCKETS.some((b) => bucketMode[b.key] === 'exceptions' && !anyCase(bucketCases[b.key]))) {
+      setError('Ogni percorso con «Solo eccezioni» ha bisogno di almeno un caso.');
+      return;
+    }
+    setError(null);
+
+    let appBookingActors: Actor | null = null;
+    let appBookingActorsByPath: Partial<Record<Bucket, Actor>> | null = null;
+    let studentBookingExceptions: StudentBookingExceptions | null | undefined;
+    let studentBookingExceptionsByPath: Partial<Record<Bucket, StudentBookingExceptions>> | null = null;
+
+    if (mode === 'inherit') {
+      studentBookingExceptions = null;
+    } else if (mode === 'students' || mode === 'both') {
+      appBookingActors = mode; // eccezioni del gruppo lasciate come sono
+    } else if (mode === 'exceptions' || mode === 'off') {
+      appBookingActors = 'instructors';
+      studentBookingExceptions = withEnabled(cases, mode === 'exceptions');
+    } else {
+      const prevByExc = loaded.settings.studentBookingExceptionsByPath ?? {};
+      const actors: Partial<Record<Bucket, Actor>> = {};
+      const excs: Partial<Record<Bucket, StudentBookingExceptions>> = {};
+      for (const { key } of PATH_BUCKETS) {
+        const m = bucketMode[key];
+        if (m === 'inherit') continue;
+        actors[key] = actorOf(m);
+        if (m === 'exceptions' || m === 'off') excs[key] = withEnabled(bucketCases[key], m === 'exceptions');
+        else if (prevByExc[key]) excs[key] = prevByExc[key]; // «Attiva»: eccezioni come sono
+      }
+      if (Object.keys(actors).length === 0) {
+        // Tutte «Come l'autoscuola»: è il caso semplice.
+        studentBookingExceptions = null;
+      } else {
+        appBookingActorsByPath = actors;
+        studentBookingExceptionsByPath = Object.keys(excs).length ? excs : null;
+      }
+    }
+
+    setSaving(true);
+    try {
+      const res = await regloApi.updateInstructorSettings({
+        bookingSlotDurations,
+        roundedHoursOnly,
+        instructorBookingMode: instructorBookingMode as 'manual_full' | 'manual_engine' | undefined,
+        appBookingActors,
+        appBookingActorsByPath,
+        ...(studentBookingExceptions !== undefined ? { studentBookingExceptions } : {}),
+        studentBookingExceptionsByPath,
+      });
+      // Allinea la bozza di «Il mio gruppo»: gli altri fogli salvano anche
+      // appBookingActors e non devono riportare indietro il valore vecchio.
+      setAppBookingActors(res.appBookingActors ?? undefined);
+      setAppBookingActorsByPath(res.appBookingActorsByPath ?? undefined);
+      if (cache) cache = { ...cache, settings: { ...cache.settings, ...res } };
+      router.back();
+    } catch {
+      setError('Non siamo riusciti a salvare. Riprova.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const mainValue = !ready ? '' : mode === 'inherit' ? 'Autoscuola' : mode === 'perPath' ? 'Per percorso' : CHOICE_SHORT[mode];
+  const mainSubtitle = !ready
+    ? null
+    : mode === 'inherit'
+      ? inheritLabel
+      : mode === 'perPath'
+        ? 'Moto, auto e professionali separati'
+        : mode === 'exceptions'
+          ? casesSummary(cases)
+          : CHOICE_HINT[mode];
+
   return (
-    // REG-639 (giro dopo la prova sull'iPhone, 28/10): niente chip a griglia.
-    // Ogni scelta è una riga col valore che apre il picker (durate a scelta
-    // multipla): il foglio resta corto (Tiziano 28/10). Form sheet alto quanto il contenuto: con il
-    // percorso aperto si allunga e scorre il foglio stesso (§13.2.1).
     <FormSheet
       title="Prenotazione guide"
       subtitle="Chi prenota, come e per quanto"
@@ -180,25 +388,58 @@ export default function BookingRulesScreen() {
         <ClayButton
           title="Salva"
           loading={saving}
-          onPress={saving ? undefined : async () => { await onSave(); router.back(); }}
+          disabled={!ready}
+          onPress={saving ? undefined : save}
           testID="booking-rules-save"
         />
       }
     >
       <ClayList>
-        <SettingValueRow title="Chi prenota" value={perPathOpen ? 'Per percorso' : actorValue.replace('Come l’autoscuola · ', '')} subtitle={!perPathOpen && !appBookingActors ? 'Come l’autoscuola' : null} onPress={pickActor} testID="booking-rules-actor" />
-        {perPathOpen
-          ? PATH_BUCKETS.map((b) => (
-              <SettingValueRow
-                key={b.key}
-                title={b.label}
-                subtitle={b.cats}
-                value={byPath[b.key] ? ACTOR_LABEL[byPath[b.key]!] : 'Autoscuola'}
-                onPress={() => pickBucket(b)}
-                testID={`booking-rules-path-${b.key}`}
-              />
-            ))
+        <SettingValueRow
+          title="Prenotazione dall’app"
+          subtitle={loadError ? 'Non riusciamo a leggere le impostazioni' : mainSubtitle}
+          value={mainValue}
+          onPress={ready ? pickMain : () => {}}
+          testID="booking-rules-actor"
+        />
+        {ready && mode === 'exceptions' ? (
+          <SettingValueRow
+            title="Quando prenotano"
+            value={casesCount(cases)}
+            onPress={() => openCases('simple')}
+            testID="booking-rules-cases"
+          />
+        ) : null}
+        {ready && mode === 'perPath'
+          ? PATH_BUCKETS.flatMap((b) => {
+              const m = bucketMode[b.key];
+              const rows = [
+                <SettingValueRow
+                  key={b.key}
+                  title={b.label}
+                  subtitle={m === 'exceptions' ? `${b.cats} · ${casesSummary(bucketCases[b.key])}` : b.cats}
+                  value={m === 'inherit' ? 'Autoscuola' : CHOICE_SHORT[m]}
+                  onPress={() => pickBucket(b)}
+                  testID={`booking-rules-path-${b.key}`}
+                />,
+              ];
+              if (m === 'exceptions') {
+                rows.push(
+                  <SettingValueRow
+                    key={`${b.key}-cases`}
+                    title="Quando prenotano"
+                    value={casesCount(bucketCases[b.key])}
+                    onPress={() => openCases(b.key)}
+                    testID={`booking-rules-path-${b.key}-cases`}
+                  />,
+                );
+              }
+              return rows;
+            })
           : null}
+      </ClayList>
+
+      <ClayList style={s.section}>
         <SettingValueRow
           title="Durate"
           subtitle="Fra cui scelgono gli allievi"
@@ -206,10 +447,13 @@ export default function BookingRulesScreen() {
           onPress={pickDurations}
           testID="booking-rules-durations"
         />
-        <SettingValueRow title="Modalità istruttore" value={modeValue.replace('Come l’autoscuola · ', '')} subtitle={!instructorBookingMode ? 'Come l’autoscuola' : null} onPress={pickMode} testID="booking-rules-mode" />
-      </ClayList>
-
-      <ClayList style={s.section}>
+        <SettingValueRow
+          title="Modalità istruttore"
+          subtitle={!instructorBookingMode ? 'Come l’autoscuola' : null}
+          value={modeValue}
+          onPress={pickMode}
+          testID="booking-rules-mode"
+        />
         <SettingToggleRow
           title="Solo orari tondi"
           subtitle="Guide solo a ore piene, come 9:00 e 10:00"
@@ -217,6 +461,8 @@ export default function BookingRulesScreen() {
           onValueChange={setRoundedHoursOnly}
         />
       </ClayList>
+
+      {error ? <Text style={s.error}>{error}</Text> : null}
     </FormSheet>
   );
 }
@@ -224,4 +470,5 @@ export default function BookingRulesScreen() {
 const s = StyleSheet.create({
   empty: { backgroundColor: '#FFFFFF', height: 1 },
   section: { marginTop: 22 },
+  error: { fontSize: 14, lineHeight: 19, fontWeight: '500', color: CLAY.ink, marginTop: 14, marginHorizontal: 4 },
 });

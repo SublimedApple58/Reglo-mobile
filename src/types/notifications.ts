@@ -17,6 +17,8 @@ export type ConfirmationData = {
 
 export type AvailableSlotsData = {
   date: string;
+  /** Prenotazione «solo eccezioni»: posti liberi a breve (eccezione ultimo minuto). */
+  lastMinute?: boolean;
 };
 
 export type HolidayDeclaredData = {

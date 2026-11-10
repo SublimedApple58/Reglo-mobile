@@ -1147,6 +1147,32 @@ export type MobileBookingOptions = {
   blockedByExamPriority?: boolean;
   /** Blocco prenotazioni (manuale del titolare o automatico per debito). */
   bookingBlocked?: boolean;
+  /** Perché è bloccato: manuale del titolare o automatico per guide da pagare. */
+  bookingBlockReason?: 'manual' | 'unpaid_threshold' | null;
+  /** Guide da pagare (solo col blocco automatico per debito acceso). */
+  unpaidLessonCount?: number | null;
+  /** Prenotazione «solo eccezioni»: quando l'allievo può prenotare. Assente =
+   *  backend precedente → si deduce da `appBookingActors`/`bookingBlocked`. */
+  bookingPolicy?: StudentBookingPolicy;
+};
+
+/** Stato della prenotazione dell'allievo, deciso dal server (`booking-options`). */
+export type StudentBookingMode = 'open' | 'exceptions' | 'closed';
+/** Perché ora non può prenotare niente (null = nessun blocco). */
+export type StudentBookingHold = 'blocked' | 'awaiting' | 'theory' | 'license_missing' | null;
+export type StudentBookingExceptions = {
+  enabled: boolean;
+  slotFill: boolean;
+  groupSeats: boolean;
+  lastMinute: boolean;
+  lastMinuteHours: number;
+};
+export type StudentBookingPolicy = {
+  mode: StudentBookingMode;
+  hold: StudentBookingHold;
+  exceptions: Omit<StudentBookingExceptions, 'enabled'>;
+  /** Fine della finestra «ultimo minuto» (solo mode exceptions con l'eccezione accesa). */
+  lastMinuteUntil: IsoDate | null;
 };
 
 export type AvailableSlot = {
@@ -1351,6 +1377,13 @@ export type InstructorClusterSettings = {
     auto?: 'students' | 'instructors' | 'both';
     pro?: 'students' | 'instructors' | 'both';
   };
+  // Prenotazione allievi «solo eccezioni» del gruppo (assente = come l'autoscuola).
+  studentBookingExceptions?: StudentBookingExceptions;
+  studentBookingExceptionsByPath?: {
+    moto?: StudentBookingExceptions;
+    auto?: StudentBookingExceptions;
+    pro?: StudentBookingExceptions;
+  };
   instructorBookingMode?: 'manual_full' | 'manual_engine';
   swapEnabled?: boolean;
   studentCancellationEnabled?: boolean;
@@ -1432,6 +1465,8 @@ export type CompanyBookingDefaults = {
   bookingSlotDurations: number[];
   roundedHoursOnly: boolean;
   appBookingActors: 'students' | 'instructors' | 'both';
+  /** Eccezioni efficaci dell'autoscuola (mai salvate = valore storico). */
+  studentBookingExceptions?: StudentBookingExceptions;
   instructorBookingMode: 'manual_full' | 'manual_engine';
   swapEnabled: boolean;
   swapNotifyMode: 'all' | 'available_only';
