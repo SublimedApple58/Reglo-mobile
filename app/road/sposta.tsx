@@ -10,6 +10,7 @@ import { CLAY, CLAY_SHADOW } from '../../src/theme';
 import { markerArt } from '../../src/road/markerArt';
 import { haversineMeters } from '../../src/road/format';
 import { ANDROID_DAY_STYLE } from '../../src/road/night';
+import { SheetNightContext } from '../../src/theme/night';
 import { applyMarkerEdit, useEditedMarker, useMarkerEditTarget } from '../../src/road/markerEdit';
 
 /** Quanto «si solleva» la segnalazione mentre la mappa si muove sotto il mirino. */
@@ -66,59 +67,62 @@ export default function SpostaScreen() {
   const where = moved < 3 ? 'Nel punto di prima' : `A ${moved} m dal punto di prima`;
 
   return (
-    <View style={s.root}>
-      <MapView
-        style={StyleSheet.absoluteFill}
-        initialRegion={initialRegion}
-        onRegionChange={onChange}
-        onRegionChangeComplete={onDone}
-        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-        customMapStyle={ANDROID_DAY_STYLE}
-        showsPointsOfInterest={false}
-        showsBuildings={false}
-        showsCompass={false}
-        showsScale={false}
-        toolbarEnabled={false}
-        pitchEnabled={false}
-        rotateEnabled={false}
-        userInterfaceStyle="light"
-      >
-        {/* Il posto di prima, tratteggiato: unico figlio, non cambia mai. */}
-        <Marker coordinate={{ latitude: start.lat, longitude: start.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-          <View style={s.ghost}>
-            <Image source={markerArt(marker.kind)} style={s.ghostImg} resizeMode="contain" />
-          </View>
-        </Marker>
-      </MapView>
+    // Sempre di giorno anche dentro la Road di notte: i bottoni clay non si invertono.
+    <SheetNightContext.Provider value={false}>
+      <View style={s.root}>
+        <MapView
+          style={StyleSheet.absoluteFill}
+          initialRegion={initialRegion}
+          onRegionChange={onChange}
+          onRegionChangeComplete={onDone}
+          mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+          customMapStyle={ANDROID_DAY_STYLE}
+          showsPointsOfInterest={false}
+          showsBuildings={false}
+          showsCompass={false}
+          showsScale={false}
+          toolbarEnabled={false}
+          pitchEnabled={false}
+          rotateEnabled={false}
+          userInterfaceStyle="light"
+        >
+          {/* Il posto di prima, tratteggiato: unico figlio, non cambia mai. */}
+          <Marker coordinate={{ latitude: start.lat, longitude: start.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+            <View style={s.ghost}>
+              <Image source={markerArt(marker.kind)} style={s.ghostImg} resizeMode="contain" />
+            </View>
+          </Marker>
+        </MapView>
 
-      {/* Mirino fisso al centro, con la segnalazione sollevata sopra. */}
-      <View pointerEvents="none" style={s.crossWrap}>
-        <Animated.View style={[s.lifted, liftStyle]}>
-          <View style={[s.disc, marker.sentiment === 'good' ? s.good : marker.sentiment === 'bad' ? s.bad : null]}>
-            <Image source={markerArt(marker.kind)} style={s.discImg} resizeMode="contain" />
-          </View>
-          <View style={s.stem} />
-        </Animated.View>
-        <View style={s.ring} />
-        <View style={s.h} />
-        <View style={s.v} />
-        <View style={s.dot} />
-      </View>
-
-      <View style={[s.top, CLAY_SHADOW.raise, { top: insets.top + 8 }]}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.title} numberOfLines={1}>Sposta «{marker.label}»</Text>
-          <Text style={s.sub}>Muovi la mappa sotto il mirino</Text>
+        {/* Mirino fisso al centro, con la segnalazione sollevata sopra. */}
+        <View pointerEvents="none" style={s.crossWrap}>
+          <Animated.View style={[s.lifted, liftStyle]}>
+            <View style={[s.disc, marker.sentiment === 'good' ? s.good : marker.sentiment === 'bad' ? s.bad : null]}>
+              <Image source={markerArt(marker.kind)} style={s.discImg} resizeMode="contain" />
+            </View>
+            <View style={s.stem} />
+          </Animated.View>
+          <View style={s.ring} />
+          <View style={s.h} />
+          <View style={s.v} />
+          <View style={s.dot} />
         </View>
-        <ClayIconButton icon="close" onPress={() => router.back()} accessibilityLabel="Chiudi" testID="road-move-close" />
-      </View>
 
-      <View style={[s.bottom, CLAY_SHADOW.raise, { bottom: insets.bottom + 12 }]}>
-        <Text style={s.label}>Nuovo punto</Text>
-        <Text style={s.where}>{where}</Text>
-        <ClayButton title="Metti qui" onPress={() => void place()} loading={saving} disabled={moved < 3} testID="road-move-place" />
+        <View style={[s.top, CLAY_SHADOW.raise, { top: insets.top + 8 }]}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.title} numberOfLines={1}>Sposta «{marker.label}»</Text>
+            <Text style={s.sub}>Muovi la mappa sotto il mirino</Text>
+          </View>
+          <ClayIconButton icon="close" onPress={() => router.back()} accessibilityLabel="Chiudi" testID="road-move-close" />
+        </View>
+
+        <View style={[s.bottom, CLAY_SHADOW.raise, { bottom: insets.bottom + 12 }]}>
+          <Text style={s.label}>Nuovo punto</Text>
+          <Text style={s.where}>{where}</Text>
+          <ClayButton title="Metti qui" onPress={() => void place()} loading={saving} disabled={moved < 3} testID="road-move-place" />
+        </View>
       </View>
-    </View>
+    </SheetNightContext.Provider>
   );
 }
 
