@@ -5,8 +5,9 @@ Il foglio che si apre toccando un allievo (tab Allievi, agenda). Form sheet nati
 ## Ordine delle sezioni (Tiziano, 29/10/2026)
 
 1. **Intestazione**: volto 88 pt, nome, patente in corso («B · Manuale · ha già A2»).
+1b. **Esame prenotato** (Road novembre R6, Tiziano 10/11/2026): card nel **viola dell'esame** (`CLAY_EXAM` in `src/theme/clay.ts`, stessi valori della card esame dell'agenda web) subito sotto il nome: «Esame di guida · tra 4 giorni», giorno, ora (o «Orario da definire»), luogo, esaminatori (REG-640). Si prende l'esame **più vicino** tra appuntamenti `type: esame` e date della pratica (`drivingExamAt`/`theoryExamAt`); a parità di giorno vince l'appuntamento. Non è toccabile: il foglio esame vuole tutte le righe del gruppo, che qui non ci sono.
 2. **Allievo**: telefono (tocco = chiama), email (tocco = mail), patenti già conseguite, luogo abituale. Skeleton a due righe finché carica.
-3. **Da fare**: Pagamenti («N guide da pagare», solo in modalità manuale) + Impostazioni in una lista; esame in arrivo; **Prossime guide** (solo future, dalla più vicina, max 5 + «Vedi tutte»).
+3. **Da fare**: Pagamenti («N guide da pagare», solo in modalità manuale) + Impostazioni in una lista; **Prossime guide** (solo future, dalla più vicina, max 5 + «Vedi tutte»).
 4. **Andamento**: scheda «Percorso» (solo con più percorsi, REG-458), tre numeri (guide fatte · pagellino · ore), pagellino apribile.
 5. **Storico guide** per ultimo: solo guide già svolte, le **ultime 5** + riga «Vedi tutte (N)».
 

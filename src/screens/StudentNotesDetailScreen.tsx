@@ -25,7 +25,8 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import { FormSheet } from '../components/SheetScaffold';
 import { Avatar, ClayButton, ClayList, ClayListRow, ClayPressable, ClaySection, ClaySurface, Icon3D } from '../components/clay';
-import { CLAY, CLAY_SHADOW } from '../theme/clay';
+import { CLAY, CLAY_EXAM, CLAY_SHADOW } from '../theme/clay';
+import { EXAM_TIME_TBD, examTimeKnown } from '../utils/examTime';
 import { VITA_ART } from '../theme/vitaArt';
 import {
   AutoscuolaAppointmentWithRelations,
@@ -63,10 +64,37 @@ function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | n
   return null;
 }
 
-const monthsShort = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
-const formatExamDate = (iso: string) => {
+const WEEKDAYS = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** «Giovedì 14 novembre» (+ l'anno solo se non è quest'anno). */
+const formatExamDay = (iso: string) => {
   const d = new Date(iso);
-  return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`;
+  const year = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '';
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${year}`;
+};
+
+/** «oggi», «domani», «tra 4 giorni». */
+const examCountdown = (iso: string) => {
+  const days = Math.round((startOfDay(new Date(iso)) - startOfDay(new Date())) / 86_400_000);
+  if (days <= 0) return 'oggi';
+  if (days === 1) return 'domani';
+  return `tra ${days} giorni`;
+};
+
+const formatHm = (iso: string) => {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+type UpcomingExam = {
+  kind: 'guida' | 'teoria';
+  startsAt: string;
+  /** false = esame senza orario (REG-604) o data della sola pratica. */
+  timeKnown: boolean;
+  place: string | null;
+  examiners: string[];
 };
 
 /** REG-458 — cambiando percorso lo storico guide è un altro elenco: sfuma una
@@ -570,18 +598,37 @@ export const StudentNotesDetailScreen = () => {
     return Math.round(mins / 60);
   }, [appointments]);
 
-  const upcomingExam = useMemo(() => {
-    const now = new Date();
-    for (const c of cases) {
-      if (c.drivingExamAt && new Date(c.drivingExamAt) > now) return { type: 'guida', date: c.drivingExamAt };
-      if (c.theoryExamAt && new Date(c.theoryExamAt) > now) return { type: 'teoria', date: c.theoryExamAt };
-    }
+  // R6 (Road novembre): l'esame più vicino, in cima alla scheda. Prima
+  // vinceva sempre la data della pratica anche con un esame prenotato prima;
+  // ora si prende il più vicino e, a parità di giorno, l'appuntamento
+  // d'esame (ha ora, luogo ed esaminatori).
+  const upcomingExam = useMemo<UpcomingExam | null>(() => {
+    const today = startOfDay(new Date());
+    const list: UpcomingExam[] = [];
     for (const appt of appointments) {
-      if ((appt.type ?? '').toLowerCase() === 'esame' && new Date(appt.startsAt) > now) {
-        return { type: 'guida', date: appt.startsAt };
+      if ((appt.type ?? '').toLowerCase() !== 'esame') continue;
+      // L'esame senza orario ha startsAt a mezzanotte: conta il giorno.
+      if (startOfDay(new Date(appt.startsAt)) < today) continue;
+      if (appt.endsAt && new Date(appt.endsAt).getTime() < Date.now()) continue;
+      list.push({
+        kind: 'guida',
+        startsAt: appt.startsAt,
+        timeKnown: examTimeKnown(appt),
+        place: appt.location?.name ?? null,
+        examiners: appt.examiners ?? [],
+      });
+    }
+    const bookedDays = new Set(list.map((e) => startOfDay(new Date(e.startsAt))));
+    for (const c of cases) {
+      for (const [kind, date] of [['guida', c.drivingExamAt], ['teoria', c.theoryExamAt]] as const) {
+        if (!date) continue;
+        const day = startOfDay(new Date(date));
+        if (day < today || (kind === 'guida' && bookedDays.has(day))) continue;
+        list.push({ kind, startsAt: date, timeKnown: false, place: null, examiners: [] });
       }
     }
-    return null;
+    list.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    return list[0] ?? null;
   }, [cases, appointments]);
 
   const student = useMemo(() => appointments.find((a) => a.student)?.student ?? null, [appointments]);
@@ -691,6 +738,42 @@ export const StudentNotesDetailScreen = () => {
         {subtitleLine ? <Text style={s.heroSub} numberOfLines={2}>{subtitleLine}</Text> : null}
       </View>
 
+      {/* R6: esame prenotato in cima, nel viola dell'esame (Tiziano 10/11). */}
+      {!loading && upcomingExam ? (
+        <Animated.View entering={LIST_DISSOLVE} style={[s.exam, CLAY_EXAM.surface]} testID="student-exam-card">
+          <View style={s.examTop}>
+            <Image source={VITA_ART.esame} style={s.examArt} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.examKicker} numberOfLines={1}>
+                Esame {upcomingExam.kind === 'teoria' ? 'di teoria' : 'di guida'} · {examCountdown(upcomingExam.startsAt)}
+              </Text>
+              <Text style={s.examDay} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+                {formatExamDay(upcomingExam.startsAt)}
+              </Text>
+              <Text style={s.examTime}>
+                {upcomingExam.timeKnown ? `ore ${formatHm(upcomingExam.startsAt)}` : EXAM_TIME_TBD}
+              </Text>
+            </View>
+          </View>
+          {upcomingExam.place || upcomingExam.examiners.length > 0 ? (
+            <View style={s.examRows}>
+              {upcomingExam.place ? (
+                <View style={s.examRow}>
+                  <Text style={s.examLabel}>Luogo</Text>
+                  <Text style={s.examValue} numberOfLines={1}>{upcomingExam.place}</Text>
+                </View>
+              ) : null}
+              {upcomingExam.examiners.length > 0 ? (
+                <View style={s.examRow}>
+                  <Text style={s.examLabel}>{upcomingExam.examiners.length === 1 ? 'Esaminatore' : 'Esaminatori'}</Text>
+                  <Text style={s.examValue} numberOfLines={2}>{upcomingExam.examiners.join(', ')}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </Animated.View>
+      ) : null}
+
       {/* Allievo: contatti e patenti, subito sotto il nome (Tiziano 29/10:
           in fondo, sotto tutto lo storico, non li trovava nessuno). */}
       {loading ? (
@@ -703,7 +786,7 @@ export const StudentNotesDetailScreen = () => {
           ))}
         </ClaySurface>
       ) : email || phone || obtained.length > 0 || defaultLocationName ? (
-        <Animated.View entering={LIST_DISSOLVE} style={s.firstBlock}>
+        <Animated.View entering={LIST_DISSOLVE} style={upcomingExam ? s.listGap : s.firstBlock}>
           <ClayList>
             {phone ? <ClayListRow title="Telefono" subtitle={phone} onPress={() => Linking.openURL(`tel:${phone}`)} /> : null}
             {email ? <ClayListRow title="Email" subtitle={email} onPress={() => Linking.openURL(`mailto:${email}`)} /> : null}
@@ -776,17 +859,6 @@ export const StudentNotesDetailScreen = () => {
             />
           ) : null}
         </ClayList>
-      ) : null}
-
-      {/* Esame in arrivo */}
-      {!loading && upcomingExam ? (
-        <ClaySurface radius={22} style={[s.card, s.examCard]}>
-          <Image source={VITA_ART.esame} style={s.examArt} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.cardTitle}>Esame {upcomingExam.type === 'teoria' ? 'di teoria' : 'di guida'}</Text>
-            <Text style={s.cardSub}>{formatExamDate(upcomingExam.date)}</Text>
-          </View>
-        </ClaySurface>
       ) : null}
 
       {/* Prossime guide: le cose da fare, prima dello storico */}
@@ -987,8 +1059,16 @@ const s = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   cardTitle: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   cardSub: { fontSize: 14.5, color: CLAY.ink3, marginTop: 2 },
-  examCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
-  examArt: { width: 46, height: 46 },
+  exam: { marginTop: 20, borderRadius: 22, paddingTop: 16, paddingBottom: 16, paddingHorizontal: 18 },
+  examTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  examArt: { width: 52, height: 52 },
+  examKicker: { fontSize: 13.5, fontWeight: '500', color: CLAY_EXAM.kicker },
+  examDay: { fontSize: 21, fontWeight: '600', letterSpacing: -0.5, color: CLAY_EXAM.ink, marginTop: 1 },
+  examTime: { fontSize: 15, fontWeight: '500', color: CLAY_EXAM.ink2, marginTop: 2 },
+  examRows: { marginTop: 14, paddingTop: 12, gap: 7, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CLAY_EXAM.hairline },
+  examRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  examLabel: { fontSize: 15, color: CLAY_EXAM.label },
+  examValue: { flexShrink: 1, fontSize: 15, fontWeight: '500', color: CLAY_EXAM.ink, textAlign: 'right' },
   listGap: { marginTop: 12 },
   pagHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, paddingHorizontal: 18 },
   sparkRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 26 },

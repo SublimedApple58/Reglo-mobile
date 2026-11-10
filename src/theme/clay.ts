@@ -105,3 +105,32 @@ export const CLAY_CTA = {
     boxShadow: [rim(0.06), shadow(2, 5, -2, 'rgba(17,17,17,0.14)'), shadow(3, 8, 0, 'rgba(17,17,17,0.11)', true)],
   },
 } satisfies Record<string, ViewStyle>;
+
+/**
+ * Viola dell'esame (Road novembre R6, Tiziano 10/11/2026): gli stessi valori
+ * della card esame dell'agenda web (`#F5F0FF`, accento `#8B5CF6`), qui l'unica
+ * eccezione al bianco e nero. Solo per l'esame: blocco «esame prenotato» della
+ * scheda allievo, e Road Exam (R4). Tinta chiara, testi viola scuri per la
+ * leggibilità; mai il viola pieno come fondo.
+ */
+export const CLAY_EXAM = {
+  bg: '#F5F0FF',
+  /** Etichetta in alto («Esame di guida · tra 4 giorni»). */
+  kicker: '#6D28D9',
+  /** Data e valori. */
+  ink: '#2E1065',
+  /** Ora sotto la data. */
+  ink2: '#4C1D95',
+  /** Etichette delle righe. */
+  label: '#7C5BB8',
+  hairline: 'rgba(139,92,246,0.18)',
+  /** Volume della card (3 livelli, come i preset clay): bordo, ombra viola morbida, ombra interna. */
+  surface: {
+    backgroundColor: '#F5F0FF',
+    boxShadow: [
+      shadow(0, 0, 1, 'rgba(139,92,246,0.16)'),
+      shadow(12, 26, -12, 'rgba(139,92,246,0.42)'),
+      shadow(-2.5, 4, 0, 'rgba(91,33,182,0.06)', true),
+    ],
+  } satisfies ViewStyle,
+} as const;
