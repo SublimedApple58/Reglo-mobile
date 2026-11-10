@@ -17,7 +17,7 @@
  *   dell'inchiostro sta sul filo dei 20 pt come il testo sotto.
  */
 import React, { memo, useCallback, useState } from 'react';
-import { Image, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import { Image, LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { ClayPressable, Icon3D } from '../../components/clay';
@@ -200,15 +200,22 @@ const s = StyleSheet.create({
   glow: { position: 'absolute', right: -60, top: -70 },
   // iOS mette l'inchiostro delle cifre più in alto del browser (riga 64/64):
   // 19,5 + 1 di riga = 22 pt ottici sopra le cifre, misurati sul simulatore.
-  heroIn: { paddingTop: 19.5, paddingBottom: 22, paddingHorizontal: EXAM_HOME_INSET },
+  // Roboto (Android) le mette 5 dp più in basso: 14,5 dà gli stessi 22,5,
+  // misurati sull'emulatore.
+  heroIn: {
+    paddingTop: Platform.OS === 'android' ? 14.5 : 19.5,
+    paddingBottom: 22,
+    paddingHorizontal: EXAM_HOME_INSET,
+  },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headText: { flex: 1, minWidth: 0 },
   numRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   big: { fontSize: 64, lineHeight: 64, fontWeight: '600', color: EXAM_TONE.ink, letterSpacing: -2.6 },
   unit: { flexShrink: 1, fontSize: 18, fontWeight: '600', color: EXAM_TONE.ink, letterSpacing: -0.4 },
   // La riga del numero porta già la discesa di «giorni all'esame»: 1 pt basta
-  // per i 17,5 pt dell'anteprima fra il fondo delle cifre e la riga data.
-  when: { fontSize: 13.5, lineHeight: 18, color: EXAM_TONE.sub, marginTop: 1 },
+  // per i 17,5 pt dell'anteprima fra il fondo delle cifre e la riga data
+  // (su Android la riga è più corta di 3 dp: 4).
+  when: { fontSize: 13.5, lineHeight: 18, color: EXAM_TONE.sub, marginTop: Platform.OS === 'android' ? 4 : 1 },
   road: { marginTop: 22 },
   track: { height: FLAG, justifyContent: 'center' },
   line: { position: 'absolute', top: 11.5, height: 3, borderRadius: 2, backgroundColor: EXAM_TONE.track },

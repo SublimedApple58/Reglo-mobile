@@ -119,6 +119,11 @@ export default function LastMinuteSheet() {
 
   // ── Caricamento degli slot ──
   const requestId = useRef(0);
+  // Prenotata: nessun caricamento sovrascrive più il successo. Dopo la
+  // prenotazione le opzioni si ricaricano e il server ricalcola
+  // `lastMinuteUntil` da adesso: `load` cambia e l'effetto sotto ripartirebbe,
+  // riportando il foglio all'elenco (visto su Android, 10/11).
+  const booked = useRef(false);
   const load = useCallback(
     async (sid: string, minutes: number) => {
       const id = ++requestId.current;
@@ -132,7 +137,7 @@ export default function LastMinuteSheet() {
             regloApi.getAvailableSlots({ studentId: sid, date: localDateKey(d), durationMinutes: minutes }),
           ),
         );
-        if (id !== requestId.current) return;
+        if (id !== requestId.current || booked.current) return;
         const now = Date.now();
         const until = windowMode && policy?.lastMinuteUntil ? new Date(policy.lastMinuteUntil).getTime() : Infinity;
         const next: Day[] = dates
@@ -151,7 +156,7 @@ export default function LastMinuteSheet() {
         });
         setPhase(next.length ? 'list' : 'empty');
       } catch {
-        if (id !== requestId.current) return;
+        if (id !== requestId.current || booked.current) return;
         setPhase('error');
       }
     },
@@ -161,7 +166,7 @@ export default function LastMinuteSheet() {
   // Aspetta le opzioni (durate, finestra) prima del primo giro.
   const optionsReady = !!options || optionsQuery.isError;
   useEffect(() => {
-    if (!studentId || !optionsReady) return;
+    if (!studentId || !optionsReady || booked.current) return;
     void load(studentId, activeDuration);
   }, [studentId, optionsReady, activeDuration, load]);
 
@@ -192,6 +197,7 @@ export default function LastMinuteSheet() {
         await load(studentId, activeDuration);
         return;
       }
+      booked.current = true;
       const appt = res.appointment;
       let info: SuccessInfo = {
         firstName: student?.firstName ?? firstNameOf(user?.name),
