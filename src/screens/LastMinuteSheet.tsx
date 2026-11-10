@@ -83,7 +83,8 @@ export default function LastMinuteSheet() {
     return [...list].sort((a, b) => a - b);
   }, [options?.bookingSlotDurations]);
   const [duration, setDuration] = useState<number | null>(null);
-  const activeDuration = duration ?? durations[0] ?? 60;
+  // Come la home: 60 minuti se l'autoscuola li prevede, altrimenti la prima durata.
+  const activeDuration = duration ?? (durations.includes(60) ? 60 : durations[0] ?? 60);
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [days, setDays] = useState<Day[]>([]);

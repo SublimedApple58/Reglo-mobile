@@ -52,6 +52,7 @@ import {
   BookingCasesCard,
   CallInstructorButton,
   EmptyLessonCard,
+  ExamCard,
   FeaturedOfferCard,
   HOME_ART,
   HomeGreeting,
@@ -74,6 +75,7 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
 import { formatTime } from '../utils/date';
+import { EXAM_TIME_TBD, examTimeIsTbd } from '../utils/examTime';
 import { slotLocationParam } from '../utils/slotLocation';
 import { transmissionLabel } from '../utils/license';
 import { Ionicons } from '@expo/vector-icons';
@@ -440,7 +442,8 @@ export const AllievoHomeScreen = () => {
         // spinner running (it lives in the route, not here) and the toast would be
         // hidden behind the modal.
         const closeWithError = (msg: string) => {
-          router.dismiss(2);
+          // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
+          router.dismissTo('/(tabs)/home');
           bookingFlowStore.clear();
           setToast({ text: msg, tone: 'danger' });
         };
@@ -455,7 +458,8 @@ export const AllievoHomeScreen = () => {
         }).then(async (response) => {
           if (response.matched) {
             await invalidateAllData();
-            router.dismiss(2);
+            // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
+          router.dismissTo('/(tabs)/home');
             bookingFlowStore.clear();
             triggerBookingCelebration();
             return;
@@ -704,8 +708,11 @@ export const AllievoHomeScreen = () => {
     useCallback(() => {
       if (!selectedStudentId) return;
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      // Prenotazione «solo eccezioni»: se l'autoscuola cambia modalità la home
+      // deve saperlo al ritorno, non dopo i 10 minuti di cache.
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookingOptions(activeCompanyId, selectedStudentId) });
       void refreshGroupInvitesCount();
-    }, [queryClient, selectedStudentId, refreshGroupInvitesCount]),
+    }, [queryClient, selectedStudentId, refreshGroupInvitesCount, activeCompanyId]),
   );
 
   // Listen for data changes from NotificationOverlay (e.g., proposal accepted, waitlist accepted)
@@ -1452,7 +1459,11 @@ export const AllievoHomeScreen = () => {
     const until = new Date(lastMinuteUntil);
     const duration = availableDurations.includes(60) ? 60 : availableDurations[0] ?? 60;
     const days: string[] = [];
-    for (let d = new Date(); d < until && days.length < 8; d = addDays(d, 1)) days.push(toDateString(d));
+    // Giorni dalla mezzanotte di oggi: conta anche domani se la finestra ci arriva
+    // (la finestra può finire prima dell'ora attuale del giorno dopo).
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let d = today; d < until && days.length < 8; d = addDays(d, 1)) days.push(toDateString(d));
     try {
       const lists = await Promise.all(
         days.map((date) =>
@@ -1530,11 +1541,13 @@ export const AllievoHomeScreen = () => {
     if (featuredOffer) return 'Si è liberato un posto: prendilo prima degli altri.';
     if (policyMode === 'exceptions') return 'Le guide le fissa la tua autoscuola.';
     if (policyMode === 'closed') return 'La tua autoscuola organizza le guide per te.';
+    if (examCountdown && examCountdown.days <= 0) return "Oggi è il giorno dell'esame. In bocca al lupo!";
+    if (examCountdown && examCountdown.days <= 30) return "Manca poco all'esame: ancora qualche guida e ci sei.";
     if (lessonsThisWeek >= 2) return `Questa settimana guidi ${lessonsThisWeek} volte. Bel ritmo!`;
     if (lessonsThisWeek === 1) return 'Questa settimana hai una guida. Buona strada!';
     if (upcoming.length) return 'La prossima guida ti aspetta.';
     return 'Prenota la tua prossima guida quando vuoi.';
-  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, upcoming.length]);
+  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, upcoming.length, examCountdown]);
 
   const instructorInitials = (name: string | null | undefined) => {
     if (!name) return null;
@@ -1620,20 +1633,13 @@ export const AllievoHomeScreen = () => {
         label: 'già fatte',
       });
     }
-    if (nextExam && examCountdown) {
-      out.push({
-        key: 'exam',
-        icon: HOME_ART.esame,
-        value: examCountdown.days === 0 ? 'Oggi' : `${examCountdown.days} ${examCountdown.days === 1 ? 'giorno' : 'giorni'}`,
-        label: examCountdown.days === 0 ? 'il tuo esame' : "all'esame",
-        onPress: openExam,
-      });
-    } else if (policyMode === 'closed' && pastLessons[0]) {
+    // L'esame ha la sua card in cima: qui non si ripete.
+    if (policyMode === 'closed' && pastLessons[0]) {
       const wd = new Date(pastLessons[0].startsAt).toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
       out.push({ key: 'last', icon: HOME_ART.agenda, value: wd.charAt(0).toUpperCase() + wd.slice(1), label: 'ultima guida' });
     }
     return out;
-  }, [pastLessons, nextExam, examCountdown, openExam, policyMode]);
+  }, [pastLessons, policyMode]);
 
   const bookingCases = useMemo<BookingCaseItem[]>(() => {
     if (!bookingPolicy) return [];
@@ -1844,13 +1850,29 @@ export const AllievoHomeScreen = () => {
                     ? bookingOptions.unpaidLessonCount === 1
                       ? 'guida da pagare'
                       : 'guide da pagare'
-                    : 'Le hai in pausa per ora'
+                    : 'Sospese dalla segreteria'
                 }
                 text={
                   bookingOptions?.bookingBlockReason === 'unpaid_threshold'
                     ? 'Finché non le saldi non puoi prenotare né prendere posti liberi. Quando paghi in segreteria si riaprono da sole.'
                     : 'Non puoi prenotare né prendere posti liberi. Per riaprirle parla con la segreteria.'
                 }
+              />
+            ) : null}
+
+            {/* ── Esame prenotato: prima di tutto ── */}
+            {nextExam && examCountdown ? (
+              <ExamCard
+                countdown={
+                  examCountdown.days <= 0
+                    ? 'È oggi!'
+                    : examCountdown.days === 1
+                      ? 'Domani'
+                      : `Tra ${examCountdown.days} giorni`
+                }
+                when={`${longDay(nextExam.startsAt)}${examTimeIsTbd(nextExam) ? '' : ` · ${formatTime(nextExam.startsAt)}`}`}
+                note={examTimeIsTbd(nextExam) ? EXAM_TIME_TBD : nextExam.location?.name ?? null}
+                onPress={openExam}
               />
             ) : null}
 

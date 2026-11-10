@@ -257,6 +257,13 @@ export function SuccessBody({ info }: { info: SuccessInfo }) {
   const who = firstNameOf(info.instructorName);
   const when = `${dayWord(info.startsAt)} alle ${hm(info.startsAt)}`;
   const line = who ? `${when} guidi con ${who}.` : `${when} hai la tua guida.`;
+  // Il promemoria del giorno prima ha senso solo se la guida non è già oggi o domani.
+  const startDay = new Date(info.startsAt);
+  startDay.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysAway = Math.round((startDay.getTime() - today.getTime()) / 86400000);
+  const closing = daysAway <= 0 ? 'Ci vediamo tra poco!' : daysAway === 1 ? 'A domani!' : 'Ti ricordiamo noi il giorno prima.';
   const rows: KvItem[] = [{ key: 'when', label: 'Quando', value: shortWhen(info.startsAt, info.endsAt) }];
   if (info.vehicleName) rows.push({ key: 'veh', label: 'Veicolo', value: info.vehicleName });
   if (info.locationName) rows.push({ key: 'loc', label: 'Luogo', value: info.locationName });
@@ -267,7 +274,7 @@ export function SuccessBody({ info }: { info: SuccessInfo }) {
         <Text style={[s.centerTitle, s.joyTitle]}>{info.firstName ? `È tua, ${info.firstName}!` : 'È tua!'}</Text>
         <Text style={s.centerText}>
           {line}
-          {'\n'}Ti ricordiamo noi il giorno prima.
+          {'\n'}{closing}
         </Text>
       </View>
       <KvList items={rows} style={{ marginTop: 18 }} />

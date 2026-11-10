@@ -120,6 +120,44 @@ export const EmptyLessonCard = memo(function EmptyLessonCard({
   );
 });
 
+// ── Esame prenotato: prima di tutto, nel viola chiaro dell'esame ──────────────
+// Stessi colori della card esame dell'agenda (web) e della scheda allievo di
+// Road: fondo #F5F0FF, accento #8B5CF6, testi viola scuro.
+export const EXAM_TONE = {
+  bg: '#F5F0FF',
+  accent: '#8B5CF6',
+  ink: '#4C1D95',
+  sub: '#6D28D9',
+  glow: 'rgba(139,92,246,0.22)',
+} as const;
+
+export const ExamCard = memo(function ExamCard({
+  countdown,
+  when,
+  note,
+  onPress,
+}: {
+  /** «Tra 22 giorni», «Domani», «È oggi!» */
+  countdown: string;
+  /** «Giovedì 4 dicembre · 9:30» */
+  when: string;
+  /** Riga sotto (es. dove, o «Orario da definire»). */
+  note?: string | null;
+  onPress: () => void;
+}) {
+  return (
+    <ClayPressable kind="card" onPress={onPress} style={s.exam} accessibilityRole="button" accessibilityLabel={`Esame di guida, ${countdown}, ${when}`}>
+      <View style={s.examText}>
+        <Text style={s.examKicker}>Esame di guida</Text>
+        <Text style={s.examCount}>{countdown}</Text>
+        <Text style={s.examWhen}>{when}</Text>
+        {note ? <Text style={s.examNote}>{note}</Text> : null}
+      </View>
+      <Icon3D source={HOME_ART.esame} size={88} />
+    </ClayPressable>
+  );
+});
+
 // ── Due numeri (guide fatte, esame) ───────────────────────────────────────────
 
 export type HomeTile = {
@@ -400,6 +438,27 @@ const s = StyleSheet.create({
   avSmText: { fontSize: 12, fontWeight: '600', color: CLAY.ink },
   whoText: { flex: 1, fontSize: 15, color: CLAY.ink2 },
 
+  exam: {
+    marginTop: 18,
+    borderRadius: CLAY_RADIUS.card,
+    backgroundColor: EXAM_TONE.bg,
+    paddingVertical: 20,
+    paddingLeft: 20,
+    paddingRight: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    boxShadow: [
+      { offsetX: 0, offsetY: 0, blurRadius: 0, spreadDistance: 1, color: 'rgba(139,92,246,0.16)' },
+      { offsetX: 0, offsetY: 10, blurRadius: 24, spreadDistance: -10, color: EXAM_TONE.glow },
+      { offsetX: 0, offsetY: -2.5, blurRadius: 4, spreadDistance: 0, color: 'rgba(76,29,149,0.05)', inset: true },
+    ],
+  },
+  examText: { flex: 1, minWidth: 0 },
+  examKicker: { fontSize: 13.5, fontWeight: '600', color: EXAM_TONE.accent },
+  examCount: { fontSize: 28, lineHeight: 33, fontWeight: '600', color: EXAM_TONE.ink, letterSpacing: -0.8, marginTop: 2 },
+  examWhen: { fontSize: 15.5, color: EXAM_TONE.sub, marginTop: 3 },
+  examNote: { fontSize: 13.5, color: EXAM_TONE.sub, marginTop: 2, opacity: 0.85 },
   tiles: { flexDirection: 'row', gap: 12, marginTop: 14 },
   tile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 14 },
   tileText: { flex: 1, minWidth: 0 },

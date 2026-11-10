@@ -86,8 +86,12 @@ export default function BookingFlowScreen() {
   const lastMinuteOnly = !!policy && !policy.hold && policy.mode === 'exceptions' && policy.exceptions.lastMinute;
   const lastMinuteUntil = lastMinuteOnly && policy?.lastMinuteUntil ? new Date(policy.lastMinuteUntil) : null;
 
-  // Don't clear store on unmount — booking-slots reads from it.
-  // Store is cleared by onClose callback when navigating back to home.
+  // Lo store si svuota quando questo foglio si smonta (chiuso col gesto, con la
+  // X o da codice dopo la prenotazione). Finché «Orari liberi» è aperto sopra,
+  // questo foglio resta montato e lo store resta pieno.
+  // Niente `closeOnGesture`: intercetterebbe anche la chiusura da codice
+  // (`dismissTo` dopo la prenotazione) e il foglio resterebbe aperto.
+  useEffect(() => () => bookingFlowStore.clear(), []);
 
   // If the selected instructor is no longer available on the chosen date, fall
   // back to "Tutti" so the search isn't filtered by an unavailable instructor.
@@ -206,7 +210,6 @@ export default function BookingFlowScreen() {
         subtitle={subtitle}
         testID="booking-flow-sheet"
         onClose={handleClose}
-        closeOnGesture
         busy={loading}
         cta={
           <ClayButton
