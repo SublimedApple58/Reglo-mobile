@@ -109,3 +109,9 @@ e `requestRefresh()` (come `invalidateAllData` della home).
 - `notifications.md` — l'overlay apre questi fogli.
 - `booking-flow.md` — stessa `createBookingRequest`, stessi `slotLocation*`.
 - Guide di gruppo — «Per un soffio!» rimanda a `group-lesson-invites`.
+
+## Home con l'esame (approvata da Tiziano il 10/11/2026, anteprime 1i/1j)
+- Con un esame prenotato la card protagonista è SEMPRE l'esame (`ExamHeroCard` in `src/screens/allievoHome/ExamHomeCards.tsx`): numero grande, una riga «4 dic · 9:30 · sede» (puntini se lunga), linea Oggi→Esame con un pallino per ogni guida fissata prima dell'esame.
+- La prossima guida scende in `CompactLessonCard` (ritaglio dell'immagine + due righe; «Ultima guida» se è l'unica prima dell'esame). Niente frase sotto il nome e niente riquadri «guide fatte».
+- Senza esame: card grande della prossima guida come prima.
+- Misure: inset 20 pt per entrambe le card; side-bearing delle cifre compensato con `DIGIT_BEARING` (misurato a 64 pt peso 600, font di sistema).

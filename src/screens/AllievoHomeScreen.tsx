@@ -52,7 +52,6 @@ import {
   BookingCasesCard,
   CallInstructorButton,
   EmptyLessonCard,
-  ExamCard,
   FeaturedOfferCard,
   HOME_ART,
   HomeGreeting,
@@ -75,7 +74,8 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 
 import { formatTime } from '../utils/date';
-import { EXAM_TIME_TBD, examTimeIsTbd } from '../utils/examTime';
+import { examTimeIsTbd } from '../utils/examTime';
+import { CompactLessonCard, ExamHeroCard } from './allievoHome/ExamHomeCards';
 import { slotLocationParam } from '../utils/slotLocation';
 import { transmissionLabel } from '../utils/license';
 import { Ionicons } from '@expo/vector-icons';
@@ -1537,17 +1537,17 @@ export const AllievoHomeScreen = () => {
   const featuredOffer = liveOffers[0] ?? null;
 
   const mood = useMemo(() => {
+    // Con la card esame la frase sotto il nome sparisce (anteprima 1i/1j).
+    if (nextExam && examCountdown) return null;
     if (policyHold === 'blocked') return 'Le guide che hai già fissato restano valide.';
     if (featuredOffer) return 'Si è liberato un posto: prendilo prima degli altri.';
     if (policyMode === 'exceptions') return 'Le guide le fissa la tua autoscuola.';
     if (policyMode === 'closed') return 'La tua autoscuola organizza le guide per te.';
-    if (examCountdown && examCountdown.days <= 0) return "Oggi è il giorno dell'esame. In bocca al lupo!";
-    if (examCountdown && examCountdown.days <= 30) return "Manca poco all'esame: ancora qualche guida e ci sei.";
     if (lessonsThisWeek >= 2) return `Questa settimana guidi ${lessonsThisWeek} volte. Bel ritmo!`;
     if (lessonsThisWeek === 1) return 'Questa settimana hai una guida. Buona strada!';
     if (upcoming.length) return 'La prossima guida ti aspetta.';
     return 'Prenota la tua prossima guida quando vuoi.';
-  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, upcoming.length, examCountdown]);
+  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, upcoming.length, nextExam, examCountdown]);
 
   const instructorInitials = (name: string | null | undefined) => {
     if (!name) return null;
@@ -1736,6 +1736,49 @@ export const AllievoHomeScreen = () => {
     return rows;
   }, [swapEnabled, policyHold, swapOffersCount, canTakeGroupSeats, policyMode, groupInvitesCount, isLockedToInstructor, assignedInstructorName, weeklyAbsenceEnabled, weeklyAbsenceDeclared, weeklyAbsenceLoading, handleDeclareAbsence, router]);
 
+  // ── Home con l'esame: numero grande, una riga, la linea Oggi→Esame ──
+  const examHome = useMemo(() => {
+    if (!nextExam || !examCountdown) return null;
+    const days = examCountdown.days;
+    const examStart = new Date(nextExam.startsAt);
+    const mon = (d: Date) => d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+    const place = nextExam.location?.name ?? null;
+    const whenLine = [
+      `${examStart.getDate()} ${mon(examStart)}`,
+      examTimeIsTbd(nextExam) ? 'orario da definire' : formatTime(nextExam.startsAt),
+      place,
+    ]
+      .filter(Boolean)
+      .join(' \u00B7 ');
+    const now = Date.now();
+    const span = Math.max(1, examStart.getTime() - now);
+    const beforeExam = [...upcoming, ...upcomingGroupLessons]
+      .filter((l) => {
+        const t = new Date(l.startsAt).getTime();
+        return t >= now && t < examStart.getTime();
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    const lessonPositions = beforeExam.map((l) => (new Date(l.startsAt).getTime() - now) / span);
+    let compact: { kicker: string; title: string } | null = null;
+    if (nextLesson) {
+      const d = new Date(nextLesson.startsAt);
+      const wd = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+      const isLast = beforeExam.length === 1 && beforeExam[0].id === nextLesson.id;
+      const when = nextLessonCountdown ? ` \u00B7 ${nextLessonCountdown.toLowerCase()}` : '';
+      compact = {
+        kicker: `${isLast ? 'Ultima guida' : 'Prossima guida'}${when}`,
+        title: `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d.getDate()} ${mon(d)} \u00B7 ${timeRange(nextLesson)}`,
+      };
+    }
+    return {
+      big: days <= 0 ? 'Oggi' : String(days),
+      unit: days <= 0 ? "è il giorno dell'esame" : days === 1 ? "giorno all'esame" : "giorni all'esame",
+      whenLine,
+      lessonPositions,
+      compact,
+    };
+  }, [nextExam, examCountdown, upcoming, upcomingGroupLessons, nextLesson, nextLessonCountdown]);
+
   const callInstructor = useCallback(() => {
     if (!assignedInstructorPhone) return;
     void Linking.openURL(`tel:${assignedInstructorPhone.replace(/\s+/g, '')}`);
@@ -1836,6 +1879,27 @@ export const AllievoHomeScreen = () => {
           </Animated.View>
         ) : (
           <Animated.View entering={FadeIn.duration(220)}>
+            {/* ── Esame prenotato: è SEMPRE la card protagonista (Tiziano 10/11),
+                la prossima guida scende in una card compatta subito sotto. ── */}
+            {examHome ? (
+              <>
+                <ExamHeroCard
+                  big={examHome.big}
+                  unit={examHome.unit}
+                  whenLine={examHome.whenLine}
+                  lessonPositions={examHome.lessonPositions}
+                  onPress={openExam}
+                />
+                {nextLesson && examHome.compact ? (
+                  <CompactLessonCard
+                    kicker={examHome.compact.kicker}
+                    title={examHome.compact.title}
+                    onPress={() => openLessonDetail(nextLesson)}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
             {/* ── Prenotazioni in pausa ── */}
             {policyHold === 'blocked' ? (
               <PausedCard
@@ -1857,22 +1921,6 @@ export const AllievoHomeScreen = () => {
                     ? 'Finché non le saldi non puoi prenotare né prendere posti liberi. Quando paghi in segreteria si riaprono da sole.'
                     : 'Non puoi prenotare né prendere posti liberi. Per riaprirle parla con la segreteria.'
                 }
-              />
-            ) : null}
-
-            {/* ── Esame prenotato: prima di tutto ── */}
-            {nextExam && examCountdown ? (
-              <ExamCard
-                countdown={
-                  examCountdown.days <= 0
-                    ? 'È oggi!'
-                    : examCountdown.days === 1
-                      ? 'Domani'
-                      : `Tra ${examCountdown.days} giorni`
-                }
-                when={`${longDay(nextExam.startsAt)}${examTimeIsTbd(nextExam) ? '' : ` · ${formatTime(nextExam.startsAt)}`}`}
-                note={examTimeIsTbd(nextExam) ? EXAM_TIME_TBD : nextExam.location?.name ?? null}
-                onPress={openExam}
               />
             ) : null}
 
@@ -1908,10 +1956,10 @@ export const AllievoHomeScreen = () => {
 
             {/* ── Prossima guida (o stato vuoto con l'immagine) ── */}
             <View style={policyMode === 'exceptions' && !policyHold ? styles.afterCases : undefined}>
-              {nextLessonCard ?? emptyCard}
+              {examHome ? null : nextLessonCard ?? emptyCard}
             </View>
 
-            <StatTiles tiles={tiles} />
+            {examHome ? null : <StatTiles tiles={tiles} />}
 
             {canFreelyBook ? <ClayButton title="Prenota una guida" onPress={openBookingFlow} style={styles.cta} testID="home-book" /> : null}
 
