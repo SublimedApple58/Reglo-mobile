@@ -678,5 +678,10 @@ export function useRoadSelector<T>(select: (s: State) => T): T {
 }
 
 export function lessonStudentName(lesson: RoadLesson | null | undefined): string {
+  // R4: una sessione Road Exam non ha un allievo: «Esame · 3 allievi».
+  if (lesson?.exam) {
+    const n = lesson.exam.studentCount ?? 0;
+    return n === 1 ? 'Esame · 1 allievo' : n > 1 ? `Esame · ${n} allievi` : 'Esame di guida';
+  }
   return lesson?.student?.name?.trim() || 'Allievo';
 }
