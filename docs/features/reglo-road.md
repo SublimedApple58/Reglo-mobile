@@ -621,3 +621,12 @@ Piano approvato da Tiziano (04/11): il ripasso è un bottone, non parte da solo;
 
 - Impostazione dell'autoscuola (web, Impostazioni › Reglo Road; `limits.roadEarlyKeepDuration`): «Orari reali» (default, REG-728) o «Mantieni la durata prenotata». La decide e applica il server a «Termina guida» (`alignLessonEndToRoad`).
 - In app, durante la guida: il server manda `lesson.roadEndsAt` (stato, avvio, ripresa). `lessonDriveEnd(lesson)` (`src/road/returnEta.ts`) lo usa per «Fine 9:45» sotto il nome, minuti rimasti / rientro (`returnView`) e avvisi «Mancano 5 minuti» / «Orario della guida finito» (`useEndAlert`). Senza il campo (server vecchio) vale `endsAt`.
+
+## Road novembre R3 — segnalazioni modificabili (10/11/2026)
+
+Anteprima `r3-pin` approvata da Tiziano. Istruttore e titolare modificano le segnalazioni sempre (niente finestra di 2 h).
+- **Foglio «Segnalazione»** `app/road/segnalazione.tsx` (FORM_SHEET, notte compresa): giudizio (`ClaySegmented`), Tipo (griglia di «Segnala» nello stesso foglio, dissolvenza via `contentKey`), Nota (prompt nativo su iOS, campo su Android), «Sposta sulla mappa», «Elimina segnalazione» (conferma). Ogni modifica si salva subito, niente Salva.
+- Si apre dal **fumetto in guida** (ora toccabile, con «›») e dal «⋯» di riepilogo, ripasso e «Tutte le segnalazioni» (`openRoadMarkerSheet`). Il vecchio menu nativo `src/road/markerMenu.ts` è stato tolto.
+- **«Sposta»** `app/road/sposta.tsx` (fullScreenModal): mirino fisso, si muove la mappa; il posto di prima è tratteggiato (unico figlio della MapView, mai cambiato: crash AIRMap); «Metti qui» manda lat/lng, la via la ricalcola il server.
+- Stato e azioni: `src/road/markerEdit.ts` (`MarkerEditTarget` = sessione + clientId + dal vivo/riepilogo; `applyMarkerEdit` passa da `correctRoadMarker`, quindi coda offline compresa; poi `roadStore.updateLocalMarker` in guida o `refreshRoadSummary` a guida finita). Niente aggiornamento ottimistico.
+- «Dove» (punto o tratto) arriva con R7.
