@@ -1141,6 +1141,10 @@ export type MobileBookingOptions = {
   blockedByExamPriority?: boolean;
   /** Blocco prenotazioni (manuale del titolare o automatico per debito). */
   bookingBlocked?: boolean;
+  /** Perché è bloccato: manuale del titolare o automatico per guide da pagare. */
+  bookingBlockReason?: 'manual' | 'unpaid_threshold' | null;
+  /** Guide da pagare (solo col blocco automatico per debito acceso). */
+  unpaidLessonCount?: number | null;
   /** Prenotazione «solo eccezioni»: quando l'allievo può prenotare. Assente =
    *  backend precedente → si deduce da `appBookingActors`/`bookingBlocked`. */
   bookingPolicy?: StudentBookingPolicy;

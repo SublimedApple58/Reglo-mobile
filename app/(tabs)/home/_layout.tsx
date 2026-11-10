@@ -72,8 +72,12 @@ export default function HomeLayout() {
       <Stack.Screen name="manage-lesson-location" options={FORM_SHEET} />
       <Stack.Screen name="manage-lesson-location-form" options={FORM_SHEET} />
       <Stack.Screen name="lesson-detail" options={TALL_SHEET} />
-      <Stack.Screen name="booking-flow" options={TALL_SHEET} />
-      <Stack.Screen name="booking-slots" options={{ presentation: 'modal', headerShown: false }} />
+      {/* Prenotazione «solo eccezioni»: posto liberato (offerta) e posti liberi a breve. */}
+      <Stack.Screen name="slot-offer" options={FORM_SHEET} />
+      <Stack.Screen name="last-minute" options={FORM_SHEET} />
+      {/* Prenotazione allievo riallineata a Clay (M8): form sheet ad altezza adattiva. */}
+      <Stack.Screen name="booking-flow" options={FORM_SHEET} />
+      <Stack.Screen name="booking-slots" options={FORM_SHEET} />
       <Stack.Screen name="exam-detail" options={TALL_SHEET} />
       <Stack.Screen name="all-lessons" options={SCROLL_SHEET} />
       <Stack.Screen name="quiz-hint" options={{ presentation: 'modal', headerShown: false, gestureEnabled: true }} />

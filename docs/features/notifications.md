@@ -4,7 +4,10 @@
 Push notification handling, intent routing, persistent inbox with 30-day expiry.
 
 ## Key files
-- `src/components/NotificationOverlay.tsx` (70KB) — always-on overlay, mounted at `app/(tabs)/_layout.tsx`
+- `src/components/NotificationOverlay.tsx` — always-on overlay, mounted at `app/(tabs)/_layout.tsx`: inbox/badge, push intents, apre i fogli (non disegna più fogli propri: solo il toast)
+- `src/screens/SlotOfferSheet.tsx` (rotta `app/(tabs)/home/slot-offer.tsx`) — foglio «Si è liberato un posto»
+- `src/screens/LastMinuteSheet.tsx` (rotta `app/(tabs)/home/last-minute.tsx`) — foglio «Posti liberi a breve» / «Posti liberi» di un giorno
+- `src/screens/bookingExceptionParts.tsx` — pezzi condivisi dei due fogli (date a parole, righe chiave/valore, successo «È tua»)
 - `src/screens/NotificationInboxScreen.tsx` — inbox rendering
 - `src/types/notifications.ts` — NotificationItem union, PersistedNotification
 - `src/services/notificationStore.ts` — SecureStore persistence, read/dismissed flags
@@ -20,11 +23,10 @@ Push notification handling, intent routing, persistent inbox with 30-day expiry.
 ## Notification kinds and handlers
 | Kind | UI | Action |
 |------|-----|--------|
-| `waitlist` | BottomSheet | `respondWaitlistOffer()` accept/decline |
+| `waitlist` (push `slot_fill_offer`) | **Rotta `/(tabs)/home/slot-offer?offerId=…`** (FORM_SHEET) | `respondWaitlistOffer()` accept («Prendi questa guida») / decline («No, grazie»). Vedi «Fogli dell'allievo» sotto |
 | `swap` | **Navigates to `/(tabs)/home/swaps`** (no drawer) | Handled in the Scambi section |
 | `confirmation` | **Navigates to `/(tabs)/home/swaps`** (no drawer) | Swap-accepted; tracked for inbox/badge only |
-| `proposal` | BottomSheet | `updateAppointmentStatus()` accept/reject |
-| `available_slots` | Modal | Route to booking |
+| `available_slots` | **Rotta `/(tabs)/home/last-minute`** (FORM_SHEET) | con `data.lastMinute: true` → finestra «ultimo minuto»; senza → `?date=` del giorno della push. `createBookingRequest()` |
 | `holiday_declared` | Toast | Acknowledge |
 | `weekly_absence` | Toast | Acknowledge |
 | `sick_leave_cancelled` | Toast | Acknowledge |
@@ -92,7 +94,7 @@ funzionava già. `components/LessonsOverview.tsx` e `agendaLessons` /
     (`MORALE_ART.aeroplanino`), «Nessuna notifica». Il vecchio
     `fluent-bell.png` è stato eliminato.
 - *(Storico, prima del 28/10)* Design-system layout: sticky blur header (back + "Notifiche" + "Segna tutte"), off-white, `Animated.FlatList`, per-kind tinted icon chips (`THEME` map), Fluent `fluent-bell.png` empty state. No beige.
-- Tap routing: swap → `/(tabs)/home/swaps`; `opensDrawer()` kinds (waitlist/proposal/confirmation/available_slots) still `emitOpenDrawer`.
+- Tap routing: swap/confirmation → `/(tabs)/home/swaps`; `group_lesson_invite` → `/(tabs)/home/group-lesson-invites`; `opensDrawer()` kinds (`waitlist`, `available_slots`) → `emitOpenDrawer` → l'overlay apre la rotta del foglio.
 - Swipeable cards (right-swipe dismisses)
 - Mark as read / mark all read
 - 30-day expiry with optional expiresAt override
@@ -100,12 +102,40 @@ funzionava già. `components/LessonsOverview.tsx` e `agendaLessons` /
 
 ## Removed overlay drawers (gradual BottomSheet phase-out)
 - **Swap drawer** + **"Affare fatto!" (swap-accepted confirmation) drawer** removed from `NotificationOverlay`. Both `swap` and `confirmation` are swap-related → inbox tap routes to `/(tabs)/home/swaps`, never a drawer. `openDrawerForItem`/auto-open early-return on `swap`/`confirmation`. `confirmations` list is kept (inbox/badge only).
-- **"Troppo tardi!" (expired)** drawer removed — a taken/expired waitlist/proposal now shows a toast ("Offerta non più disponibile"). `staleDrawerKind` is now `'accepted' | null`.
+- **"Troppo tardi!" (expired)** drawer removed; dal 10/11/2026 anche il toast «Offerta non più disponibile» e il drawer «Già fatto!» (`staleDrawerKind`): ci pensa il foglio `slot-offer`.
 
-## Remaining custom BottomSheets (allievo) — to migrate later
-**REG-705e**: il foglio «Slot liberato» non ha più emoji né grabber (X in alto): card con righe giorno·ora, durata vera dello slot (prima era fissa a 30 min) e luogo (`offer.locationName`); bottoni «No, grazie» (chiude, l'offerta resta in posta) e «Prenota». Il foglio «Orari disponibili» mostra il luogo come `booking-slots` (vedi `booking-flow.md`).
+## Fogli dell'allievo (prenotazione «solo eccezioni», 10/11/2026)
 
-Still custom `BottomSheet` in `NotificationOverlay`, shown to students: **Waitlist** ("Slot liberato"), **Proposal** ("Nuova proposta"), **Available slots** ("Scegli un orario"), **"Già fatto!"** (already-accepted, waitlist/proposal). All backend kinds are live/reachable. `CalendarDrawer` (custom Modal) is also pending. Time picker (allievo Disponibilità): migrated to a **formSheet route** `app/(tabs)/settings/time-picker.tsx` (fitToContents, `timePickerStore`-driven), no duck mascot, pink selection. The legacy `TimePickerDrawer` component (instructor screens) now uses a native pageSheet Modal, duck removed — to be route-migrated with the instructor app.
+I tre BottomSheet fatti a mano dell'overlay — «Slot liberato!», «Scegli un
+orario», «Già fatto!» — e la `BookingCelebration` dell'overlay sono stati tolti.
+Al loro posto due rotte FORM_SHEET dello stack `home/`
+(`docs/features/student-booking-exceptions.md`):
+
+- **`slot-offer`** (`SlotOfferSheet`) — parametri `offerId` (+ `studentId`,
+  `startsAt`, `endsAt`, `expiresAt`, `accepted=1` come suggerimenti). Si apre:
+  push `slot_fill_offer` a caldo (ricevuta o toccata) e a freddo
+  (`data.offerId`, `data.startsAt`), tocco in posta (`waitlist`: id offerta =
+  `data.id`, dal recupero server l'id in posta è `waitlist_<id>`), apertura
+  automatica con una sola non letta ancora valida, card della home. Si apre
+  SEMPRE, anche se l'offerta non c'è più: è il foglio a dire «Per un soffio!»,
+  «Tempo scaduto», «sei già in guida» o «È tua» (prima: toast «Offerta non più
+  disponibile» / drawer «Già fatto!»).
+- **`last-minute`** (`LastMinuteSheet`) — push `available_slots`: con
+  `lastMinute` la finestra dell'ultimo minuto; senza (prenotazione aperta) lo
+  stesso foglio su `?date=` del giorno della push. Scelta motivata: il flusso
+  completo della home (`booking-flow`) vive nello store della home e chiede
+  durata/tipo/istruttore; per «si sono liberati posti giovedì» basta scegliere
+  l'orario, come faceva «Scegli un orario».
+
+Doppie aperture: la stessa push arriva due volte (ricevuta in primo piano +
+toccata) e l'apertura automatica può chiedere lo stesso foglio:
+`shouldOpen(key)` in overlay apre una volta ogni 60 s per offerta / giorno.
+Le offerte accettate stanno in SecureStore `reglo_accepted_notification_ids`
+(le scrive `SlotOfferSheet`, le legge l'overlay prima di aprire).
+`available_slots` in posta ora può portare anche `lastMinute: true`.
+
+Restano custom: `CalendarDrawer` (Modal) e il `TimePickerDrawer` legacy degli
+schermi istruttore. Il kind `proposal` non esiste più (né drawer né handler).
 
 ## Adding a new notification kind (full checklist)
 1. `src/types/notifications.ts` — add to NotificationItem union + standalone data type

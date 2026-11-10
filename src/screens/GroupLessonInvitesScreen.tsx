@@ -1,26 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../utils/motoLessonType';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
-import { Button } from '../components/Button';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
+import { ClayLargeTitle, ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
+import { ClayButton, ClayEmpty, ClaySurface } from '../components/clay';
+import { SkeletonBlock } from '../components/Skeleton';
+import { CLAY } from '../theme/clay';
+import { MORALE_ART } from '../theme/moraleArt';
+import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS } from '../utils/motoLessonType';
+import { bookingHoldMessage, resolveStudentBookingPolicy } from '../utils/studentBookingPolicy';
 import type { AutoscuolaStudent, GroupLessonInvite } from '../types/regloApi';
-
-const ART_PERSONE = require('../../assets/icons3d-ai/persone.png');
-const NAVY = '#111111';
-const NAVY_400 = '#6A6A6A';
-const NAVY_50 = '#F4F4F4';
-const NAVY_100 = '#EBEBEB';
-const NAVY_200 = '#D9D9D9';
-const TEAL = '#0F766E';
-const MUTED = '#929292';
 
 const normalize = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
 const findLinkedStudent = (students: AutoscuolaStudent[], user: { name: string | null; email: string } | null) => {
@@ -54,20 +48,35 @@ const fmtTimeRange = (startsAt: string, endsAt: string | null) => {
   return `${start} – ${end} · ${label}`;
 };
 
-const seatsLabel = (filled: number, capacity: number) => {
-  if (filled <= 0) return 'Nessun posto occupato';
-  return `${filled} ${filled === 1 ? 'posto occupato' : 'posti occupati'} su ${capacity}`;
+/** «1 posto libero su 4», «Ultimo posto libero». */
+const seatsLabel = (inv: GroupLessonInvite) => {
+  const free = Math.max(inv.openSeats ?? inv.capacity - inv.filledSeats, 0);
+  if (free === 1) return `Ultimo posto libero su ${inv.capacity}`;
+  return `${free} posti liberi su ${inv.capacity}`;
 };
 
+/** Testo quando l'allievo vede la guida ma non può prenderla (bookable false). */
+const FALLBACK_HOLD = 'Per ora non puoi prendere questo posto dall’app. Chiedi in segreteria.';
+
+const FADE = FadeIn.duration(200).reduceMotion(ReduceMotion.Never);
+
+/**
+ * «Guide di gruppo» dell'allievo: i posti liberi che può prendere (REG-639
+ * clay, feature «solo eccezioni»). Se la modalità dell'autoscuola non consente
+ * i posti di gruppo il server restituisce già l'elenco vuoto.
+ */
 export const GroupLessonInvitesScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useSession();
+  const { scrollY, onScroll } = useLargeTitleScroll();
 
   const [students, setStudents] = useState<AutoscuolaStudent[]>([]);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
   const [invites, setInvites] = useState<GroupLessonInvite[]>([]);
+  const [holdText, setHoldText] = useState<string>(FALLBACK_HOLD);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
@@ -87,183 +96,231 @@ export const GroupLessonInvitesScreen = () => {
       // tutto oltre ~2 settimane (segnalazione Robatto, 2026-07-06).
       const res = await regloApi.getGroupLessonInvites(sid, 100);
       setInvites(res);
+      // Perché non può prenderli, a parole: lo dice il server (bookingPolicy).
+      if (res.some((i) => i.bookable === false)) {
+        const opts = await regloApi.getBookingOptions(sid).catch(() => null);
+        const hold = resolveStudentBookingPolicy(opts)?.hold ?? null;
+        setHoldText(bookingHoldMessage(hold) ?? FALLBACK_HOLD);
+      }
     } catch (e) {
       setToast({ text: e instanceof Error ? e.message : 'Errore nel caricamento', tone: 'danger' });
     }
   }, []);
 
   useEffect(() => {
-    // Keep the spinner until we know who the student is — otherwise the empty
-    // state flashes for a beat while getStudents() is still in flight.
+    // Lo scheletro resta finché non sappiamo chi è l'allievo: altrimenti lo
+    // stato vuoto lampeggia mentre getStudents() è ancora in volo.
     if (!studentsLoaded) return;
-    if (!studentId) { setLoading(false); return; }
+    if (!studentId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     load(studentId).finally(() => setLoading(false));
   }, [studentsLoaded, studentId, load]);
 
-  const respond = async (invite: GroupLessonInvite, response: 'accept' | 'decline') => {
-    if (!studentId || pendingId) return;
-    setPendingId(invite.inviteId);
-    try {
-      const res = await regloApi.respondGroupLessonInvite(invite.inviteId, { studentId, response });
-      setInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
-      setToast({
-        text: response === 'accept' && res.accepted ? 'Iscrizione confermata!' : 'Risposta registrata.',
-        tone: 'success',
-      });
-    } catch (e) {
-      setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
-    } finally {
-      setPendingId(null);
-    }
-  };
+  const onRefresh = useCallback(async () => {
+    if (!studentId) return;
+    setRefreshing(true);
+    await load(studentId);
+    setRefreshing(false);
+  }, [studentId, load]);
+
+  const respond = useCallback(
+    async (invite: GroupLessonInvite, response: 'accept' | 'decline') => {
+      if (!studentId || pendingId) return;
+      setPendingId(invite.inviteId);
+      try {
+        const res = await regloApi.respondGroupLessonInvite(invite.inviteId, { studentId, response });
+        setInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
+        setToast({
+          text: response === 'accept' && res.accepted ? 'Ci sei! Ti abbiamo iscritto alla guida.' : 'Va bene, non te la riproponiamo.',
+          tone: 'success',
+        });
+      } catch (e) {
+        setToast({ text: e instanceof Error ? e.message : 'Errore.', tone: 'danger' });
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [studentId, pendingId],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: GroupLessonInvite }) => (
+      <InviteCard
+        invite={item}
+        holdText={holdText}
+        pending={pendingId === item.inviteId}
+        busy={pendingId !== null}
+        onRespond={respond}
+      />
+    ),
+    [holdText, pendingId, respond],
+  );
+
+  const bookableCount = invites.filter((i) => i.bookable !== false).length;
+  const subtitle = loading
+    ? null
+    : invites.length === 0
+      ? 'Posti liberi nelle guide di gruppo'
+      : bookableCount === 0
+        ? 'Per ora non puoi prenderli'
+        : bookableCount === 1
+          ? '1 posto che puoi prendere'
+          : `${bookableCount} guide con posti liberi`;
+
+  const goBack = () => (router.canGoBack() ? router.back() : router.navigate('/(tabs)/home'));
 
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
-      <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={s.back}>
-          <Ionicons name="chevron-back" size={22} color={NAVY} />
-        </Pressable>
-        <Text style={s.headerTitle}>Guide di gruppo</Text>
-        <View style={{ width: 34 }} />
-      </View>
-
-      {loading ? (
-        <View style={s.center}><ActivityIndicator color={colors.primary} /></View>
-      ) : invites.length === 0 ? (
-        <View style={s.center}>
-          <Image source={ART_PERSONE} style={{ width: 56, height: 56, opacity: 0.5 }} />
-          <Text style={s.emptyTitle}>Nessun invito</Text>
-          <Text style={s.emptySub}>Quando l'autoscuola apre una guida di gruppo per te, la troverai qui.</Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
-          {invites.map((inv) => {
-            // REG-421 — a blocked student sees the group but can't join it: the
-            // card is shown DISABLED (muted surface + "sospese" pill, no CTA)
-            // rather than firing a generic error on tap. Moto-exact-ineligible
-            // groups never arrive here (filtered server-side).
-            const blocked = inv.bookable === false;
-            return (
-              <View key={inv.inviteId} style={[s.card, blocked && s.cardBlocked]}>
-                <Text style={s.when}>{fmtDate(inv.startsAt)}</Text>
-                <Text style={s.whenSub}>{fmtTimeRange(inv.startsAt, inv.endsAt)}</Text>
-
-                <View style={s.meta}>
-                  {inv.instructorName ? <MetaRow icon="person-outline" label={inv.instructorName} /> : null}
-                  {inv.kind === 'moto' ? (
-                    <MetaRow icon="bicycle-outline" label="Ti verrà assegnata una moto" />
-                  ) : inv.vehicleName ? (
-                    <MetaRow icon="car-outline" label={inv.vehicleName} />
-                  ) : null}
-                  {/* Tipo guida moto (birilli/strada): l'allievo lo vede prima
-                      di iscriversi. Stessa icona/etichetta del resto dell'app. */}
-                  {inv.kind === 'moto' && inv.motoLessonType ? (
-                    <View style={s.mrow}>
-                      <View style={s.mi}>
-                        <MaterialCommunityIcons
-                          name={MOTO_LESSON_TYPE_ICON[inv.motoLessonType]}
-                          size={15}
-                          color={NAVY_400}
-                        />
-                      </View>
-                      <Text style={s.ml} numberOfLines={1}>
-                        {MOTO_LESSON_TYPE_LABELS[inv.motoLessonType]} · {MOTO_LESSON_TYPE_HINTS[inv.motoLessonType]}
-                      </Text>
-                    </View>
-                  ) : null}
-                  <View style={s.seats}>
-                    <Seats filled={inv.filledSeats} capacity={inv.capacity} />
-                    <Text style={s.seatsTxt}>{seatsLabel(inv.filledSeats, inv.capacity)}</Text>
-                  </View>
-                </View>
-
-                {blocked ? (
-                  <View style={s.blockedBox}>
-                    <View style={s.blockedPill}>
-                      <Ionicons name="lock-closed" size={13} color={colors.destructive} />
-                      <Text style={s.blockedPillTxt}>Prenotazioni sospese</Text>
-                    </View>
-                    <Text style={s.blockedNote}>
-                      Le tue prenotazioni sono temporaneamente sospese. Contatta la segreteria per riattivarle.
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={{ marginTop: 18 }}>
-                    <Button
-                      label="Iscrivimi"
-                      tone="primary"
-                      loading={pendingId === inv.inviteId}
-                      onPress={() => respond(inv, 'accept')}
-                    />
-                    <Pressable
-                      onPress={() => respond(inv, 'decline')}
-                      disabled={pendingId === inv.inviteId}
-                      style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}
-                    >
-                      <Text style={s.ghostText}>Non mi interessa</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </ScrollView>
-      )}
+    <View style={s.root}>
+      <ClayNavBar title="Guide di gruppo" scrollY={scrollY} onBack={goBack} />
+      <Animated.FlatList
+        data={loading ? EMPTY : invites}
+        keyExtractor={keyOf}
+        renderItem={renderItem}
+        extraData={pendingId}
+        ListHeaderComponent={<ClayLargeTitle title="Guide di gruppo" subtitle={subtitle} />}
+        ListEmptyComponent={
+          loading ? (
+            <InvitesSkeleton />
+          ) : (
+            <Animated.View entering={FADE}>
+              <ClayEmpty
+                icon={MORALE_ART.piantina}
+                title="Nessun posto libero, per ora"
+                text="Quando si libera un posto in una guida di gruppo te lo diciamo con una notifica, e lo trovi qui."
+                testID="group-invites-empty"
+              />
+            </Animated.View>
+          )
+        }
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 32 }]}
+        initialNumToRender={4}
+        windowSize={7}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CLAY.ink} colors={[CLAY.ink]} />}
+        testID="group-invites-list"
+      />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
     </View>
   );
 };
 
-const MetaRow = ({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) => (
-  <View style={s.mrow}>
-    <View style={s.mi}>
-      <Ionicons name={icon} size={15} color={NAVY_400} />
-    </View>
-    <Text style={s.ml} numberOfLines={1}>{label}</Text>
-  </View>
-);
+const EMPTY: GroupLessonInvite[] = [];
+const keyOf = (inv: GroupLessonInvite) => inv.inviteId;
 
-const Seats = ({ filled, capacity }: { filled: number; capacity: number }) => (
-  <View style={s.dots}>
-    {Array.from({ length: Math.max(capacity, 1) }).map((_, i) => (
-      <View key={i} style={[s.dot, i < filled && s.dotOn]} />
-    ))}
-  </View>
-);
+/**
+ * Una guida di gruppo con posti liberi. Se l'allievo non può prenderla
+ * (`bookable === false`) la card resta visibile ma spenta, senza CTA, e dice
+ * perché con una frase (niente pillole).
+ */
+const InviteCard = React.memo(function InviteCard({
+  invite: inv,
+  holdText,
+  pending,
+  busy,
+  onRespond,
+}: {
+  invite: GroupLessonInvite;
+  holdText: string;
+  pending: boolean;
+  busy: boolean;
+  onRespond: (invite: GroupLessonInvite, response: 'accept' | 'decline') => void;
+}) {
+  const blocked = inv.bookable === false;
+  const details: string[] = [];
+  if (inv.instructorName) details.push(`Con ${inv.instructorName}`);
+  if (inv.kind === 'moto') details.push('La moto te la assegniamo noi');
+  else if (inv.vehicleName) details.push(inv.vehicleName);
+  if (inv.kind === 'moto' && inv.motoLessonType) {
+    details.push(`${MOTO_LESSON_TYPE_LABELS[inv.motoLessonType]} · ${MOTO_LESSON_TYPE_HINTS[inv.motoLessonType]}`);
+  }
+
+  return (
+    <Animated.View entering={FADE} style={s.cardWrap}>
+      <ClaySurface testID={`group-invite-${inv.inviteId}`}>
+        <View style={blocked ? s.off : undefined} accessibilityState={{ disabled: blocked }}>
+          <Text style={s.when}>{fmtDate(inv.startsAt)}</Text>
+          <Text style={s.whenSub}>{fmtTimeRange(inv.startsAt, inv.endsAt)}</Text>
+          <View style={s.details}>
+            {details.map((d, i) => (
+              <Text key={i} style={s.detail} numberOfLines={2}>
+                {d}
+              </Text>
+            ))}
+            <Text style={s.seats}>{seatsLabel(inv)}</Text>
+          </View>
+        </View>
+
+        {blocked ? (
+          <Text style={s.holdText} testID={`group-invite-hold-${inv.inviteId}`}>
+            {holdText}
+          </Text>
+        ) : (
+          <View style={s.actions}>
+            <ClayButton
+              title="Prendi il posto"
+              loading={pending}
+              disabled={busy && !pending}
+              onPress={() => onRespond(inv, 'accept')}
+              testID={`group-invite-accept-${inv.inviteId}`}
+            />
+            <Pressable
+              onPress={() => onRespond(inv, 'decline')}
+              disabled={busy}
+              hitSlop={6}
+              style={({ pressed }) => [s.ghost, pressed && s.ghostPressed]}
+              accessibilityRole="button"
+              testID={`group-invite-decline-${inv.inviteId}`}
+            >
+              <Text style={s.ghostText}>Non mi interessa</Text>
+            </Pressable>
+          </View>
+        )}
+      </ClaySurface>
+    </Animated.View>
+  );
+});
+
+function InvitesSkeleton() {
+  return (
+    <View>
+      {[0, 1].map((i) => (
+        <View key={i} style={s.cardWrap}>
+          <ClaySurface>
+            <SkeletonBlock width="60%" height={22} radius={8} />
+            <SkeletonBlock width="40%" height={14} radius={6} style={s.skelGap} />
+            <SkeletonBlock width="70%" height={14} radius={6} style={s.skelGapLg} />
+            <SkeletonBlock height={54} radius={27} style={s.skelGapLg} />
+          </ClaySurface>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: 10 },
-  back: { width: 34, height: 34, borderRadius: 17, backgroundColor: NAVY_50, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: NAVY },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 40 },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: NAVY, marginTop: 8 },
-  emptySub: { fontSize: 14, fontWeight: '400', color: MUTED, textAlign: 'center', lineHeight: 20 },
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
+  cardWrap: { marginTop: 18 },
 
-  card: { backgroundColor: '#FFFFFF', borderRadius: 26, padding: 20, marginBottom: 18, shadowColor: '#111111', shadowOpacity: 0.07, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
-  // REG-421 — disabled (blocked) card: muted surface, no lift.
-  cardBlocked: { backgroundColor: NAVY_50, borderWidth: 1, borderColor: NAVY_100, shadowOpacity: 0.02, elevation: 0 },
-  blockedBox: { marginTop: 18, alignItems: 'flex-start', gap: 10 },
-  blockedPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#FCEBE6', borderWidth: 1, borderColor: '#F3C7B9' },
-  blockedPillTxt: { fontSize: 13, fontWeight: '600', color: colors.destructive, letterSpacing: -0.1 },
-  blockedNote: { fontSize: 13.5, fontWeight: '400', color: MUTED, lineHeight: 19 },
+  when: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5, lineHeight: 27 },
+  whenSub: { fontSize: 15, color: CLAY.ink3, marginTop: 3 },
+  details: { marginTop: 14, gap: 4 },
+  detail: { fontSize: 15, lineHeight: 21, color: CLAY.ink2 },
+  seats: { fontSize: 15, lineHeight: 21, fontWeight: '500', color: CLAY.ink, marginTop: 2 },
 
-  when: { fontSize: 23, fontWeight: '600', color: NAVY, letterSpacing: -0.5, lineHeight: 27 },
-  whenSub: { fontSize: 14.5, fontWeight: '400', color: NAVY_400, marginTop: 3 },
+  off: { opacity: 0.45 },
+  holdText: { fontSize: 15, lineHeight: 21, color: CLAY.ink2, marginTop: 16 },
 
-  meta: { marginTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: NAVY_100 },
-  mrow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: NAVY_100 },
-  mi: { width: 26, height: 26, borderRadius: 9, backgroundColor: NAVY_50, alignItems: 'center', justifyContent: 'center' },
-  ml: { flex: 1, fontSize: 15, fontWeight: '400', color: NAVY },
+  actions: { marginTop: 18 },
+  ghost: { height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  ghostPressed: { opacity: 0.5 },
+  ghostText: { fontSize: 15, fontWeight: '500', color: CLAY.ink3 },
 
-  seats: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 13, paddingBottom: 2 },
-  // Wraps into a compact grid: capacity is free up to 12 now (was 3-4).
-  dots: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, maxWidth: 69 },
-  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: NAVY_200 },
-  dotOn: { backgroundColor: TEAL },
-  seatsTxt: { fontSize: 13.5, fontWeight: '400', color: NAVY_400 },
-
-  ghost: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  ghostText: { fontSize: 15, fontWeight: '500', color: NAVY_400 },
+  skelGap: { marginTop: 8 },
+  skelGapLg: { marginTop: 18 },
 });

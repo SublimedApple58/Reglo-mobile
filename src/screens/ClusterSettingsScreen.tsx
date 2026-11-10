@@ -14,10 +14,11 @@ import {
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
+import type { StudentBookingExceptions } from '../types/regloApi';
 import { timePickerStore } from '../stores/timePickerStore';
 import { groupStudentsStore } from '../stores/groupStudentsStore';
 import { clusterSettingsStore, ClusterCompanyDefaults } from '../stores/clusterSettingsStore';
@@ -68,6 +69,9 @@ export const ClusterSettingsScreen = () => {
   const [roundedHoursOnly, setRoundedHoursOnly] = useState(false);
   const [appBookingActors, setAppBookingActors] = useState<string | undefined>(undefined);
   const [appBookingActorsByPath, setAppBookingActorsByPath] = useState<{ moto?: string; auto?: string; pro?: string } | undefined>(undefined);
+  // Prenotazione «solo eccezioni»: serve solo al riepilogo della riga (le
+  // eccezioni si modificano nel foglio booking-rules → booking-exceptions).
+  const [bookingExceptions, setBookingExceptions] = useState<StudentBookingExceptions | undefined>(undefined);
   const [instructorBookingMode, setInstructorBookingMode] = useState<string | undefined>(undefined);
   const [swapEnabled, setSwapEnabled] = useState<boolean | undefined>(undefined);
   const [studentCancellationEnabled, setStudentCancellationEnabled] = useState<boolean | undefined>(undefined);
@@ -92,6 +96,7 @@ export const ClusterSettingsScreen = () => {
       setRoundedHoursOnly(res.settings.roundedHoursOnly ?? res.companyDefaults.roundedHoursOnly);
       setAppBookingActors(res.settings.appBookingActors);
       setAppBookingActorsByPath(res.settings.appBookingActorsByPath);
+      setBookingExceptions(res.settings.studentBookingExceptions ?? res.companyDefaults.studentBookingExceptions);
       setInstructorBookingMode(res.settings.instructorBookingMode);
       setSwapEnabled(res.settings.swapEnabled);
       setStudentCancellationEnabled(res.settings.studentCancellationEnabled);
@@ -115,6 +120,17 @@ export const ClusterSettingsScreen = () => {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  // Al ritorno dal foglio «Chi prenota» aggiorna solo il riepilogo delle eccezioni.
+  useFocusEffect(
+    useCallback(() => {
+      regloApi
+        .getInstructorSettings()
+        .then((res) =>
+          setBookingExceptions(res.settings.studentBookingExceptions ?? res.companyDefaults.studentBookingExceptions),
+        )
+        .catch(() => {});
+    }, []),
+  );
 
   const assignedCount = useMemo(
     () => allStudents.filter((s) => assignedStudentIds.includes(s.id)).length,
@@ -254,9 +270,18 @@ export const ClusterSettingsScreen = () => {
     );
     if (perPathActive) return `Per percorso · ${bookingSlotDurations.join('/')} min`;
     const actor = appBookingActors ?? companyDefaults.appBookingActors;
-    const actorLabel = actor === 'instructors' ? 'Solo istruttori' : actor === 'both' ? 'Entrambi' : 'Solo allievi';
+    const ex = bookingExceptions;
+    const exceptionsOn = !!ex && ex.enabled && (ex.slotFill || ex.groupSeats || ex.lastMinute);
+    const actorLabel =
+      actor === 'instructors'
+        ? exceptionsOn
+          ? 'Solo eccezioni'
+          : 'Disattiva'
+        : actor === 'both'
+          ? 'Attiva · anche istruttori'
+          : 'Attiva';
     return `${actorLabel} · ${bookingSlotDurations.join('/')} min`;
-  }, [appBookingActors, appBookingActorsByPath, companyDefaults.appBookingActors, bookingSlotDurations]);
+  }, [appBookingActors, appBookingActorsByPath, companyDefaults.appBookingActors, bookingSlotDurations, bookingExceptions]);
 
   const limitsSummary = useMemo(() => {
     const parts: string[] = [];
