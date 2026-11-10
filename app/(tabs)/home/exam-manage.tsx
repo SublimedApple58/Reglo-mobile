@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { examManageStore } from '../../../src/stores/examManageStore';
@@ -15,6 +15,11 @@ import { FormSheet } from '../../../src/components/SheetScaffold';
 import { Avatar, ClayButton, ClayList, ClayListRow, ClaySection, Icon3D } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme/clay';
 import { MORALE_ART } from '../../../src/theme/moraleArt';
+import { CLAY_EXAM } from '../../../src/theme/clay';
+import { ROAD_EXAM_ART } from '../../../src/road/markerArt';
+import { ExamCta } from '../../../src/components/road/ExamCta';
+import { useRoadSelector } from '../../../src/road/roadStore';
+import { enterRoadExam } from '../../../src/road/roadActions';
 
 const WD = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
 const MO = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -58,6 +63,18 @@ export default function ExamManageScreen() {
   const close = () => router.back();
   // Real participants (exclude the studentless empty-exam placeholder).
   const realAppts = appts.filter((a) => !isExamPlaceholder(a));
+  // R4: Road Exam il giorno dell'esame, con Road acceso (il server controlla chi può).
+  const roadEnabled = useRoadSelector((st) => st.roadEnabled);
+  const roadExamToday =
+    roadEnabled && !!startsAt && new Date(startsAt).toDateString() === new Date().toDateString() && appts.some((a) => !a.id.startsWith('pending-'));
+  const [startingExam, setStartingExam] = useState(false);
+  const startExamRoad = async () => {
+    if (startingExam) return;
+    setStartingExam(true);
+    const ok = await enterRoadExam(appts.map((a) => a.id).filter((id) => !id.startsWith('pending-')));
+    setStartingExam(false);
+    if (ok) router.replace('/road');
+  };
   const coNames = coInstructors.length ? coInstructors.map((c) => c.name).join(' + ') : null;
 
   /**
@@ -355,6 +372,24 @@ export default function ExamManageScreen() {
         ) : null
       }
     >
+      {/* R4 Road Exam (anteprima approvata da Tiziano il 10/11/2026): il giorno
+          dell'esame un piccolo hero viola chiaro con il diorama 3D e il saluto;
+          un tocco registra il percorso (solo il tracciato). */}
+      {roadExamToday ? (
+        <View style={[s.hero, CLAY_EXAM.surface]} testID="exam-road-hero">
+          <Image source={ROAD_EXAM_ART.hero} style={s.heroImg} resizeMode="contain" />
+          <View style={s.heroText}>
+            <Text style={s.heroTitle}>Registra il percorso dell'esame</Text>
+            {realAppts.length > 0 ? (
+              <Text style={s.heroSub}>
+                {realAppts.length === 1 ? 'In bocca al lupo.' : `In bocca al lupo a tutti e ${realAppts.length}.`}
+              </Text>
+            ) : null}
+          </View>
+          <ExamCta title="Avvia Road Exam" height={50} loading={startingExam} onPress={() => void startExamRoad()} style={s.heroCta} testID="exam-road-start" />
+        </View>
+      ) : null}
+
       {/* Orario e istruttori. La riga «Accompagnatore» c'e' SEMPRE: un esame
           puo' nascere senza principale e prima, in quel caso, spariva TUTTO il
           blocco — accompagnatori compresi (Tiziano, 2026-10-02). */}
@@ -400,7 +435,7 @@ export default function ExamManageScreen() {
         title={`Allievi · ${realAppts.length}`}
         // REG-639 «vita»: due parole gentili prima dell'esame.
         footnote={
-          !readOnly && realAppts.length > 0
+          !readOnly && !roadExamToday && realAppts.length > 0
             ? realAppts.length === 1 ? 'In bocca al lupo.' : `In bocca al lupo a tutti e ${realAppts.length}.`
             : undefined
         }
@@ -488,4 +523,10 @@ const s = StyleSheet.create({
   emptyStudents: { fontSize: 15, lineHeight: 21, color: CLAY.ink3, paddingHorizontal: 2 },
   dots: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   noteTx: { fontSize: 15, lineHeight: 21, color: CLAY.ink2, paddingHorizontal: 2 },
+  hero: { borderRadius: 24, padding: 16, marginBottom: 14, overflow: 'hidden' },
+  heroImg: { position: 'absolute', right: 6, top: 2, width: 118, height: 118 },
+  heroText: { paddingRight: 118, minHeight: 92 },
+  heroTitle: { fontSize: 19, fontWeight: '600', letterSpacing: -0.45, lineHeight: 23, color: CLAY_EXAM.ink },
+  heroSub: { fontSize: 14, lineHeight: 19, color: CLAY_EXAM.ink2, marginTop: 6 },
+  heroCta: { marginTop: 14 },
 });

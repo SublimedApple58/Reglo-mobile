@@ -24,12 +24,14 @@ import { minimizeRoad, ROAD_COVER_MS, ROAD_SWITCH_MS, useRoadMinimized } from '.
 import { lessonStudentName, roadStore, useRoadSelector, type RoadLocalMarker } from '../../src/road/roadStore';
 import { openRoadMarkerSheet } from '../../src/road/markerEdit';
 import { extentPref } from '../../src/road/extentPref';
+import { ExamPanel, ExamTopCard } from '../../src/components/road/ExamLive';
+import { examRoutesStore, useExamRouteGroups } from '../../src/road/examRoutesStore';
 import { markerExtent } from '../../src/road/markerExtent';
 import { ROAD_MARKER_EXTENTS } from '../../src/types/regloApi';
 
 // R7: la lunghezza proposta per la «zona» (l'ultima usata) si legge una volta sola.
 void extentPref.load();
-import { endRoad, recordHotspotCheck, setRoadMarkerExtent, swapRoadMarkerPlace, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
+import { endRoad, recordHotspotCheck, setRoadMarkerExtent, swapRoadMarkerPlace, tryExamRoute, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { ROAD_EXIT, ROAD_TEXT_IN } from '../../src/road/motion';
 import { PLAN_ALERT_MS, PLAN_REACHED_MS } from '../../src/road/planAlerts';
@@ -199,6 +201,8 @@ function useTrackChunks(track: TrackPt[]) {
 }
 
 const TRACK_INK = 'rgba(17,17,17,1)';
+/** R4 Road Exam: la linea registrata è il segno dell'esame. */
+const EXAM_INK = 'rgba(139,92,246,1)';
 const TRACK_CASE = 'rgba(255,255,255,1)';
 // Di notte si inverte come la linea del giro (REG-697): chiara col bordo scuro.
 const TRACK_INK_NIGHT = 'rgba(242,242,242,0.95)';
@@ -213,14 +217,17 @@ const TrackPiece = React.memo(function TrackPiece({
   still,
   night,
   k = 1,
+  ink,
 }: {
   pts: TrackPt[] | null;
   still: TrackPt[];
   night: boolean;
   k?: number;
+  /** R4: colore della linea (Road Exam = viola); assente = quello di Road. */
+  ink?: string;
 }) {
   const on = !!pts && pts.length >= 2 && k > 0;
-  const core = night ? TRACK_INK_NIGHT : TRACK_INK;
+  const core = ink ?? (night ? TRACK_INK_NIGHT : TRACK_INK);
   const edge = night ? TRACK_CASE_NIGHT : TRACK_CASE;
   // Bordo e linea: due Polyline per posto, i bordi sotto tutte le linee (zIndex).
   return (
@@ -312,9 +319,11 @@ function useTailFade(shown: TrackPt[]) {
 const LiveTrack = React.memo(function LiveTrack({
   center,
   night,
+  exam,
 }: {
   center: { lat: number; lng: number };
   night: boolean;
+  exam?: boolean;
 }) {
   const track = useRoadSelector((s) => s.snapTrack);
   const provisional = useRoadSelector((s) => s.snapTail);
@@ -327,10 +336,10 @@ const LiveTrack = React.memo(function LiveTrack({
   return (
     <>
       {Array.from({ length: TRACK_SLOTS }, (_, i) => (
-        <TrackPiece key={i} pts={chunks[i] ?? null} still={still} night={night} />
+        <TrackPiece key={i} pts={chunks[i] ?? null} still={still} night={night} ink={exam ? EXAM_INK : undefined} />
       ))}
-      <TrackPiece pts={ghost?.pts ?? null} still={still} night={night} k={ghost?.k ?? 0} />
-      <TrackPiece pts={shown} still={still} night={night} />
+      <TrackPiece pts={ghost?.pts ?? null} still={still} night={night} k={ghost?.k ?? 0} ink={exam ? EXAM_INK : undefined} />
+      <TrackPiece pts={shown} still={still} night={night} ink={exam ? EXAM_INK : undefined} />
     </>
   );
 });
@@ -654,6 +663,7 @@ const LiveMap = React.memo(function LiveMap({
   onMapPress,
   openPinId,
   night,
+  exam,
   history,
   historyShown,
 }: {
@@ -676,6 +686,8 @@ const LiveMap = React.memo(function LiveMap({
   /** Ricca 8: tracce delle ultime guide dell'allievo e se mostrarle. */
   history: HistoryLine[];
   historyShown: boolean;
+  /** R4: Road Exam = linea nel viola dell'esame. */
+  exam?: boolean;
 }) {
   const where = useMemo(() => ({ lat: center.lat, lng: center.lng }), [center]);
   // REG-723: di notte la mappa è scura su tutte e due (iOS: stile notte nativo,
@@ -728,8 +740,9 @@ const LiveMap = React.memo(function LiveMap({
       <LiveGuide center={where} night={darkMap} />
       {/* Ricca 8: le guide passate, posti fissi sotto la traccia in corso. */}
       <LiveHistory center={where} night={darkMap} lines={history} shown={historyShown} />
-      <LiveTrack center={where} night={darkMap} />
+      <LiveTrack center={where} night={darkMap} exam={exam} />
       <LiveExtents center={where} />
+      {exam ? null : <LiveExamTry center={where} />}
       {/* REG-723: partenza e frecce del verso, posti fissi subito dopo la traccia. */}
       <LiveEnds center={where} night={darkMap} />
       <LivePins onPin={onPin} openId={openPinId} />
@@ -819,6 +832,8 @@ export default function RoadScreen() {
   const insets = useSafeAreaInsets();
   const session = useRoadSelector((s) => s.session);
   const lesson = session?.lesson ?? null;
+  // R4: Road Exam (solo tracciato) = card e pannello d'esame, linea viola.
+  const exam = session?.mode === 'exam';
   // Ricca 8: le ultime tracce dell'allievo, chieste una volta dopo l'avvio.
   const history = useRoadHistory(session?.id ?? null, lesson?.student?.id ?? null);
   const historyShown = useRoadHistoryShown();
@@ -1331,6 +1346,7 @@ export default function RoadScreen() {
           night={night}
           history={history}
           historyShown={historyShown}
+          exam={exam}
         />
       </View>
 
@@ -1346,7 +1362,7 @@ export default function RoadScreen() {
         <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
       ) : null}
 
-      <LiveTop top={topStart} onLayoutTop={setTopH} topH={topH} onTurn={onTurn} night={night} />
+      {exam ? <ExamTopCard top={topStart} /> : <LiveTop top={topStart} onLayoutTop={setTopH} topH={topH} onTurn={onTurn} night={night} />}
 
       <LiveControls
         bottom={ctlBottom}
@@ -1355,12 +1371,36 @@ export default function RoadScreen() {
         onRecenter={onRecenter}
         onNorth={onNorth}
         night={night}
-        hasHistory={history.length > 0}
+        hasHistory={!exam && history.length > 0}
         historyShown={historyShown}
         onHistory={onHistory}
         historyNote={historyNote}
+        onExamRoutes={exam ? undefined : () => router.push('/road/percorsi-esame')}
       />
 
+      {exam ? (
+        <ExamPanel
+          onLayoutH={setPanelH}
+          ending={ending}
+          insetsBottom={insets.bottom}
+          onTermina={() => {
+            if (ending) return;
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+            Alert.alert('Terminare la registrazione?', 'Il percorso dell\'esame viene salvato e il GPS si spegne.', [
+              { text: 'Annulla', style: 'cancel' },
+              {
+                text: 'Termina',
+                onPress: async () => {
+                  setEnding(true);
+                  const ok = await endRoad();
+                  setEnding(false);
+                  if (ok) router.push('/road/riepilogo');
+                },
+              },
+            ], roadAlertStyle());
+          }}
+        />
+      ) : (
       <LivePanel
         lessonName={lessonStudentName(lesson)}
         onLayoutH={setPanelH}
@@ -1391,6 +1431,7 @@ export default function RoadScreen() {
         insetsBottom={insets.bottom}
         night={night}
       />
+      )}
     </Animated.View>
   );
 }
@@ -1697,6 +1738,9 @@ function LiveTop({
         </RoadToastFrame>
       ) : null}
 
+      {/* R4c: il percorso d'esame provato, con «Togli» (quando in alto non c'è altro). */}
+      {!toast && !alert && !showPlan && !endAlert && !(freeOpen && freeStarted) ? <ExamTryCard top={below} /> : null}
+
       {/* REG-699: «mancano 5 minuti» e «orario finito», 8 s, sotto le card in alto. */}
       {endAlert && !toast && !alert && !(freeOpen && freeStarted) ? (
         <RoadToastFrame key={endAlert.key} style={[s.stack, s.toast, s.freeBanner, { top: below + (showPlan ? 104 : 0) }]}>
@@ -1707,6 +1751,95 @@ function LiveTop({
         </RoadToastFrame>
       ) : null}
     </>
+  );
+}
+
+// ─── R4c: percorso d'esame provato in guida ─────────────────────────────────
+
+/** L'id del percorso d'esame nel giro della guida (uno solo), o null. */
+function useTriedExamRouteId() {
+  return useRoadSelector((st) => st.session?.plan?.stops.find((x) => x.source === 'exam')?.examRouteId ?? null);
+}
+
+/**
+ * La linea viola del percorso d'esame provato: un posto fisso (crash AIRMap
+ * aggiungendo figli), fermo e invisibile quando non c'è. La linea viene dai
+ * percorsi già caricati per il foglio (o si caricano se si rientra in Road).
+ */
+const LiveExamTry = React.memo(function LiveExamTry({ center }: { center: { lat: number; lng: number } }) {
+  const id = useTriedExamRouteId();
+  const groups = useExamRouteGroups();
+  useEffect(() => {
+    if (id && !groups) void examRoutesStore.load();
+  }, [id, groups]);
+  const still = useMemo(() => STILL(center), [center]);
+  const pts = useMemo(() => {
+    const r = examRoutesStore.route(id);
+    return r && r.path.length >= 2 ? r.path.map(([latitude, longitude]) => ({ latitude, longitude })) : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, groups]);
+  const on = !!pts;
+  return (
+    <>
+      <Polyline coordinates={on ? pts! : still} strokeColor={on ? '#FFFFFF' : NO_INK} strokeWidth={11} lineCap="round" lineJoin="round" zIndex={2} />
+      <Polyline coordinates={on ? pts! : still} strokeColor={on ? EXAM_INK : NO_INK} strokeWidth={7} lineCap="round" lineJoin="round" zIndex={2} />
+    </>
+  );
+});
+
+/** Card in alto (variante B: bianca, segno viola accanto al titolo) con «Togli». */
+function ExamTryCard({ top }: { top: number }) {
+  const id = useTriedExamRouteId();
+  const stop = useRoadSelector((st) => st.session?.plan?.stops.find((x) => x.source === 'exam') ?? null);
+  useExamRouteGroups();
+  const [busy, setBusy] = useState(false);
+  if (!id || !stop) return null;
+  const r = examRoutesStore.route(id);
+  const sub = r ? [`${formatKm(r.lengthMeters)} km`, r.examSite].filter(Boolean).join(' · ') : 'Percorso d\'esame';
+  return (
+    <RoadToastFrame style={[s.stack, s.tryCard, CLAY_SHADOW.raise, { top }]}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={s.tryHead}>
+          <View style={s.tryMark} />
+          <Text style={s.tryTitle} numberOfLines={1}>{stop.title}</Text>
+        </View>
+        <Text style={s.trySub} numberOfLines={1}>{sub}</Text>
+      </View>
+      <Pressable
+        onPress={async () => {
+          if (busy) return;
+          Haptics.selectionAsync().catch(() => undefined);
+          setBusy(true);
+          await tryExamRoute(null);
+          setBusy(false);
+        }}
+        style={({ pressed }) => [s.tryOff, CLAY_SHADOW.raiseSm, pressed && { transform: [{ scale: 0.96 }] }]}
+        accessibilityRole="button"
+        accessibilityLabel="Togli il percorso d'esame"
+        testID="road-exam-try-off"
+      >
+        {busy ? <ActivityIndicator size="small" color={CLAY.ink} /> : <Text style={s.tryOffTx}>Togli</Text>}
+      </Pressable>
+    </RoadToastFrame>
+  );
+}
+
+/** Tasto tondo sulla mappa: apre «Prova un percorso d'esame»; nero se ce n'è uno nel giro. */
+function ExamRoutesButton({ night, onPress }: { night: boolean; onPress: () => void }) {
+  const on = !!useTriedExamRouteId();
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => undefined);
+        onPress();
+      }}
+      style={({ pressed }) => [s.round, on ? s.roundOn : night && ns.surface, on ? CLAY_SHADOW.ink : CLAY_SHADOW.raise, pressed && { transform: [{ scale: 0.95 }] }]}
+      accessibilityRole="button"
+      accessibilityLabel="Prova un percorso d'esame"
+      testID="road-exam-routes"
+    >
+      <Ionicons name="git-branch-outline" size={21} color={on ? '#FFFFFF' : night ? NIGHT.ink : CLAY.ink} />
+    </Pressable>
   );
 }
 
@@ -1833,7 +1966,10 @@ const LiveControls = React.memo(function LiveControls({
   historyShown,
   onHistory,
   historyNote,
+  onExamRoutes,
 }: {
+  /** R4c: «Prova un percorso d'esame» (solo nelle guide, non in Road Exam). */
+  onExamRoutes?: () => void;
   night: boolean;
   /** Ricca 8: tasto «Storico», solo se l'allievo ha guide passate con traccia. */
   hasHistory: boolean;
@@ -1865,6 +2001,7 @@ const LiveControls = React.memo(function LiveControls({
             {historyNote ? <HistoryCaption key={historyNote.id} note={historyNote} night={night} /> : null}
           </Animated.View>
         ) : null}
+        {onExamRoutes ? <ExamRoutesButton night={night} onPress={onExamRoutes} /> : null}
         {/* REG-697: suoni degli avvisi accesi/spenti (la scelta resta). */}
         <Pressable
           onPress={() => {
@@ -2220,6 +2357,14 @@ const s = StyleSheet.create({
     ...CLAY_SHADOW.ink,
   },
   toastCol: { flexDirection: 'column', alignItems: 'stretch', gap: 10 },
+  tryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingLeft: 18, paddingRight: 12, borderRadius: 24, backgroundColor: CLAY.surface },
+  tryHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tryMark: { width: 14, height: 4, borderRadius: 2, backgroundColor: '#8B5CF6' },
+  tryTitle: { flexShrink: 1, fontSize: 17, fontWeight: '600', letterSpacing: -0.3, color: CLAY.ink },
+  trySub: { fontSize: 13.5, color: CLAY.ink3, marginTop: 1, paddingLeft: 22 },
+  tryOff: { height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: CLAY.surface, alignItems: 'center', justifyContent: 'center' },
+  tryOffTx: { fontSize: 14, fontWeight: '600', color: CLAY.ink },
+  roundOn: { backgroundColor: CLAY.ink },
   toastRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   choices: { flexDirection: 'row', gap: 8 },
   chip: { flex: 1, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },

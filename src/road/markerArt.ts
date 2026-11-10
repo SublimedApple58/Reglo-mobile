@@ -26,6 +26,16 @@ const ART: Record<string, ImageSourcePropType> = {
 
 const CUSTOM_ART: ImageSourcePropType = ART.altro;
 
+/**
+ * R4 Road Exam (anteprime approvate da Tiziano il 10/11/2026): diorama della
+ * strada d'esame (hero del foglio esame, 118 pt) e bandiera a scacchi
+ * («Percorso salvato», 96 pt). Generate con il prompt STILE (§0.9).
+ */
+export const ROAD_EXAM_ART = {
+  hero: require('../../assets/road/exam/hero.png') as ImageSourcePropType,
+  bandiera: require('../../assets/road/exam/bandiera.png') as ImageSourcePropType,
+};
+
 /** Emblema Road (card Road in agenda). */
 export const ROAD_ASSETS = {
   road: require('../../assets/web/nav/road-3d.png') as ImageSourcePropType,

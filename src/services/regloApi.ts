@@ -129,6 +129,8 @@ import {
   SavedRoadPlan,
   RoadDetail,
   RoadExamRoute,
+  RoadExaminerGroup,
+  RoadStoredPlan,
   RoadHotspotDetail,
   RoadHotspots,
   RoadStudentItem,
@@ -1187,6 +1189,18 @@ export const createRegloApi = (baseUrl?: string) => {
       ),
     getRoadExamRoutes: async () =>
       client.request<RoadExamRoute[]>('/api/autoscuole/road/exam-routes'),
+    /** R4: percorsi d'esame per esaminatore («Prova un percorso d'esame»). */
+    getRoadExamRoutesByExaminer: async () =>
+      client.request<RoadExaminerGroup[]>('/api/autoscuole/road/exam-routes?by=examiner'),
+    /** R4: avvia (o riprende) Road Exam su un esame: le sue righe (una per allievo). */
+    startRoadExam: async (appointmentIds: string[]) =>
+      client.request<RoadStartResult>('/api/autoscuole/road/exam', { method: 'POST', body: { appointmentIds } }),
+    /** R4c: mette nel giro della guida in corso un percorso d'esame (null = lo toglie). */
+    setRoadSessionExamRoute: async (sessionId: string, examRouteId: string | null) =>
+      client.request<{ plan: RoadStoredPlan | null }>(`/api/autoscuole/road/sessions/${encodeURIComponent(sessionId)}/plan`, {
+        method: 'PUT',
+        body: { examRouteId },
+      }),
     /** «Annulla» nei primi secondi di una guida avviata da Road. */
     undoFreeRoadSession: async (sessionId: string) =>
       client.request<{ appointmentId: string }>('/api/autoscuole/road/free/undo', {

@@ -14,6 +14,7 @@ import { lessonStudentName, useRoadSelector } from '../../src/road/roadStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { exitRoad, refreshRoadSummary } from '../../src/road/roadActions';
 import { openRoadPagellino } from '../../src/road/pagellino';
+import { ExamSaved } from '../../src/components/road/ExamSaved';
 import { openRoadMarkerSheet } from '../../src/road/markerEdit';
 import { dayLabel, formatHm, formatKm, formatMinutes } from '../../src/road/format';
 import { regloApi } from '../../src/services/regloApi';
@@ -144,6 +145,9 @@ export default function RiepilogoScreen() {
   );
 
   if (!summary) return <View style={[s.root, night && n.root]} />;
+
+  // R4 Road Exam: niente allievo, pagellino né segnalazioni: «Percorso salvato».
+  if (summary.mode === 'exam') return <ExamSaved summary={summary} onClose={close} />;
 
   const lesson = summary.lesson;
   const hasMarkers = summary.markers.length > 0;

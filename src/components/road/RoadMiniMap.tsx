@@ -85,6 +85,7 @@ export function RoadRouteMap({
   track,
   markers,
   stops,
+  ink,
   interactive = false,
   labeled = false,
   style,
@@ -98,6 +99,8 @@ export function RoadRouteMap({
   markers: RoadMarker[];
   /** REG-665: soste ≥ 5 min (capsula «Sosta X min» se `labeled`). */
   stops?: RoadStop[];
+  /** R4: colore della linea (Road Exam = viola). */
+  ink?: string;
   interactive?: boolean;
   /** Segnalazioni con etichetta (mappa a tutto schermo). */
   labeled?: boolean;
@@ -311,7 +314,7 @@ export function RoadRouteMap({
         liteMode={Platform.OS === 'android' && !touchable}
         userInterfaceStyle={night ? 'dark' : 'light'}
       >
-        <RoadTrack coordinates={frozen.coords} width={interactive ? 6 : 5} night={night} />
+        <RoadTrack coordinates={frozen.coords} width={interactive ? 6 : 5} night={night} ink={ink} />
         {frozen.extents.map((pts, i) => (
           <React.Fragment key={`ext-${i}`}>
             <Polyline coordinates={pts} strokeColor="rgba(220,38,38,0.22)" strokeWidth={interactive ? 14 : 11} lineCap="round" lineJoin="round" zIndex={3} />

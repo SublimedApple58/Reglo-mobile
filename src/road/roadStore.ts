@@ -7,6 +7,7 @@ import type {
   RoadPlanStop,
   RoadPoint,
   RoadSessionWithLesson,
+  RoadStoredPlan,
 } from '../types/regloApi';
 import { bearingDeg, haversineMeters } from './format';
 import { keepOnLine, LINE_FILTER_START, type LineFilter } from './trackFilter';
@@ -259,6 +260,12 @@ export const roadStore = {
   dismissPlanAlert(key?: string) {
     if (!state.planAlert || (key && state.planAlert.key !== key)) return;
     set({ planAlert: null });
+  },
+
+  /** R4c: il giro della guida in corso cambiato («Prova un percorso d'esame»). */
+  setSessionPlan(plan: RoadStoredPlan | null) {
+    if (!state.session) return;
+    set({ session: { ...state.session, plan }, guide: null, guidePassed: 0 });
   },
 
   /** REG-652: arriva (anche a pezzi) la guida della sessione attiva. */

@@ -25,7 +25,18 @@ function useTracksViewChanges(deps: unknown[] = []) {
 }
 
 /** `night` (Ricca 7): linea chiara col bordo scuro, come la guida dal vivo di notte. */
-export const RoadTrack = React.memo(function RoadTrack({ coordinates, width = 7, night = false }: { coordinates: LatLng[]; width?: number; night?: boolean }) {
+export const RoadTrack = React.memo(function RoadTrack({
+  coordinates,
+  width = 7,
+  night = false,
+  ink,
+}: {
+  coordinates: LatLng[];
+  width?: number;
+  night?: boolean;
+  /** R4: colore della linea (percorso d'esame = viola); assente = nero/chiaro di Road. */
+  ink?: string;
+}) {
   if (coordinates.length < 2) return null;
   return (
     <>
@@ -39,7 +50,7 @@ export const RoadTrack = React.memo(function RoadTrack({ coordinates, width = 7,
       />
       <Polyline
         coordinates={coordinates}
-        strokeColor={night ? '#F2F2F2' : '#111111'}
+        strokeColor={ink ?? (night ? '#F2F2F2' : '#111111')}
         strokeWidth={width}
         lineCap="round"
         lineJoin="round"

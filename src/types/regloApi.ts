@@ -1651,6 +1651,8 @@ export type RoadLesson = {
    * Assente con un server vecchio: vale `endsAt`.
    */
   roadEndsAt?: string;
+  /** R4 Road Exam: l'esame intero (in esame `student` è null). */
+  exam?: { appointmentIds: Uuid[]; studentCount: number; place: string | null; examiners: string[] } | null;
 };
 
 export type RoadSessionStatus = 'active' | 'completed' | 'abandoned';
@@ -1676,6 +1678,10 @@ export type RoadSession = {
   plan?: RoadStoredPlan | null;
   /** REG-648: a fine guida, le tappe raggiunte. */
   planReached?: { reached: string[]; total: number } | null;
+  /** R4: "exam" = Road Exam (solo tracciato); assente (server vecchi) = guida. */
+  mode?: 'lesson' | 'exam';
+  /** R4: esaminatori dell'esame registrato. */
+  examiners?: string[];
 };
 
 /** Una tappa del giro della prossima guida (REG-647/648). */
@@ -1994,6 +2000,22 @@ export type RoadExamRoute = {
   licenseCategories: string[];
   path: Array<[number, number]>;
   lengthMeters: number;
+  /** R4: esaminatori (vuoto = «Senza esaminatore»); assenti con server vecchi. */
+  examiners?: string[];
+  /** R4: "exam" = registrato con Road Exam, "drawn" = disegnato dal titolare. */
+  origin?: 'drawn' | 'exam';
+  /** R4: quando si è svolto l'esame registrato. */
+  examAt?: string | null;
+  createdAt?: string;
+};
+
+/** R4: percorsi d'esame raggruppati per esaminatore (`?by=examiner`). */
+export type RoadExaminerGroup = {
+  /** Minuscole; `""` = «Senza esaminatore». */
+  key: string;
+  name: string | null;
+  lastExamAt: string | null;
+  routes: RoadExamRoute[];
 };
 
 /** Percorso Road di una guida nello storico allievo (`GET /road/students/[id]`). */

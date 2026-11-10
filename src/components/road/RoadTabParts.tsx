@@ -97,6 +97,7 @@ export function RouteThumb({
   size = 56,
   fallback,
   carColor,
+  ink,
 }: {
   thumb: Array<[number, number]>;
   size?: number;
@@ -108,6 +109,8 @@ export function RouteThumb({
    * veicolo. `undefined` = sempre la mappa (comportamento di prima).
    */
   carColor?: string | null;
+  /** R4: colore della linea (percorsi d'esame = viola); assente = nero. */
+  ink?: string;
 }) {
   const coords = useMemo(() => thumb.map(([lat, lng]) => ({ latitude: lat, longitude: lng })), [thumb]);
   const view = useMemo(() => {
@@ -128,7 +131,11 @@ export function RouteThumb({
     return { region: { ...c, latitudeDelta: 0.006, longitudeDelta: 0.006 }, track: false, dot: true };
   }, [coords, fallback]);
 
-  const key = useMemo(() => thumbKey(view.region, view.track ? thumb : null, size), [view, thumb, size]);
+  // R4: le miniature viola hanno il loro file (stessa mappa, linea di un altro colore).
+  const key = useMemo(() => {
+    const k = thumbKey(view.region, view.track ? thumb : null, size);
+    return ink ? k.replace(/\.png$/, '-e.png') : k;
+  }, [view, thumb, size, ink]);
   const [snap, setSnap] = useState<string | null>(() => (Platform.OS === 'ios' ? cachedThumbUri(key) : null));
   const mapRef = useRef<MapView>(null);
   const taken = useRef(false);
@@ -181,7 +188,7 @@ export function RouteThumb({
           liteMode={Platform.OS === 'android'}
           userInterfaceStyle="light"
         >
-          {view.track ? <RoadTrack coordinates={coords} width={2.5} /> : null}
+          {view.track ? <RoadTrack coordinates={coords} width={2.5} ink={ink} /> : null}
         </MapView>
         )}
         {/* Puntino al centro (la mappa è centrata sul punto): una View, niente Marker. */}

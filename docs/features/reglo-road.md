@@ -638,3 +638,12 @@ Tiziano: niente cerchio; la «zona» è un **tratto della strada percorsa** di 5
 - **Dal vivo** (`LiveExtents`): alone rosso + linea piena sulle ultime 6 zone, ricavate da `snapTrack` con `src/road/markerExtent.ts` (gemella di `reglo/lib/autoscuole/road/marker-extent.ts`: tenerle uguali). La linea dal vivo non ha le ore: ancora nello spazio, prima sugli ultimi 600 punti. Posti fissi (crash AIRMap).
 - **Riepilogo, percorso, «Tutte le segnalazioni», ripasso** (`RoadRouteMap`): il tratto del server (`extent`) o, nel riepilogo provvisorio, calcolato sulla traccia; le righe dicono «Tratto 100 m · via». Il riepilogo elenca le segnalazioni in ordine di tempo anche quando è provvisorio.
 - **Foglio «Segnalazione»**: «Dove» = Punto / 50 / 100 / 200 m.
+
+## Road novembre R4 — Road Exam (10/11/2026)
+
+Anteprime approvate da Tiziano (foglio esame viola chiaro, in guida variante B). Backend: `../reglo/docs/features/reglo-road.md` § Road Exam. Solo il tracciato.
+- **Avvio**: foglio «Esame di guida» (`app/(tabs)/home/exam-manage.tsx`), il giorno dell'esame con Road acceso: hero viola chiaro (`CLAY_EXAM.surface`) con il diorama 3D (`ROAD_EXAM_ART.hero`), «In bocca al lupo a tutti e N.» (la footnote sotto gli allievi sparisce), CTA viola `ExamCta` «Avvia Road Exam» → `enterRoadExam(righe)` (in `roadActions`, stessa partenza di `enterRoad`) → `/road`.
+- **In guida** (`session.mode === 'exam'`, `src/components/road/ExamLive.tsx`): card in alto neutra «Esame · N allievi» con esaminatori e luogo; pannello bianco con pallino viola che pulsa (1,6 s), cifre viola (dissolvenza 200 ms) e CTA viola «Termina registrazione»; linea registrata viola (`EXAM_INK`). Niente Segnala, pagellino, note, storico.
+- **Fine** (`src/components/road/ExamSaved.tsx`, dal riepilogo): «Percorso salvato» con la bandiera 3D che entra (0,92→1, 260 ms) e quattro scintille, mini-mappa con la linea viola, esaminatore, km · min, luogo. Il percorso d'esame lo crea il server.
+- **Prova un percorso d'esame** (R4c): tasto tondo sulla mappa nelle guide (nero se un percorso è nel giro) → `app/road/percorsi-esame.tsx` (gruppi per esaminatore con le iniziali, «Senza esaminatore» in fondo, `RouteThumb` con `ink` viola) → `tryExamRoute(id)` (`PUT /sessions/[id]/plan`, poi il giro si ricarica). In guida la linea viola del percorso (`LiveExamTry`, un posto fisso) e la card bianca con il segno viola e «Togli».
+- Store: `src/road/examRoutesStore.ts`. Asset: `assets/road/exam/hero`, `bandiera`.

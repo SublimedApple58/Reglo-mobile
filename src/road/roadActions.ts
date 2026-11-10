@@ -17,6 +17,7 @@ import { roadQueue } from './queue';
 import { extentPref } from './extentPref';
 import { roadStore, lessonStudentName } from './roadStore';
 import { roadUploader } from './uploader';
+import { forgetRoadGuide, loadRoadGuide } from './roadGuide';
 import { isRoadTrackingActive, startRoadTracking, stopRoadTracking } from './tracking';
 import { formatRange, haversineMeters, makeClientId } from './format';
 import { fixHistory } from './fixHistory';
@@ -232,6 +233,59 @@ export async function enterRoad(appointmentId: string, plan?: RoadPlan | null): 
   }
   if (started.resumed) void hydrate(started.id);
   return true;
+}
+
+/**
+ * R4 Road Exam: registra il percorso di un esame (`appointmentIds` = le sue
+ * righe, una per allievo). Stessa partenza di una guida (permesso, GPS, coda):
+ * il server ancora la sessione all'esame e la chiude senza toccare l'agenda.
+ */
+export async function enterRoadExam(appointmentIds: string[]): Promise<boolean> {
+  if (!(await ensureRoadLocationPermission())) return false;
+  let started;
+  try {
+    started = await regloApi.startRoadExam(appointmentIds);
+  } catch (err) {
+    Alert.alert('Road Exam non disponibile', messageOf(err, 'Non è stato possibile avviare la registrazione. Riprova.'));
+    return false;
+  }
+  if (started.status !== 'active') {
+    Alert.alert('Registrazione già chiusa', 'Il percorso di questo esame è già stato registrato.');
+    return false;
+  }
+  try {
+    await attachAndTrack(started);
+  } catch (err) {
+    Alert.alert('GPS non disponibile', messageOf(err, 'Non è stato possibile accendere il GPS.'));
+    roadStore.reset();
+    return false;
+  }
+  if (started.resumed) void hydrate(started.id);
+  return true;
+}
+
+/**
+ * R4c «Prova un percorso d'esame»: il server mette il percorso nel giro della
+ * guida in corso (null = lo toglie); qui il giro si aggiorna e la linea
+ * suggerita si ricalcola. Niente aggiornamento ottimistico.
+ */
+export async function tryExamRoute(examRouteId: string | null): Promise<boolean> {
+  const { session } = roadStore.get();
+  if (!session) return false;
+  try {
+    const res = await regloApi.setRoadSessionExamRoute(session.id, examRouteId);
+    roadStore.setSessionPlan(res.plan ?? null);
+    const cur = roadStore.get().session;
+    if (cur) {
+      forgetRoadGuide(cur.id);
+      const fix = roadStore.get().fix;
+      void loadRoadGuide(cur, async () => (fix ? { lat: fix.lat, lng: fix.lng } : null), (g) => roadStore.setGuide(g));
+    }
+    return true;
+  } catch (err) {
+    Alert.alert('Percorso non caricato', messageOf(err, 'Riprova tra poco.'), undefined, roadAlertStyle());
+    return false;
+  }
 }
 
 /** Esito di «Parti» in Road libero. */

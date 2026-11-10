@@ -42,6 +42,8 @@ export default function RoadLayout() {
         <Stack.Screen name="ripasso" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
         {/* Road novembre R3: modifica di una segnalazione (foglio) e «Sposta» col mirino. */}
         <Stack.Screen name="segnalazione" options={sheet} />
+        {/* R4c: «Prova un percorso d'esame» durante una guida. */}
+        <Stack.Screen name="percorsi-esame" options={sheet} />
         <Stack.Screen name="sposta" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
         {/* Road novembre R5: tocco sul nome = la scheda allievo della home,
             completa, sopra la mappa (GPS e guida continuano sotto). Tutti i
