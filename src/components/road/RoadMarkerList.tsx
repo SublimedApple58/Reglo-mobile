@@ -14,6 +14,8 @@ export type RoadMarkerItem = {
   street: string | null;
   note?: string | null;
   sentiment?: Sentiment | null;
+  /** R7: zona = tratto di N metri (null = punto). */
+  extentM?: number | null;
   recordedAt: string;
 };
 
@@ -26,6 +28,7 @@ export function toMarkerItem(m: {
   street: string | null;
   note?: string | null;
   sentiment?: Sentiment | null;
+  extentM?: number | null;
   recordedAt: string;
 }): RoadMarkerItem {
   return {
@@ -35,6 +38,7 @@ export function toMarkerItem(m: {
     street: m.street,
     note: m.note,
     sentiment: m.sentiment ?? null,
+    extentM: m.extentM ?? null,
     recordedAt: m.recordedAt,
   };
 }
@@ -76,7 +80,7 @@ export const RoadMarkerRow = React.memo(function RoadMarkerRow({
   /** La riga intera apre la correzione (riepilogo, REG-696). */
   correctable?: boolean;
 }) {
-  const sub = [m.street, m.note].filter(Boolean).join(' · ');
+  const sub = [m.extentM ? `Tratto ${m.extentM} m` : null, m.street, m.note].filter(Boolean).join(' · ');
   // Ricca 7: fogli di Road di notte.
   const night = useSheetNight();
   return (

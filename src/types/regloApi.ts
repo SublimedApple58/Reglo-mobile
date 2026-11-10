@@ -1795,15 +1795,13 @@ export type UpdateRoadMarkerInput = {
   street?: string | null;
   recordedAt?: string;
   note?: string | null;
-  /** R7: punto preciso o zona. */
-  shape?: RoadMarkerShape;
-  radiusM?: number | null;
+  /** R7: zona = tratto di 50 | 100 | 200 m; null = torna punto. */
+  extentM?: number | null;
 };
 
-/** R7: segnalazione su un punto preciso o su una zona (cerchio). */
-export type RoadMarkerShape = 'point' | 'zone';
-/** R7: raggi ammessi per una zona, in metri. */
-export const ROAD_ZONE_RADII = [50, 100, 200] as const;
+/** R7 (Tiziano 10/11/2026): la «zona» è un tratto della strada percorsa, lungo così (metri). */
+export const ROAD_MARKER_EXTENTS = [50, 100, 200] as const;
+export type RoadMarkerExtentM = (typeof ROAD_MARKER_EXTENTS)[number];
 
 export type RoadMarker = {
   id: Uuid;
@@ -1817,9 +1815,10 @@ export type RoadMarker = {
   street: string | null;
   /** «Fatto bene» / «da migliorare»; null = neutra (segnalazioni prima del segno). */
   sentiment?: 'good' | 'bad' | null;
-  /** R7: assente (server vecchi) = punto. */
-  shape?: RoadMarkerShape;
-  radiusM?: number | null;
+  /** R7: zona = tratto di `extentM` metri; null/assente = punto. */
+  extentM?: number | null;
+  /** R7: il tratto [lat, lng][] calcolato dal server a guida finita (null = non ancora / punto). */
+  extent?: Array<[number, number]> | null;
   recordedAt: string;
 };
 
@@ -2036,9 +2035,8 @@ export type AddRoadMarkerInput = {
   lng: number;
   street?: string | null;
   sentiment?: 'good' | 'bad' | null;
-  /** R7: punto (default) o zona. */
-  shape?: RoadMarkerShape;
-  radiusM?: number | null;
+  /** R7: zona = tratto di 50 | 100 | 200 m; assente = punto. */
+  extentM?: number | null;
   recordedAt?: string;
 };
 

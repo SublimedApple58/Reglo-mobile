@@ -151,7 +151,7 @@ export default function RipassoScreen() {
 
 /** La segnalazione: simbolo 3D col segno, etichetta, via e ora, giudizio, nota. */
 function MarkerCard({ marker: m, onMore }: { marker: RoadMarker; onMore: () => void }) {
-  const sub = [m.street, formatHm(m.recordedAt)].filter(Boolean).join(' · ');
+  const sub = [m.extentM ? `Tratto ${m.extentM} m` : null, m.street, formatHm(m.recordedAt)].filter(Boolean).join(' · ');
   return (
     <View>
       <View style={s.head}>

@@ -7,7 +7,6 @@ import type {
   RoadPlanStop,
   RoadPoint,
   RoadSessionWithLesson,
-  RoadMarkerShape,
 } from '../types/regloApi';
 import { bearingDeg, haversineMeters } from './format';
 import { keepOnLine, LINE_FILTER_START, type LineFilter } from './trackFilter';
@@ -53,9 +52,10 @@ export type RoadLocalMarker = {
   lng: number;
   street: string | null;
   sentiment: 'good' | 'bad' | null;
-  /** R7: punto preciso o zona (assente = punto). */
-  shape?: RoadMarkerShape;
-  radiusM?: number | null;
+  /** R7: zona = tratto di `extentM` metri della strada percorsa (assente/null = punto). */
+  extentM?: number | null;
+  /** R7: il tratto calcolato dal server (riepilogo); in guida lo disegna il telefono. */
+  extent?: Array<[number, number]> | null;
   recordedAt: string;
   /**
    * REG-696: l'altra posizione possibile («qui» se la segnalazione è stata
@@ -79,6 +79,8 @@ export type RoadToast = {
   /** REG-696: «N s fa / Qui» (null = posizione unica). */
   retroSec: number | null;
   placed: 'retro' | 'here';
+  /** R7: punto (null) o zona di N metri, scelta nel toast. */
+  extentM: number | null;
   /** Cambia a ogni spostamento: il toast resta altri 5 s. */
   rev: number;
 };
@@ -510,6 +512,7 @@ export const roadStore = {
         at: marker.recordedAt,
         retroSec: marker.retroSec ?? null,
         placed: marker.placed ?? 'here',
+        extentM: marker.extentM ?? null,
         rev: 0,
       },
     });
@@ -535,6 +538,16 @@ export const roadStore = {
           : state.toast,
     });
     return next;
+  },
+
+  /** R7: punto o zona scelta nel toast (il toast resta altri 8 s). */
+  setMarkerExtent(clientId: string, extentM: number | null) {
+    if (!state.markers.some((m) => m.clientId === clientId)) return;
+    set({
+      markers: state.markers.map((m) => (m.clientId === clientId ? { ...m, extentM, extent: null } : m)),
+      toast:
+        state.toast?.clientId === clientId ? { ...state.toast, extentM, rev: state.toast.rev + 1 } : state.toast,
+    });
   },
 
   /** Road novembre R3: segnalazione modificata (dopo la risposta del server o la coda offline). */
@@ -613,6 +626,7 @@ export const roadStore = {
         lng: m.lng,
         street: m.street,
         sentiment: m.sentiment,
+        extentM: m.extentM ?? null,
         recordedAt: m.recordedAt,
       })),
       track: state.track.map((p) => [p.latitude, p.longitude, 0] as [number, number, number]),

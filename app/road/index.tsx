@@ -16,14 +16,20 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { router, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing, ReduceMotion, ZoomIn, FadeOut } from 'react-native-reanimated';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withDelay, withTiming, Easing, ReduceMotion, ZoomIn, FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 
 import * as Haptics from '../../src/utils/haptics';
 import { minimizeRoad, ROAD_COVER_MS, ROAD_SWITCH_MS, useRoadMinimized } from '../../src/road/miniStore';
 import { lessonStudentName, roadStore, useRoadSelector, type RoadLocalMarker } from '../../src/road/roadStore';
 import { openRoadMarkerSheet } from '../../src/road/markerEdit';
-import { endRoad, recordHotspotCheck, swapRoadMarkerPlace, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
+import { extentPref } from '../../src/road/extentPref';
+import { markerExtent } from '../../src/road/markerExtent';
+import { ROAD_MARKER_EXTENTS } from '../../src/types/regloApi';
+
+// R7: la lunghezza proposta per la «zona» (l'ultima usata) si legge una volta sola.
+void extentPref.load();
+import { endRoad, recordHotspotCheck, setRoadMarkerExtent, swapRoadMarkerPlace, undoHotspotCheck, undoRoadFree, undoRoadMarker } from '../../src/road/roadActions';
 import { roadFreeStarted } from '../../src/road/freeStartStore';
 import { ROAD_EXIT, ROAD_TEXT_IN } from '../../src/road/motion';
 import { PLAN_ALERT_MS, PLAN_REACHED_MS } from '../../src/road/planAlerts';
@@ -325,6 +331,52 @@ const LiveTrack = React.memo(function LiveTrack({
       ))}
       <TrackPiece pts={ghost?.pts ?? null} still={still} night={night} k={ghost?.k ?? 0} />
       <TrackPiece pts={shown} still={still} night={night} />
+    </>
+  );
+});
+
+/**
+ * Road novembre R7 — i tratti delle segnalazioni «zona» sulla linea dal vivo:
+ * alone rosso leggero e linea piena, centrati sul punto e lunghi 50/100/200 m.
+ * La metà davanti si allunga mentre si guida (il tratto si ricava dalla
+ * linea agganciata, che cresce). Posti fissi (crash AIRMap aggiungendo figli):
+ * le ultime EXTENT_SLOTS zone; gli altri posti restano fermi e invisibili.
+ * In guida la linea non ha le ore: il tratto si àncora nello spazio, cercando
+ * prima nell'ultimo pezzo percorso (una strada fatta due volte non confonde).
+ */
+const EXTENT_SLOTS = 6;
+const EXTENT_RECENT_PTS = 600;
+const EXTENT_HALO = 'rgba(220,38,38,0.22)';
+const EXTENT_CORE = 'rgba(220,38,38,0.9)';
+
+const LiveExtents = React.memo(function LiveExtents({ center }: { center: { lat: number; lng: number } }) {
+  const markers = useRoadSelector((s) => s.markers);
+  const track = useRoadSelector((s) => s.snapTrack);
+  const tail = useRoadSelector((s) => s.snapTail);
+  const still = useMemo(() => STILL(center), [center]);
+  const lines = useMemo(() => {
+    const zones = markers.filter((m) => m.extentM).slice(-EXTENT_SLOTS);
+    if (!zones.length) return [];
+    const all = [...track, ...tail].map((p) => [p.latitude, p.longitude] as [number, number]);
+    const recent = all.slice(-EXTENT_RECENT_PTS);
+    return zones.map((m) => {
+      const at = { lat: m.lat, lng: m.lng, recordedAtMs: null, extentM: m.extentM };
+      const line = markerExtent(recent, at) ?? (all.length > recent.length ? markerExtent(all, at) : null);
+      return line ? line.map(([latitude, longitude]) => ({ latitude, longitude })) : null;
+    });
+  }, [markers, track, tail]);
+  return (
+    <>
+      {Array.from({ length: EXTENT_SLOTS }, (_, i) => {
+        const pts = lines[i] ?? null;
+        const on = !!pts && pts.length >= 2;
+        return (
+          <React.Fragment key={i}>
+            <Polyline coordinates={on ? pts! : still} strokeColor={on ? EXTENT_HALO : NO_INK} strokeWidth={16} lineCap="round" lineJoin="round" zIndex={3} />
+            <Polyline coordinates={on ? pts! : still} strokeColor={on ? EXTENT_CORE : NO_INK} strokeWidth={5} lineCap="round" lineJoin="round" zIndex={3} />
+          </React.Fragment>
+        );
+      })}
     </>
   );
 });
@@ -677,6 +729,7 @@ const LiveMap = React.memo(function LiveMap({
       {/* Ricca 8: le guide passate, posti fissi sotto la traccia in corso. */}
       <LiveHistory center={where} night={darkMap} lines={history} shown={historyShown} />
       <LiveTrack center={where} night={darkMap} />
+      <LiveExtents center={where} />
       {/* REG-723: partenza e frecce del verso, posti fissi subito dopo la traccia. */}
       <LiveEnds center={where} night={darkMap} />
       <LivePins onPin={onPin} openId={openPinId} />
@@ -1578,7 +1631,8 @@ function LiveTop({
       {/* Toast della segnalazione appena fatta: in basso sopra il pannello non
           coprirebbe niente, ma lì c'è il pollice; resta sotto le card in alto. */}
       {toast && !alert ? (
-        <RoadToastFrame key={toast.clientId} style={[s.stack, s.toast, { top: below + (showPlan ? 104 : 0) }]}>
+        <RoadToastFrame key={toast.clientId} style={[s.stack, s.toast, s.toastCol, { top: below + (showPlan ? 104 : 0) }]}>
+          <View style={s.toastRow}>
           <View style={s.toastIc}>
             <Image source={markerArt(toast.kind)} style={s.toastImg} resizeMode="contain" />
             {toast.sentiment ? <SentimentBadge sentiment={toast.sentiment} size={18} style={s.toastSg} /> : null}
@@ -1619,6 +1673,11 @@ function LiveTop({
           <Pressable onPress={onUndo} style={({ pressed }) => [s.undo, pressed && { opacity: 0.7 }]} testID="road-undo">
             <Text style={s.undoTx}>Annulla</Text>
           </Pressable>
+          </View>
+          {/* R7 (Tiziano 10/11/2026): punto o zona. «Punto» è già scelto, quindi
+              chi segnala un punto non tocca niente; «Zona» = l'ultima lunghezza
+              usata, e nella stessa riga 50 / 100 / 200 per cambiarla. */}
+          <ExtentChoice extentM={toast.extentM} onChange={(v) => void setRoadMarkerExtent(toast.clientId, v)} />
         </RoadToastFrame>
       ) : null}
 
@@ -1650,6 +1709,52 @@ function LiveTop({
     </>
   );
 }
+
+// ─── R7: punto o zona nel toast della segnalazione ──────────────────────────
+
+const ExtentChoice = React.memo(function ExtentChoice({
+  extentM,
+  onChange,
+}: {
+  extentM: number | null;
+  onChange: (v: number | null) => void;
+}) {
+  const pick = (v: number | null) => {
+    if (v === extentM) return;
+    Haptics.selectionAsync().catch(() => undefined);
+    onChange(v);
+  };
+  const chip = (label: string, on: boolean, v: number | null, testID: string, wide?: boolean, sub?: string) => (
+    <Pressable
+      key={testID}
+      onPress={() => pick(v)}
+      style={({ pressed }) => [s.chip, wide ? s.chipWide : null, on && s.chipOn, pressed && !on && { opacity: 0.7 }]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={sub ? `${label} ${sub}` : label}
+      testID={testID}
+    >
+      <Text style={[s.chipTx, on && s.chipTxOn]}>
+        {label}
+        {sub ? <Text style={[s.chipSub, on && s.chipSubOn]}> {sub}</Text> : null}
+      </Text>
+    </Pressable>
+  );
+  return (
+    <Animated.View key={extentM == null ? 'p' : 'z'} entering={CHOICE_IN} style={s.choices} accessibilityRole="radiogroup">
+      {extentM == null
+        ? [
+            chip('Punto', true, null, 'road-extent-point', true),
+            chip('Zona', false, extentPref.get(), 'road-extent-zone', true, `${extentPref.get()} m`),
+          ]
+        : [
+            chip('Punto', false, null, 'road-extent-point'),
+            ...ROAD_MARKER_EXTENTS.map((v) => chip(`${v} m`, v === extentM, v, `road-extent-${v}`)),
+          ]}
+    </Animated.View>
+  );
+});
+const CHOICE_IN = FadeIn.duration(200).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.Never);
 
 // ─── REG-723: la segnalazione toccata ───────────────────────────────────────
 
@@ -2114,6 +2219,16 @@ const s = StyleSheet.create({
     backgroundColor: CLAY.ink,
     ...CLAY_SHADOW.ink,
   },
+  toastCol: { flexDirection: 'column', alignItems: 'stretch', gap: 10 },
+  toastRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  choices: { flexDirection: 'row', gap: 8 },
+  chip: { flex: 1, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  chipWide: { flex: 1 },
+  chipOn: { backgroundColor: '#FFFFFF' },
+  chipTx: { fontSize: 15.5, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.2 },
+  chipTxOn: { color: CLAY.ink },
+  chipSub: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
+  chipSubOn: { color: CLAY.ink3 },
   toastIc: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   toastImg: { width: 32, height: 32 },
   toastSg: { position: 'absolute', right: -4, bottom: -4 },

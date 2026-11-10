@@ -76,6 +76,7 @@ export async function applyMarkerEdit(t: MarkerEditTarget, change: { patch: Upda
         ...(p.kind ? { kind: p.kind, ...(label ? { label } : {}) } : {}),
         ...(p.sentiment !== undefined ? { sentiment: p.sentiment } : {}),
         ...(p.note !== undefined ? { note: p.note } : {}),
+        ...(p.extentM !== undefined ? { extentM: p.extentM, extent: null } : {}),
         // Spostata a mano: la via la ricalcola il server, sul telefono si toglie.
         ...(p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng, street: null, alt: null } : {}),
       });

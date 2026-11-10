@@ -14,6 +14,7 @@ import type {
   UpdateRoadMarkerInput,
 } from '../types/regloApi';
 import { roadQueue } from './queue';
+import { extentPref } from './extentPref';
 import { roadStore, lessonStudentName } from './roadStore';
 import { roadUploader } from './uploader';
 import { isRoadTrackingActive, startRoadTracking, stopRoadTracking } from './tracking';
@@ -462,6 +463,22 @@ export async function swapRoadMarkerPlace(clientId: string) {
     clientId,
     patch: { lat: next.lat, lng: next.lng, recordedAt: next.recordedAt },
   });
+  void roadUploader.flush(true);
+}
+
+/**
+ * R7 (Tiziano 10/11/2026): nel toast dopo la segnalazione si sceglie «Punto» o
+ * «Zona» (un tratto di 50 | 100 | 200 m della strada percorsa). Come «qui / N s
+ * fa»: subito sul telefono e in coda (si fonde con l'`add` se non è ancora
+ * partito), così funziona anche senza rete e senza attese mentre si guida.
+ * L'ultima lunghezza scelta diventa quella proposta la volta dopo.
+ */
+export async function setRoadMarkerExtent(clientId: string, extentM: number | null) {
+  const { session } = roadStore.get();
+  if (!session) return;
+  roadStore.setMarkerExtent(clientId, extentM);
+  if (extentM != null) extentPref.set(extentM);
+  await roadQueue.pushMarkerOp({ op: 'update', sessionId: session.id, clientId, patch: { extentM } });
   void roadUploader.flush(true);
 }
 

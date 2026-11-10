@@ -1,7 +1,8 @@
 import { OsmCredit } from './OsmCredit';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import MapView from 'react-native-maps';
+import MapView, { Polyline } from 'react-native-maps';
+import { markerExtent } from '../../road/markerExtent';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { RoadMarker, RoadStop } from '../../types/regloApi';
 import { arrowCovered, arrowsAlong, RoadEndpointDot, RoadMarkerPin, RoadPinBody, RoadStopMarker, RoadTrack, ROAD_PIN_POINT_Y } from './RoadMapParts';
@@ -58,7 +59,7 @@ function dataSignature(track: Array<[number, number, number]>, markers: RoadMark
     track.length,
     first ? `${first[0]},${first[1]}` : '',
     last ? `${last[0]},${last[1]}` : '',
-    markers.map((m) => `${roadMarkerKey(m)}:${m.kind}:${m.label}:${m.sentiment ?? ''}:${m.lat},${m.lng}`).join('|'),
+    markers.map((m) => `${roadMarkerKey(m)}:${m.kind}:${m.label}:${m.sentiment ?? ''}:${m.lat},${m.lng}:${m.extentM ?? ''}:${m.extent?.length ?? 0}`).join('|'),
     (stops ?? []).map((s) => `${s.startMs}:${s.minutes}`).join('|'),
   ].join('#');
 }
@@ -131,7 +132,14 @@ export function RoadRouteMap({
     }
     // Dove la linea ripassa sopra resta solo il passaggio più nuovo (come dal vivo).
     const arrows = arrowsAlong(coords, Math.max(20, total / 80), Math.max(30, total / 160)).filter((a) => !arrowCovered(coords, a));
-    return { coords, all, markers, stops: stops ?? [], arrows, initialRegion: regionFor(all) };
+    // R7: i tratti delle segnalazioni «zona»: quello del server o, nel riepilogo
+    // provvisorio, ricavato qui dalla traccia (stessa ancora nel tempo del server).
+    const extents = markers
+      .filter((m) => m.extentM)
+      .map((m) => m.extent ?? markerExtent(track, { lat: m.lat, lng: m.lng, recordedAtMs: Date.parse(m.recordedAt), extentM: m.extentM }))
+      .filter((l): l is Array<[number, number]> => !!l && l.length >= 2)
+      .map((l) => l.map(([latitude, longitude]) => ({ latitude, longitude })));
+    return { coords, all, markers, stops: stops ?? [], arrows, extents, initialRegion: regionFor(all) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
@@ -304,6 +312,12 @@ export function RoadRouteMap({
         userInterfaceStyle={night ? 'dark' : 'light'}
       >
         <RoadTrack coordinates={frozen.coords} width={interactive ? 6 : 5} night={night} />
+        {frozen.extents.map((pts, i) => (
+          <React.Fragment key={`ext-${i}`}>
+            <Polyline coordinates={pts} strokeColor="rgba(220,38,38,0.22)" strokeWidth={interactive ? 14 : 11} lineCap="round" lineJoin="round" zIndex={3} />
+            <Polyline coordinates={pts} strokeColor="rgba(220,38,38,0.9)" strokeWidth={interactive ? 4.5 : 3.5} lineCap="round" lineJoin="round" zIndex={3} />
+          </React.Fragment>
+        ))}
         {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[0]} kind="start" /> : null}
         {frozen.coords.length > 1 ? <RoadEndpointDot coordinate={frozen.coords[frozen.coords.length - 1]} kind="end" /> : null}
         {frozen.stops.map((st) => (

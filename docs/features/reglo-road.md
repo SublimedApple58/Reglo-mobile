@@ -630,3 +630,11 @@ Anteprima `r3-pin` approvata da Tiziano. Istruttore e titolare modificano le seg
 - **«Sposta»** `app/road/sposta.tsx` (fullScreenModal): mirino fisso, si muove la mappa; il posto di prima è tratteggiato (unico figlio della MapView, mai cambiato: crash AIRMap); «Metti qui» manda lat/lng, la via la ricalcola il server.
 - Stato e azioni: `src/road/markerEdit.ts` (`MarkerEditTarget` = sessione + clientId + dal vivo/riepilogo; `applyMarkerEdit` passa da `correctRoadMarker`, quindi coda offline compresa; poi `roadStore.updateLocalMarker` in guida o `refreshRoadSummary` a guida finita). Niente aggiornamento ottimistico.
 - «Dove» (punto o tratto) arriva con R7.
+
+## Road novembre R7 — punto o zona (tratto della strada percorsa) (10/11/2026)
+
+Tiziano: niente cerchio; la «zona» è un **tratto della strada percorsa** di 50 | 100 | 200 m centrato sul punto. Backend: `RoadMarker.extentM` / `extent` (vedi `../reglo/docs/features/reglo-road.md`).
+- **Toast dopo la segnalazione** (`app/road/index.tsx › ExtentChoice`): due tasti grandi (50 pt) «Punto» (già scelto: chi segnala un punto non tocca niente) e «Zona N m»; toccando «Zona» la riga diventa «Punto · 50 m · 100 m · 200 m». La lunghezza proposta è l'ultima usata (`src/road/extentPref.ts`, AsyncStorage `road.extentM.last`, default 100). Ogni scelta rinnova gli 8 s del toast. `setRoadMarkerExtent` (in `roadActions`) come «qui / N s fa»: subito sul telefono (`roadStore.setMarkerExtent`) e in coda (si fonde con l'`add`), quindi anche senza rete.
+- **Dal vivo** (`LiveExtents`): alone rosso + linea piena sulle ultime 6 zone, ricavate da `snapTrack` con `src/road/markerExtent.ts` (gemella di `reglo/lib/autoscuole/road/marker-extent.ts`: tenerle uguali). La linea dal vivo non ha le ore: ancora nello spazio, prima sugli ultimi 600 punti. Posti fissi (crash AIRMap).
+- **Riepilogo, percorso, «Tutte le segnalazioni», ripasso** (`RoadRouteMap`): il tratto del server (`extent`) o, nel riepilogo provvisorio, calcolato sulla traccia; le righe dicono «Tratto 100 m · via». Il riepilogo elenca le segnalazioni in ordine di tempo anche quando è provvisorio.
+- **Foglio «Segnalazione»**: «Dove» = Punto / 50 / 100 / 200 m.

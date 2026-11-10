@@ -13,10 +13,10 @@ import { CUSTOM_KIND_PREFIX, markerArt, shortMarkerLabel } from '../../src/road/
 import { formatHm } from '../../src/road/format';
 import { useRoadSelector } from '../../src/road/roadStore';
 import { applyMarkerEdit, useEditedMarker, useMarkerEditTarget } from '../../src/road/markerEdit';
-import type { UpdateRoadMarkerInput } from '../../src/types/regloApi';
+import { ROAD_MARKER_EXTENTS, type UpdateRoadMarkerInput } from '../../src/types/regloApi';
 
 type Mode = 'main' | 'kind' | 'note';
-type Busy = null | 'sentiment' | 'kind' | 'note' | 'remove';
+type Busy = null | 'sentiment' | 'kind' | 'note' | 'extent' | 'remove';
 
 /**
  * Road novembre R3 (anteprima r3-pin approvata da Tiziano il 10/11/2026) —
@@ -149,6 +149,20 @@ export default function SegnalazioneSheet() {
               testID="road-marker-note"
             />
           </ClayList>
+          {/* R7: punto o tratto della strada percorsa. */}
+          <Text style={[s.sec, night && n.ink3]}>Dove</Text>
+          <ClaySegmented
+            options={[
+              { value: 0, label: 'Punto', testID: 'road-marker-point' },
+              ...ROAD_MARKER_EXTENTS.map((v) => ({ value: v as number, label: `${v} m`, testID: `road-marker-extent-${v}` })),
+            ]}
+            value={marker.extentM ?? 0}
+            onChange={(v) => {
+              const next = v ? v : null;
+              if (next === (marker.extentM ?? null) || busy) return;
+              void save('extent', { patch: { extentM: next } });
+            }}
+          />
           <ClayList style={s.block}>
             <ClayListRow
               leading={<Ionicons name="locate-outline" size={21} color={night ? SHEET_NIGHT.ink : CLAY.ink} />}
@@ -247,6 +261,7 @@ const s = StyleSheet.create({
   iconImg: { width: 34, height: 34 },
   badge: { position: 'absolute', right: -3, bottom: -3 },
   block: { marginTop: 14 },
+  sec: { fontSize: 13, fontWeight: '600', color: CLAY.ink3, marginTop: 18, marginBottom: 8, marginLeft: 4 },
   value: { fontSize: 15, color: CLAY.ink3, maxWidth: 190 },
   remove: { alignSelf: 'center', marginTop: 18, minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
   removeTx: { fontSize: 16, fontWeight: '500', color: '#DC2626' },
