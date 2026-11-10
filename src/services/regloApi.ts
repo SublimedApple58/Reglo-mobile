@@ -351,7 +351,13 @@ export const createRegloApi = (baseUrl?: string) => {
     updateInstructorSettings: async (
       // REG-426: appBookingActors / appBookingActorsByPath accettano anche `null`
       // per AZZERARE il campo (torna al default). Gli altri campi restano com'erano.
-      input: Omit<Partial<InstructorClusterSettings>, 'appBookingActors' | 'appBookingActorsByPath'> & {
+      input: Omit<
+        Partial<InstructorClusterSettings>,
+        | 'appBookingActors'
+        | 'appBookingActorsByPath'
+        | 'studentBookingExceptions'
+        | 'studentBookingExceptionsByPath'
+      > & {
         assignStudentIds?: string[];
         appBookingActors?: 'students' | 'instructors' | 'both' | null;
         appBookingActorsByPath?: {
@@ -359,6 +365,9 @@ export const createRegloApi = (baseUrl?: string) => {
           auto?: 'students' | 'instructors' | 'both';
           pro?: 'students' | 'instructors' | 'both';
         } | null;
+        // `null` = il gruppo torna a ereditare le eccezioni dell'autoscuola.
+        studentBookingExceptions?: InstructorClusterSettings['studentBookingExceptions'] | null;
+        studentBookingExceptionsByPath?: InstructorClusterSettings['studentBookingExceptionsByPath'] | null;
       },
     ) =>
       client.request<InstructorClusterSettings>('/api/autoscuole/instructor-settings', {
