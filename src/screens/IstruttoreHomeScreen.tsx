@@ -315,6 +315,9 @@ const addDays = (date: Date, amount: number) => {
 /* ── Inline Time Picker (no Modal, renders inside BottomSheet) ── */
 
 
+/** Cambio istruttore su guida conclusa: finestra del titolare (= backend). */
+const CONCLUDED_INSTRUCTOR_CHANGE_DAYS = 30;
+
 export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolean } = {}) => {
   const router = useRouter();
   // REG-638 «T1 piatta»: Disponibilità e Notifiche non sono più tab per l'istruttore,
@@ -1347,12 +1350,29 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
   ) => {
     const lessonId = lesson.id;
     if (!instructor?.id || instructor.id === lesson.instructorId) return;
-    // L'istruttore non si cambia su guide concluse/annullate (il backend lo
-    // rifiuta comunque). I dettagli (tipo/voto/note) invece restano editabili.
+    // Annullate: mai. Concluse (completata/assente): solo il titolare, entro
+    // 30 giorni dalla guida, per correggere un sostituto (stessa regola del
+    // backend, che la ripete). I dettagli (tipo/voto/note) restano editabili.
     const instrStatus = normalizeStatus(lesson.status);
-    if (['cancelled', 'completed', 'no_show'].includes(instrStatus)) {
-      Alert.alert('Guida non modificabile', 'Non puoi cambiare istruttore per una guida conclusa o annullata.');
+    if (instrStatus === 'cancelled') {
+      Alert.alert('Guida non modificabile', "Non puoi cambiare l'istruttore di una guida annullata.");
       return;
+    }
+    if (instrStatus === 'completed' || instrStatus === 'no_show') {
+      const isTitolare = autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR_OWNER';
+      const withinWindow =
+        Date.now() - new Date(lesson.startsAt).getTime() <= CONCLUDED_INSTRUCTOR_CHANGE_DAYS * 86_400_000;
+      if (!isTitolare || lesson.type === 'esame') {
+        Alert.alert('Guida non modificabile', "Solo il titolare può cambiare l'istruttore di una guida conclusa.");
+        return;
+      }
+      if (!withinWindow) {
+        Alert.alert(
+          'Guida non modificabile',
+          `L'istruttore di una guida conclusa si può cambiare solo entro ${CONCLUDED_INSTRUCTOR_CHANGE_DAYS} giorni dalla guida.`,
+        );
+        return;
+      }
     }
 
     try {
