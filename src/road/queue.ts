@@ -91,6 +91,8 @@ let owner: string | null = null;
 /** REG-714: chi mostra «in attesa di rete» (riepilogo) si ridisegna a ogni modifica. */
 const listeners = new Set<() => void>();
 let version = 0;
+/** L'operazione sulle segnalazioni che l'uploader sta spedendo adesso. */
+let markerOpInFlight: MarkerOp | null = null;
 
 function persist() {
   version += 1;
@@ -267,9 +269,13 @@ export const roadQueue = {
 
   async pushMarkerOp(op: MarkerOp) {
     await loadQueue();
+    // Un'operazione già in volo verso il server non si tocca: la sua richiesta
+    // è partita, e a risposta arrivata esce dalla coda (prima: «Zona» o
+    // «Annulla» toccati in quel momento si fondevano nell'add e si perdevano).
+    const settled = (m: MarkerOp) => m !== markerOpInFlight;
     if (op.op === 'update') {
       // REG-696: correzione prima che l'add sia partito: si corregge l'add.
-      const add = state.markerOps.find((m) => m.op === 'add' && m.input.clientId === op.clientId);
+      const add = state.markerOps.find((m) => m.op === 'add' && m.input.clientId === op.clientId && settled(m));
       if (add && add.op === 'add') {
         add.input = { ...add.input, ...op.patch } as AddRoadMarkerInput;
         await persist();
@@ -279,7 +285,7 @@ export const roadQueue = {
     if (op.op === 'remove' || op.op === 'check-remove') {
       // «Annulla» prima che l'add sia partito: basta togliere l'add.
       const addOp = op.op === 'remove' ? 'add' : 'check-add';
-      const idx = state.markerOps.findIndex((m) => m.op === addOp && m.input.clientId === op.clientId);
+      const idx = state.markerOps.findIndex((m) => m.op === addOp && m.input.clientId === op.clientId && settled(m));
       if (idx >= 0) {
         state.markerOps.splice(idx, 1);
         await persist();
@@ -304,6 +310,11 @@ export const roadQueue = {
   /** Prima operazione che l'utente attuale può spedire (`skip`: guide da saltare). */
   peekMarkerOp(skip: ReadonlySet<string> = new Set()): MarkerOp | null {
     return state.markerOps.find((m) => mine(m.ownerId) && !skip.has(m.sessionId)) ?? null;
+  },
+
+  /** L'uploader segna l'operazione che sta spedendo (null a richiesta finita). */
+  setMarkerOpInFlight(op: MarkerOp | null) {
+    markerOpInFlight = op;
   },
 
   async shiftMarkerOp(op: MarkerOp) {

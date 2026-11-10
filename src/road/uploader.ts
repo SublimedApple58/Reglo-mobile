@@ -86,6 +86,7 @@ async function flushMarkers() {
   for (;;) {
     const op = roadQueue.peekMarkerOp(parked);
     if (!op) return;
+    roadQueue.setMarkerOpInFlight(op);
     try {
       if (op.op === 'add') {
         await regloApi.addRoadMarker(op.sessionId, op.input);
@@ -117,6 +118,8 @@ async function flushMarkers() {
         continue;
       }
       throw err;
+    } finally {
+      roadQueue.setMarkerOpInFlight(null);
     }
   }
 }
