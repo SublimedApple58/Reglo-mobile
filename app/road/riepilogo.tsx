@@ -181,7 +181,10 @@ export default function RiepilogoScreen() {
       ? { title: 'Compila il pagellino', onPress: openPagellino, testID: 'road-summary-pagellino-cta' }
       : { title: 'Fine', onPress: close, testID: 'road-summary-close' };
 
-  const shown = summary.markers.slice(0, MAX_MARKERS);
+  // In ordine di tempo come sul web, anche nel riepilogo provvisorio fatto dal
+  // telefono (lì l'ordine è quello di inserimento e «N s fa / Qui» sposta l'ora).
+  const byTime = [...summary.markers].sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt));
+  const shown = byTime.slice(0, MAX_MARKERS);
   const more = summary.markers.length - shown.length;
 
   return (
