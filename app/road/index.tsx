@@ -368,10 +368,16 @@ const LiveExtents = React.memo(function LiveExtents({ center }: { center: { lat:
     if (!zones.length) return [];
     const all = [...track, ...tail].map((p) => [p.latitude, p.longitude] as [number, number]);
     const recent = all.slice(-EXTENT_RECENT_PTS);
+    // iOS ridisegna in cima l'overlay che cambia: la traccia che cresce coprirebbe
+    // un tratto fermo. Un punto doppio in coda, a turno, fa cambiare anche il
+    // tratto a ogni passo della traccia (stessa linea), così resta sopra.
+    const nudge = all.length % 2 === 1;
     return zones.map((m) => {
       const at = { lat: m.lat, lng: m.lng, recordedAtMs: null, extentM: m.extentM };
       const line = markerExtent(recent, at) ?? (all.length > recent.length ? markerExtent(all, at) : null);
-      return line ? line.map(([latitude, longitude]) => ({ latitude, longitude })) : null;
+      if (!line) return null;
+      const pts = line.map(([latitude, longitude]) => ({ latitude, longitude }));
+      return nudge ? [...pts, pts[pts.length - 1]] : pts;
     });
   }, [markers, track, tail]);
   return (
@@ -1574,7 +1580,7 @@ function LiveTop({
   // Con la card in alto l'avviso «tra 300 m» è un doppione: resta solo «raggiunta».
   const showPlan = planAlert && (planAlert.reached || !hasNav) && !alert;
 
-  // Il toast «… segnato» resta 8 secondi.
+  // Il toast «Segnato: …» resta 8 secondi (forma neutra: «Velocità segnato» non accordava).
   const toastId = toast?.clientId;
   // REG-696: ogni «Qui / N s fa» lascia altri 8 s per ripensarci.
   const toastRev = toast?.rev ?? 0;
@@ -1679,7 +1685,7 @@ function LiveTop({
             {toast.sentiment ? <SentimentBadge sentiment={toast.sentiment} size={18} style={s.toastSg} /> : null}
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.toastT1} numberOfLines={1}>{toast.label} segnato</Text>
+            <Text style={s.toastT1} numberOfLines={1}>Segnato: {toast.label}</Text>
             {toast.retroSec != null ? (
               // REG-696: la segnalazione va dov'era l'auto poco prima; «Qui» la rimette dove si è ora.
               <View style={s.placeRow} accessibilityRole="radiogroup">
