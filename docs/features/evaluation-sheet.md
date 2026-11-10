@@ -259,3 +259,11 @@ rosso **in testa**: sotto la CTA occupava una fascia che si leggeva come padding
 - la lista includeva solo le guide con una nota scritta: ora include anche quelle **valutate
   senza testo**, che prima sparivano;
 - copy allineata: "Valutazioni e note dei tuoi istruttori".
+
+## Pagellino come LIVELLO (Road novembre R2, Tiziano 10/11/2026)
+
+Il pagellino è il **livello attuale** del ragazzo: per ogni voce conta l'ultimo voto dato, in qualunque guida. Contratto e backend: `reglo/docs/features/evaluation-sheet.md` › «Pagellino come LIVELLO».
+
+- **Foglio di valutazione** (`manage-lesson-details.tsx`, anche in Road): `AppointmentEvaluation.previous` (dal server, anche nella cache offline di Road perché è nella stessa risposta) → `StarRating ghost` = ultimo voto in **oro tenue** (`rgba(250,204,21,0.34)`, variante B). Sotto le stelline: «Ultimo voto 4/5 · 3 nov», «Prima era 2/5 · 5 nov» dopo aver sovrascritto, «Mai valutata». Il testo in testa dice di toccare solo dove è cambiato. L'oro tenue non entra mai in `scores` né nel salvataggio: una voce non toccata resta «non valutata» in questa guida.
+- **Scheda allievo** (`StudentNotesDetailScreen`) e **vista allievo** (`StudentMyNotesScreen`): «Livello attuale» / «Il tuo livello» con `studentEvaluationLevels` (`src/utils/evaluationSheet.ts`): per voce stelline piene + «4/5 · 3 nov» (`evaluationLevelDate`), media dei livelli in testa, «Da allenare». Il numero «pagellino» tra le tre statistiche della scheda è la media dei livelli. `aggregateStudentEvaluations` (media storica) non è più usato dalle schermate.
+- L'app non conosce l'elenco delle voci configurate: le voci mai valutate non compaiono nel livello (sul web sì).

@@ -193,3 +193,79 @@ export const aggregateStudentEvaluations = (
     weakest,
   };
 };
+
+/* ── Livello del pagellino: l'ultimo voto per voce (Road novembre R2) ────── */
+
+export type StudentEvaluationLevel = {
+  itemId: string;
+  label: string;
+  scaleMax: number;
+  /** L'ultimo voto dato su questa voce. */
+  score: number;
+  /** Inizio della guida dell'ultimo voto. */
+  lastAt: string | null;
+};
+
+export type StudentEvaluationLevels = {
+  items: StudentEvaluationLevel[];
+  /** Media dei livelli (una voce = un voto); null con scale miste. */
+  average: number | null;
+  scaleMax: number | null;
+  /** Voce col livello più basso, in proporzione alla scala. */
+  weakest: StudentEvaluationLevel | null;
+};
+
+/**
+ * Road novembre R2 (Tiziano 10/11/2026) — il pagellino come LIVELLO del
+ * ragazzo: per ogni voce l'ultimo voto dato, in qualunque guida. Sostituisce
+ * la media nella scheda allievo e nella vista dell'allievo.
+ * Gemello di `studentEvaluationLevels` in reglo/lib/autoscuole/evaluation-sheet.ts
+ * (come per la media, l'app non conosce le voci mai valutate). Ordine: quello
+ * di prima comparsa partendo dalla guida più recente.
+ */
+export const studentEvaluationLevels = (
+  lessons: ReadonlyArray<{
+    startsAt?: string | null;
+    cancelledAt?: string | null;
+    evaluations?: ReadonlyArray<EvaluationRowLike & { itemId: string; label: string }> | null;
+  }> | null | undefined,
+): StudentEvaluationLevels | null => {
+  if (!lessons?.length) return null;
+  const at = (d: string | null | undefined) => (d ? new Date(d).getTime() : 0);
+  const sorted = [...lessons].sort((a, b) => at(b.startsAt) - at(a.startsAt));
+  const acc = new Map<string, StudentEvaluationLevel>();
+  for (const lesson of sorted) {
+    if (lesson.cancelledAt) continue;
+    for (const row of lesson.evaluations ?? []) {
+      if (row.notApplicable || row.score == null || acc.has(row.itemId)) continue;
+      acc.set(row.itemId, {
+        itemId: row.itemId,
+        label: row.label,
+        scaleMax: row.scaleMax,
+        score: Math.min(row.score, row.scaleMax),
+        lastAt: lesson.startsAt ?? null,
+      });
+    }
+  }
+  if (!acc.size) return null;
+  const items = [...acc.values()];
+  const scales = new Set(items.map((i) => i.scaleMax));
+  const average = scales.size === 1 ? items.reduce((s, i) => s + i.score, 0) / items.length : null;
+  const weakest =
+    items.length > 1 ? items.reduce((min, i) => (i.score / i.scaleMax < min.score / min.scaleMax ? i : min)) : null;
+  return { items, average, scaleMax: scales.size === 1 ? items[0].scaleMax : null, weakest };
+};
+
+const LEVEL_MONTHS = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+
+/** «oggi», «ieri», «3 nov» (+ anno se non è quest'anno): data dell'ultimo voto. */
+export const evaluationLevelDate = (iso: string | null | undefined): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86_400_000);
+  if (diff === 0) return 'oggi';
+  if (diff === 1) return 'ieri';
+  return `${d.getDate()} ${LEVEL_MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : ''}`;
+};

@@ -30,6 +30,12 @@ type StarRatingProps = {
    * per tenerlo identico al web, dove le stelline sono gialle.
    */
   tone?: 'navy' | 'gold';
+  /**
+   * Road novembre R2: l'ultimo voto dell'allievo (il suo «livello»), disegnato
+   * in oro tenue finché in questa guida non si vota (variante B di Tiziano).
+   * Solo aspetto: non è un valore e non arriva a `onChange`.
+   */
+  ghost?: number | null;
 };
 
 // Brand palette monocromatica navy: resta il default ovunque. UNICA eccezione,
@@ -39,6 +45,8 @@ const STAR_COLOR = '#111111';
 const STAR_EMPTY_COLOR = '#DCDCDC';
 const STAR_COLOR_GOLD = '#FACC15';
 const STAR_EMPTY_COLOR_GOLD = '#E7E7EC';
+/** R2: oro tenue dell'ultimo voto (stesso valore del web). */
+const STAR_GHOST_GOLD = 'rgba(250,204,21,0.34)';
 
 /** Ritardo fra una stella e l'altra quando il voto si accende "a cascata".
  *  12ms: si legge come una cascata, non come un'attesa — su 5 stelle l'ultima
@@ -48,6 +56,8 @@ const CASCADE_MS = 12;
 type StarProps = {
   index: number;
   filled: boolean;
+  /** R2: stella dell'ultimo voto (oro tenue sotto il pieno). */
+  ghosted?: boolean;
   size: number;
   filledColor: string;
   emptyColor: string;
@@ -59,7 +69,7 @@ type StarProps = {
  * in opacità + scala invece di cambiare colore di colpo, e la riga si riempie
  * a cascata da sinistra, così il voto si "vede scorrere" invece di apparire.
  */
-const Star = ({ index, filled, size, filledColor, emptyColor, onPress }: StarProps) => {
+const Star = ({ index, filled, ghosted = false, size, filledColor, emptyColor, onPress }: StarProps) => {
   const scale = useSharedValue(1);
   const fill = useSharedValue(filled ? 1 : 0);
   const wasFilled = useRef(filled);
@@ -93,7 +103,7 @@ const Star = ({ index, filled, size, filledColor, emptyColor, onPress }: StarPro
 
   const glyph = (
     <Animated.View style={wrapStyle}>
-      <Ionicons name="star-outline" size={size} color={emptyColor} />
+      <Ionicons name={ghosted ? 'star' : 'star-outline'} size={size} color={ghosted ? STAR_GHOST_GOLD : emptyColor} />
       <Animated.View style={[styles.fillLayer, fillStyle]}>
         <Ionicons name="star" size={size} color={filledColor} />
       </Animated.View>
@@ -126,6 +136,7 @@ export const StarRating = ({
   readOnly = false,
   total = 5,
   tone = 'navy',
+  ghost = null,
 }: StarRatingProps) => {
   const filledColor = tone === 'gold' ? STAR_COLOR_GOLD : STAR_COLOR;
   // Ricca 7: nei fogli di Road di notte la stella vuota è un grigio chiaro tenue.
@@ -152,6 +163,7 @@ export const StarRating = ({
           key={star}
           index={star - 1}
           filled={star <= currentValue}
+          ghosted={currentValue === 0 && !!ghost && star <= ghost}
           size={size}
           filledColor={filledColor}
           emptyColor={emptyColor}

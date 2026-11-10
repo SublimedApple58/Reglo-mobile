@@ -760,6 +760,12 @@ export type AppointmentEvaluation = {
   enabled: boolean;
   items: EvaluationItem[];
   scores: Array<{ itemId: Uuid; score: number | null; notApplicable?: boolean }>;
+  /**
+   * Road novembre R2: l'ultimo voto per voce dato all'allievo nelle guide
+   * prima di questa (il suo «livello»). Il foglio lo mostra in oro tenue e non
+   * lo salva. Assente dai server vecchi.
+   */
+  previous?: Array<{ itemId: Uuid; score: number; scaleMax: number; appointmentId: Uuid; startsAt: string }>;
 };
 
 export type UpdateAppointmentDetailsInput = {

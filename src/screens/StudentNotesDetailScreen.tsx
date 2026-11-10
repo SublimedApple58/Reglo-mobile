@@ -20,7 +20,8 @@ import { studentPaymentsStore, StudentPaymentsSettings } from '../stores/student
 import { isCompanyManualMode, isLessonUnpaid, canManageLessonPayments } from '../utils/lessonPayments';
 import { useSession } from '../context/SessionContext';
 import { resolveInitialLessonTypes } from '../utils/lessonTypes';
-import { aggregateStudentEvaluations } from '../utils/evaluationSheet';
+import { evaluationLevelDate, studentEvaluationLevels } from '../utils/evaluationSheet';
+import { StarRating } from '../components/StarRating';
 import { SkeletonBlock } from '../components/Skeleton';
 import { regloApi } from '../services/regloApi';
 import { FormSheet } from '../components/SheetScaffold';
@@ -576,11 +577,13 @@ export const StudentNotesDetailScreen = () => {
 
   /** Media per voce su tutto lo storico: alimenta sia il blocco "Pagellino"
    *  sia la statistica "voto medio" della card profilo. */
-  const pagellino = useMemo(() => aggregateStudentEvaluations(appointments), [appointments]);
+  // R2 (Road novembre): il pagellino è il LIVELLO del ragazzo, l'ultimo voto
+  // di ogni voce; sostituisce la media su tutte le guide.
+  const pagellino = useMemo(() => studentEvaluationLevels(appointments), [appointments]);
 
   const avgRating = useMemo(() => {
-    // Il "voto medio" è la media del PAGELLINO: la stellina singola non si
-    // compila più, quindi su un allievo nuovo resterebbe vuota per sempre.
+    // Il numero «pagellino» è il livello medio (R2: media degli ultimi voti per
+    // voce): la stellina singola non si compila più.
     // Le vecchie stelline restano come ripiego per gli allievi storici.
     if (pagellino?.average != null) return pagellino.average.toFixed(1).replace('.', ',');
     const rated = appointments.filter((a) => a.rating != null);
@@ -949,15 +952,13 @@ export const StudentNotesDetailScreen = () => {
               style={({ pressed }) => [s.pagHead, pressed && { opacity: 0.6 }]}
             >
               <View style={{ flex: 1 }}>
-                <Text style={s.cardTitle}>Pagellino</Text>
-                <Text style={s.cardSub}>
-                  {pagellino.lessonCount === 1 ? '1 guida valutata' : `${pagellino.lessonCount} guide valutate`}
-                </Text>
+                <Text style={s.cardTitle}>Livello attuale</Text>
+                <Text style={s.cardSub}>l'ultimo voto di ogni voce</Text>
               </View>
               <View style={s.sparkRow}>
                 {pagellino.items.slice(0, 6).map((item) => (
                   <View key={item.itemId} style={s.sparkTrack}>
-                    <View style={[s.sparkFill, { height: `${Math.max(12, (item.average / item.scaleMax) * 100)}%` }]} />
+                    <View style={[s.sparkFill, { height: `${Math.max(12, (item.score / item.scaleMax) * 100)}%` }]} />
                   </View>
                 ))}
               </View>
@@ -972,23 +973,20 @@ export const StudentNotesDetailScreen = () => {
             {pagellinoOpen ? (
               <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={s.pagBody}>
                 {pagellino.items.map((item) => (
-                  <View key={item.itemId} style={s.pagRow}>
-                    <View style={s.rowBetween}>
-                      <Text style={s.pagName} numberOfLines={1}>{item.label}</Text>
+                  <View key={item.itemId} style={[s.pagRow, s.levelRow]}>
+                    <Text style={s.pagName} numberOfLines={2}>{item.label}</Text>
+                    <View style={s.levelRight}>
+                      <StarRating value={item.score} total={item.scaleMax} tone="gold" size={13} readOnly />
                       <Text style={s.pagVal}>
-                        <Text style={s.pagValNum}>{item.average.toFixed(1).replace('.', ',')}</Text>
-                        /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
+                        <Text style={s.pagValNum}>{item.score}</Text>/{item.scaleMax} · {evaluationLevelDate(item.lastAt)}
                       </Text>
-                    </View>
-                    <View style={s.pagTrack}>
-                      <View style={[s.pagFill, { width: `${(item.average / item.scaleMax) * 100}%` }]} />
                     </View>
                   </View>
                 ))}
                 {pagellino.weakest ? (
                   <Text style={s.pagFoot}>
                     Da allenare: <Text style={s.pagFootStrong}>{pagellino.weakest.label}</Text>
-                    {` (${pagellino.weakest.average.toFixed(1).replace('.', ',')}/${pagellino.weakest.scaleMax})`}
+                    {` (${pagellino.weakest.score}/${pagellino.weakest.scaleMax})`}
                   </Text>
                 ) : null}
               </Animated.View>
@@ -1080,11 +1078,11 @@ const s = StyleSheet.create({
   pagBig: { fontSize: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
   pagBody: { paddingHorizontal: 18, paddingBottom: 16 },
   pagRow: { marginTop: 12 },
+  levelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  levelRight: { alignItems: 'flex-end' },
   pagName: { flex: 1, fontSize: 15, color: CLAY.ink },
   pagVal: { fontSize: 13, color: CLAY.ink3 },
   pagValNum: { fontWeight: '600', color: CLAY.ink },
-  pagTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(17,17,17,0.07)', overflow: 'hidden', marginTop: 6 },
-  pagFill: { height: '100%', borderRadius: 3, backgroundColor: CLAY.ink },
   pagFoot: { fontSize: 13.5, color: CLAY.ink3, marginTop: 14 },
   pagFootStrong: { fontWeight: '600', color: CLAY.ink },
   hDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },

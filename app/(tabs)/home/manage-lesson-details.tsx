@@ -20,6 +20,7 @@ import { LESSON_TYPE_OPTIONS, resolveInitialLessonTypes } from '../../../src/uti
 import {
   EVALUATION_NOT_APPLICABLE_LABEL,
   starSizeForScale,
+  evaluationLevelDate,
 } from '../../../src/utils/evaluationSheet';
 import { regloApi } from '../../../src/services/regloApi';
 import { cachedRoadEvaluation } from '../../../src/road/offlineLesson';
@@ -56,6 +57,19 @@ function outcomeFromStatus(status?: string | null): 'checked_in' | 'no_show' | n
   return null;
 }
 
+/** R2: il nome con cui chiamare l'allievo nel testo del pagellino. */
+function firstNameOf(lesson: { student?: { firstName?: string | null; name?: string | null } | null } | null) {
+  const st = lesson?.student;
+  return st?.firstName?.trim() || st?.name?.trim().split(' ')[0] || "l'allievo";
+}
+
+/** R2: «Ultimo voto 4/5 · 3 nov», «Prima era 2/5 · 5 nov», «Mai valutata». */
+function previousCaption(prev: { score: number; startsAt: string } | undefined, scaleMax: number, votedHere: boolean) {
+  if (!prev) return votedHere ? 'Valutata in questa guida' : 'Mai valutata';
+  const text = `${prev.score}/${scaleMax} · ${evaluationLevelDate(prev.startsAt)}`;
+  return votedHere ? `Prima era ${text}` : `Ultimo voto ${text}`;
+}
+
 export default function ManageLessonDetailsScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(lessonDetailsStore.subscribe, lessonDetailsStore.get);
@@ -71,6 +85,8 @@ export default function ManageLessonDetailsScreen() {
   // all'apertura del foglio in una sola chiamata; resta vuoto (sezione
   // nascosta) per le autoscuole che non lo usano.
   const [evalItems, setEvalItems] = useState<EvaluationItem[]>([]);
+  /** Road novembre R2: ultimo voto per voce dell'allievo nelle guide prima di questa. */
+  const [previous, setPrevious] = useState<Record<string, { score: number; startsAt: string }>>({});
   const [scores, setScores] = useState<Record<string, number>>({});
   /** Voci che questa guida ha già salvato (tengono visibili le voci archiviate). */
   const [evalAdded, setEvalAdded] = useState<string[]>([]);
@@ -154,6 +170,8 @@ export default function ManageLessonDetailsScreen() {
           rows.filter((sc) => sc.score != null).map((sc) => [sc.itemId, sc.score as number]),
         );
         setEvalItems(items);
+        // R2: l'ultimo voto per voce dell'allievo (oro tenue, non si salva).
+        setPrevious(Object.fromEntries((data.previous ?? []).map((p) => [p.itemId, { score: p.score, startsAt: p.startsAt }])));
         setHasSavedScores(rows.length > 0);
         // Niente precompilazione: restano solo i voti davvero salvati.
         setScores(
@@ -428,7 +446,9 @@ export default function ManageLessonDetailsScreen() {
             >
               {!road && editable && evalRows.length > 0 ? (
                 <Text style={s.pagellinoLead}>
-                  Tocca le stelline delle voci che vuoi valutare. Le altre restano «non valutate».
+                  {Object.keys(previous).length > 0
+                    ? `Le stelline chiare sono l'ultimo voto di ${firstNameOf(lesson)}: se va ancora bene non toccare niente. Tocca solo dove è cambiato.`
+                    : 'Tocca le stelline delle voci che vuoi valutare. Le altre restano «non valutate».'}
                 </Text>
               ) : null}
 
@@ -478,6 +498,7 @@ export default function ManageLessonDetailsScreen() {
                           <View style={s.pagellinoScaleRow}>
                             <StarRating
                               value={value}
+                              ghost={previous[item.id]?.score ?? null}
                               total={item.scaleMax}
                               tone="gold"
                               size={starSizeForScale(item.scaleMax)}
@@ -507,6 +528,12 @@ export default function ManageLessonDetailsScreen() {
                             />
                           </View>
                         )}
+                        {/* R2: da dove viene l'oro tenue (solo se l'allievo ha già un livello). */}
+                        {!isNa && Object.keys(previous).length > 0 ? (
+                          <Text style={[s.levelCaption, night && n.ink3]} numberOfLines={1}>
+                            {previousCaption(previous[item.id], item.scaleMax, !!scores[item.id])}
+                          </Text>
+                        ) : null}
                       </Animated.View>
                     );
                   })}
@@ -570,6 +597,7 @@ const s = StyleSheet.create({
     paddingBottom: SHADOW_ROOM,
   },
   pagellinoHint: { fontSize: 13, fontWeight: '500', color: CLAY.ink3 },
+  levelCaption: { fontSize: 13, fontWeight: '400', color: CLAY.ink4, marginTop: 4 },
   pagellinoLead: { fontSize: 14, fontWeight: '400', color: CLAY.ink3, lineHeight: 19, marginBottom: 14, paddingHorizontal: 2 },
   pagellinoItemTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   pagellinoLabel: { flex: 1, fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },

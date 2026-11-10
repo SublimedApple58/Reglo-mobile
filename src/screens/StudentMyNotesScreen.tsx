@@ -36,9 +36,10 @@ import { spacing } from '../theme/spacing';
 import { formatDay, formatTime } from '../utils/date';
 import { EXAM_TIME_TBD, examTimeIsTbd } from '../utils/examTime';
 import {
-  aggregateStudentEvaluations,
+  evaluationLevelDate,
   evaluationSummary,
   evaluationSummaryLabel,
+  studentEvaluationLevels,
 } from '../utils/evaluationSheet';
 
 const COMPACT_H = 44;
@@ -147,10 +148,10 @@ export const StudentMyNotesScreen = () => {
     loadData();
   }, [loadData]);
 
-  /** Media per voce su tutto lo storico: stesso aggregatore dell'istruttore,
-   *  quindi l'allievo legge esattamente i numeri che legge la scuola. */
+  /** R2 (Road novembre): il suo LIVELLO, l'ultimo voto di ogni voce. Stesso
+   *  calcolo della scheda istruttore: l'allievo legge i numeri della scuola. */
   const pagellino = useMemo(
-    () => aggregateStudentEvaluations(appointments),
+    () => studentEvaluationLevels(appointments),
     [appointments],
   );
 
@@ -392,12 +393,8 @@ export const StudentMyNotesScreen = () => {
                   style={({ pressed }) => [st.pagHeadRow, pressed && { opacity: 0.6 }]}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={st.pagLabel}>Pagellino</Text>
-                    <Text style={st.pagInsight}>
-                      {pagellino.lessonCount === 1
-                        ? '1 guida valutata'
-                        : `${pagellino.lessonCount} guide valutate`}
-                    </Text>
+                    <Text style={st.pagLabel}>Il tuo livello</Text>
+                    <Text style={st.pagInsight}>l'ultimo voto di ogni voce</Text>
                   </View>
                   <View style={st.sparkRow}>
                     {pagellino.items.slice(0, 6).map((item) => (
@@ -405,7 +402,7 @@ export const StudentMyNotesScreen = () => {
                         <View
                           style={[
                             st.sparkFill,
-                            { height: `${Math.max(12, (item.average / item.scaleMax) * 100)}%` },
+                            { height: `${Math.max(12, (item.score / item.scaleMax) * 100)}%` },
                           ]}
                         />
                       </View>
@@ -434,33 +431,21 @@ export const StudentMyNotesScreen = () => {
                 {pagellinoOpen ? (
                   <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)}>
                     {pagellino.items.map((item) => (
-                      <View key={item.itemId} style={st.pagRow}>
-                        <View style={st.pagRowTop}>
-                          <Text style={st.pagName} numberOfLines={1}>{item.label}</Text>
+                      <View key={item.itemId} style={[st.pagRow, st.levelRow]}>
+                        <Text style={[st.pagName, { flex: 1 }]} numberOfLines={2}>{item.label}</Text>
+                        <View style={st.levelRight}>
+                          <StarRating value={item.score} total={item.scaleMax} tone="gold" size={13} readOnly />
                           <Text style={st.pagVal}>
-                            <Text style={st.pagValNum}>
-                              {item.average.toFixed(1).replace('.', ',')}
-                            </Text>
-                            /{item.scaleMax} · {item.count === 1 ? '1 guida' : `${item.count} guide`}
+                            <Text style={st.pagValNum}>{item.score}</Text>/{item.scaleMax} · {evaluationLevelDate(item.lastAt)}
                           </Text>
-                        </View>
-                        <View style={st.pagTrack}>
-                          <View
-                            style={[
-                              st.pagFill,
-                              { width: `${(item.average / item.scaleMax) * 100}%` },
-                            ]}
-                          />
                         </View>
                       </View>
                     ))}
                     {pagellino.weakest ? (
                       <Text style={st.pagFoot}>
-                        Voce più bassa:{' '}
+                        Da allenare:{' '}
                         <Text style={st.pagFootStrong}>{pagellino.weakest.label}</Text>
-                        {` (${pagellino.weakest.average
-                          .toFixed(1)
-                          .replace('.', ',')}/${pagellino.weakest.scaleMax})`}
+                        {` (${pagellino.weakest.score}/${pagellino.weakest.scaleMax})`}
                       </Text>
                     ) : null}
                   </Animated.View>
@@ -523,12 +508,11 @@ const st = StyleSheet.create({
   pagBigNum: { fontSize: 22, fontWeight: '700', color: '#111111', letterSpacing: -0.5 },
   pagBigTot: { fontSize: 15, fontWeight: '600', color: '#929292' },
   pagRow: { marginTop: 14 },
-  pagRowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   pagName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#111111' },
   pagVal: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
   pagValNum: { fontSize: 13, fontWeight: '700', color: '#111111' },
-  pagTrack: { height: 6, borderRadius: 3, backgroundColor: '#EFEFF2', marginTop: 7, overflow: 'hidden' },
-  pagFill: { height: '100%', borderRadius: 3, backgroundColor: '#FACC15' },
+  levelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  levelRight: { alignItems: 'flex-end' },
   pagFoot: { fontSize: 12.5, fontWeight: '500', color: colors.textMuted, marginTop: 16 },
   pagFootStrong: { fontWeight: '600', color: '#111111' },
 
