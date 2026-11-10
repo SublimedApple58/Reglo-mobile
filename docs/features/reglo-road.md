@@ -23,6 +23,7 @@ Anteprime approvate: `/tmp/hiro-anteprime/reg-638/` (mobile-1…7, allievo-1).
 |---|---|
 | Tipi Road | `src/types/regloApi.ts` (`RoadState`, `RoadSessionWithLesson`, `RoadDetail`, `RoadMarker`, `RoadPoint`, …) |
 | Endpoint | `src/services/regloApi.ts` (`getRoadState`, `startRoadSession`, `getRoadSession`, `sendRoadPoints`, `addRoadMarker`, `removeRoadMarker`, `endRoadSession`, `getRoadForAppointment`) |
+| Scheda allievo dalla guida (R5) | `app/road/allievo.tsx` + fogli della scheda re-esportati in `app/road/` (vedi `docs/features/dettaglio-allievo.md` › «Aperta da Road») |
 | Hook interruttore | `src/hooks/useRoadEnabled.ts` |
 | Entry (task GPS definito prima dell'app) | `entry.ts` (`package.json` `main`) |
 | Task GPS + start/stop | `src/road/tracking.ts` |

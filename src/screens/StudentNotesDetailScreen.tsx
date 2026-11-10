@@ -48,6 +48,8 @@ import { impactAsync, ImpactFeedbackStyle } from '../utils/haptics';
 import { LessonHistoryRow } from '../components/student/LessonHistoryRow';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { openRoadPercorso } from '../road/openRoadPercorso';
+import { studentSheetHref, studentSheetStack } from '../utils/studentSheetRoute';
+
 import { forgetRoadStudent, prefetchRoadStudent } from '../road/avvioFlow';
 import { ROAD_ASSETS } from '../road/markerArt';
 import type { RoadStudentItem } from '../types/regloApi';
@@ -356,8 +358,8 @@ export const StudentNotesDetailScreen = () => {
           }
         },
       });
-      const stack = segments[1] === 'notes' ? 'notes' : 'home';
-      router.push(`/(tabs)/${stack}/manage-lesson-details`);
+      const stack = studentSheetStack(segments);
+      router.push(studentSheetHref(stack, 'manage-lesson-details') as never);
     },
     [loadData, router, segments, showError],
   );
@@ -400,9 +402,9 @@ export const StudentNotesDetailScreen = () => {
         applyDefaultLocation(!v || v === SEDE_OPTION ? null : v);
       },
     });
-    const stack = segments[1] === 'notes' ? 'notes' : 'home';
+    const stack = studentSheetStack(segments);
     const long = custom.length + 1 > LONG_PICKER_THRESHOLD;
-    router.push(`/(tabs)/${stack}/select-options${long ? '-long' : ''}`);
+    router.push(studentSheetHref(stack, `select-options${long ? '-long' : ''}`) as never);
   }, [locations, defaultLocationId, applyDefaultLocation, router, segments]);
 
   // REG-705: con «Disponibilità per luogo» accesa (≥ 2 luoghi) la riga apre il
@@ -434,8 +436,8 @@ export const StudentNotesDetailScreen = () => {
         }
       },
     });
-    const stack = segments[1] === 'notes' ? 'notes' : 'home';
-    router.push(`/(tabs)/${stack}/student-locations`);
+    const stack = studentSheetStack(segments);
+    router.push(studentSheetHref(stack, 'student-locations') as never);
   }, [name, locations, locationIds, defaultLocationId, studentId, router, segments, showError]);
 
   const locationsLabel = useMemo(() => {
@@ -491,8 +493,8 @@ export const StudentNotesDetailScreen = () => {
           ? { label: defaultLocationName ?? 'Sede dell\u2019autoscuola', onPress: openLocationPicker }
           : null,
     });
-    const stack = segments[1] === 'notes' ? 'notes' : 'home';
-    router.push(`/(tabs)/${stack}/student-settings`);
+    const stack = studentSheetStack(segments);
+    router.push(studentSheetHref(stack, 'student-settings') as never);
   }, [
     name, groupEnabled, groupOptIn, groupSaving, studentPhase, examReady, examReadySaving,
     locations.length, defaultLocationName, openLocationPicker, studentId, router, segments, showError,
@@ -519,8 +521,8 @@ export const StudentNotesDetailScreen = () => {
       canManagePayments: canManageLessonPayments(autoscuolaRole),
       onChanged: loadData,
     });
-    const stack = segments[1] === 'notes' ? 'notes' : 'home';
-    router.push(`/(tabs)/${stack}/student-payments`);
+    const stack = studentSheetStack(segments);
+    router.push(studentSheetHref(stack, 'student-payments') as never);
   }, [
     name, allAppointments, paymentSettings, autoscuolaRole,
     loadData, router, segments,
@@ -675,7 +677,8 @@ export const StudentNotesDetailScreen = () => {
     return { upcoming: up, past: done };
   }, [appointments]);
 
-  const stackName = segments[1] === 'notes' ? 'notes' : 'home';
+  // R5: aperta da Road i fogli restano nello stack `/road`.
+  const stackName = studentSheetStack(segments);
   const openRoad = useCallback(
     (appointmentId: string) => openRoadPercorso(router, stackName, appointmentId),
     [router, stackName],
@@ -697,7 +700,7 @@ export const StudentNotesDetailScreen = () => {
   }, [fullName, upcoming, past, roadByLesson, outcomeSavingId, openDetails, recordOutcome, openRoad]);
 
   const openHistory = useCallback(
-    (kind: 'upcoming' | 'past') => router.push(`/(tabs)/${stackName}/lesson-history?kind=${kind}`),
+    (kind: 'upcoming' | 'past') => router.push(`${studentSheetHref(stackName, 'lesson-history')}?kind=${kind}` as never),
     [router, stackName],
   );
   const showSettings = groupEnabled || studentPhase === 'PRATICA' || locations.length > 0;
@@ -821,7 +824,7 @@ export const StudentNotesDetailScreen = () => {
               }
               trailing={<Icon3D source={ROAD_ASSETS.road} size={46} />}
               onPress={() =>
-                router.push({ pathname: `/(tabs)/${stackName}/road-allievo` as never, params: { studentId: String(studentId), name: fullName } })
+                router.push({ pathname: studentSheetHref(stackName, 'road-allievo') as never, params: { studentId: String(studentId), name: fullName } })
               }
               testID="student-road-row"
             />

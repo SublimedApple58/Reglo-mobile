@@ -2,6 +2,7 @@ import type { Router } from 'expo-router';
 import { regloApi } from '../services/regloApi';
 import type { RoadDetail } from '../types/regloApi';
 import { roadRouteMapStore, type RoadPercorsoPending } from './routeMapStore';
+import { studentSheetHref, type StudentSheetStack } from '../utils/studentSheetRoute';
 
 /** Percorsi già aperti: riaprirli è immediato (una guida finita non cambia). */
 const cache = new Map<string, RoadDetail>();
@@ -42,7 +43,7 @@ async function load(appointmentId: string, hint: RoadPercorsoPending['hint']) {
  */
 export function openRoadPercorso(
   router: Router,
-  stack: 'home' | 'notes' | 'drive',
+  stack: StudentSheetStack,
   appointmentId: string,
   preloaded?: RoadDetail | null,
   hint?: RoadPercorsoPending['hint'],
@@ -54,7 +55,7 @@ export function openRoadPercorso(
   } else {
     void load(appointmentId, hint ?? null);
   }
-  router.push(`/(tabs)/${stack}/road-percorso`);
+  router.push(studentSheetHref(stack, 'road-percorso') as never);
 }
 
 /** «Riprova» dal foglio in errore. */

@@ -12,6 +12,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
+import { studentSheetHref, studentSheetStack } from '../utils/studentSheetRoute';
+
 
 import { impactAsync, ImpactFeedbackStyle, notificationAsync, NotificationFeedbackType } from '../utils/haptics';
 import { FormSheet, useSheetAnticipate } from '../components/SheetScaffold';
@@ -350,7 +352,7 @@ type RowModel = {
 export const StudentPaymentsScreen = () => {
   const router = useRouter();
   const segments = useSegments();
-  const stack = (segments as string[]).includes('notes') ? 'notes' : 'home';
+  const stack = studentSheetStack(segments as string[]);
   const data = useSyncExternalStore(studentPaymentsStore.subscribe, studentPaymentsStore.get);
 
   // REG-639 «memorabile»: si apre su ciò che c'è da fare. Con guide da pagare
@@ -617,7 +619,7 @@ export const StudentPaymentsScreen = () => {
             }
           : null,
       });
-      router.push(`/(tabs)/${stack}/payment-history`);
+      router.push(studentSheetHref(stack, 'payment-history') as never);
     },
     [applyStatus, router, stack],
   );

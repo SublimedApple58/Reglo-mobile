@@ -42,3 +42,11 @@ seed `src/stores/studentLocationsStore.ts`, route in `home/` e `notes/`, `FORM_S
   La scheda si aggiorna sulla risposta del backend (niente optimistic update).
 - API: `regloApi.setStudentLocations` → `PUT /api/autoscuole/students/[id]/locations`;
   `StudentProfile.locationIds`. Spenta la funzione, resta il picker del luogo di default.
+
+## Aperta da Road (Road novembre R5, Tiziano 10/11/2026)
+
+In guida il volto e il nome dell'allievo nel pannello di Road (`app/road/index.tsx`, `road-student`) aprono **questa stessa scheda, completa** (contatti, pagamenti, impostazioni, luoghi, Road, storico), come form sheet sopra la mappa: il GPS è un task in background e la mappa resta montata sotto, quindi la guida continua.
+
+- Rotta: `app/road/allievo.tsx` (re-export di `home/student-detail`).
+- **Navigazione**: `RoadController` riporta alla mappa tutto ciò che si apre fuori dallo stack `/road`. Per questo ogni foglio che la scheda apre è registrato **anche** in `app/road/_layout.tsx` (stesse presentazioni della home): `lesson-history`, `manage-lesson-details`, `student-settings`, `student-payments`, `payment-history`, `student-locations`, `select-options(-long)`, `road-allievo`, `road-percorso`, `road-segnalazioni`, `road-map`. Le rotte si costruiscono con `src/utils/studentSheetRoute.ts` (`studentSheetStack(segments)` → `home` | `notes` | `drive` | `road`; `studentSheetHref(stack, name)`), usato da questa scheda, `StudentPaymentsScreen`, `StudentRoadSheet`, `road-percorso` e `openRoadPercorso`. **Un foglio nuovo aperto dalla scheda va registrato anche in `/road`.**
+- **Notte**: questi fogli non hanno una variante scura; dentro Road sono avvolti in `dayOnly` (`src/road/daySheet.tsx`, `SheetNightContext` = false) e restano chiari anche quando Road è in notte.

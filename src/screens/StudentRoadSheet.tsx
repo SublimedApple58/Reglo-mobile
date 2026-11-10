@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, InteractionManager, Platform, StyleSheet, Text, View } from 'react-native';
 import MapView from 'react-native-maps';
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
+import { studentSheetHref, studentSheetStack } from '../utils/studentSheetRoute';
+
 import Animated from 'react-native-reanimated';
 
 import { FormSheet } from '../components/SheetScaffold';
@@ -51,7 +53,7 @@ type Row = { kind: 'guide'; item: RoadStudentItem } | { kind: 'more'; count: num
 export function StudentRoadSheet() {
   const router = useRouter();
   const segments = useSegments() as string[];
-  const stack = segments[1] === 'notes' ? 'notes' : 'home';
+  const stack = studentSheetStack(segments);
   const { studentId, name } = useLocalSearchParams<{ studentId: string; name?: string }>();
   const sid = studentId ? String(studentId) : null;
   const { data, failed } = useRoadStudentState(sid);

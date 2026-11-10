@@ -5,6 +5,8 @@ import { ClayButton, ClayStat } from '../../../src/components/clay';
 import { SkeletonBlock } from '../../../src/components/Skeleton';
 import { CLAY, CLAY_SHADOW } from '../../../src/theme';
 import { useRouter, useSegments } from 'expo-router';
+import { studentSheetHref, studentSheetStack } from '../../../src/utils/studentSheetRoute';
+
 
 import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
 import { RoadMarkerList, toMarkerItem } from '../../../src/components/road/RoadMarkerList';
@@ -28,7 +30,7 @@ const MAX_MARKERS = 3;
 export default function RoadPercorsoSheet() {
   const router = useRouter();
   const segments = useSegments() as string[];
-  const stack = segments[1] === 'notes' ? 'notes' : segments[1] === 'drive' ? 'drive' : 'home';
+  const stack = studentSheetStack(segments);
   const live = useSyncExternalStore(roadRouteMapStore.subscribe, roadRouteMapStore.get);
   const pending = useSyncExternalStore(roadRouteMapStore.subscribe, roadRouteMapStore.pending);
   // Arrivati, i dati restano fermi finché il foglio è aperto (la mappa grande
@@ -96,7 +98,7 @@ export default function RoadPercorsoSheet() {
 
       <View>
         <Pressable
-          onPress={() => router.push(`/(tabs)/${stack}/road-map`)}
+          onPress={() => router.push(studentSheetHref(stack, 'road-map') as never)}
           accessibilityRole="button"
           accessibilityLabel="Apri la mappa"
           testID="road-percorso-map"
@@ -119,7 +121,7 @@ export default function RoadPercorsoSheet() {
             <RoadMarkerList items={shown.map(toMarkerItem)} />
             {more > 0 ? (
               <Pressable
-                onPress={() => router.push(`/(tabs)/${stack}/road-segnalazioni`)}
+                onPress={() => router.push(studentSheetHref(stack, 'road-segnalazioni') as never)}
                 style={({ pressed }) => [s.allRow, pressed && { opacity: 0.6 }]}
                 accessibilityRole="button"
                 testID="road-percorso-all"

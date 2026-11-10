@@ -1931,11 +1931,32 @@ const LivePanel = React.memo(function LivePanel({
       onLayout={(e) => onLayoutH(e.nativeEvent.layout.height)}
     >
       <View style={s.who}>
-        <Avatar userId={lesson.student?.id} name={lessonName} size={42} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[s.name, night && ns.ink]} numberOfLines={1}>{lessonName}</Text>
-          <LiveStatusRow range={driveEnd ? formatHm(driveEnd) : formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} night={night} />
-        </View>
+        {/* Road novembre R5: volto e nome aprono la scheda allievo (la stessa
+            della home, completa) sopra la mappa; la guida continua sotto. */}
+        <Pressable
+          onPress={() => {
+            const id = lesson.student?.id;
+            if (!id) return;
+            router.push({ pathname: '/road/allievo' as never, params: { studentId: id, name: lessonName } });
+          }}
+          disabled={!lesson.student?.id}
+          style={({ pressed }) => [s.whoTap, pressed && { opacity: 0.6 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`Scheda di ${lessonName}`}
+          hitSlop={6}
+          testID="road-student"
+        >
+          <Avatar userId={lesson.student?.id} name={lessonName} size={42} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={s.nameRow}>
+              <Text style={[s.name, night && ns.ink, { flexShrink: 1 }]} numberOfLines={1}>{lessonName}</Text>
+              {lesson.student?.id ? (
+                <Ionicons name="chevron-forward" size={14} color={night ? NIGHT.ink3 : CLAY.chevron} style={s.nameChevron} />
+              ) : null}
+            </View>
+            <LiveStatusRow range={driveEnd ? formatHm(driveEnd) : formatRange(lesson.startsAt, lesson.endsAt)} minutes={formatMinutes(elapsedSec)} night={night} />
+          </View>
+        </Pressable>
         {/* Giro Road (Tiziano 28/10): le note si prendono anche durante la guida. */}
         <Pressable
           onPress={onNotes}
@@ -2183,6 +2204,9 @@ const s = StyleSheet.create({
   },
   who: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
   name: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
+  whoTap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  nameChevron: { marginLeft: 3, marginTop: 1 },
   liveRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#E5484D', marginRight: 6 },
   liveTx: { fontSize: 13.5, fontWeight: '500', color: CLAY.ink3, flexShrink: 1 },
