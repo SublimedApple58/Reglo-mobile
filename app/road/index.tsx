@@ -1795,7 +1795,9 @@ function ExamTryCard({ top }: { top: number }) {
   const [busy, setBusy] = useState(false);
   if (!id || !stop) return null;
   const r = examRoutesStore.route(id);
-  const sub = r ? [`${formatKm(r.lengthMeters)} km`, r.examSite].filter(Boolean).join(' · ') : 'Percorso d\'esame';
+  const km = r ? `${formatKm(r.lengthMeters)} km` : null;
+  // «Parte da Via … · 1,6 km» (Tiziano 10/11/2026); senza via, km e luogo.
+  const sub = !r ? 'Percorso d\'esame' : r.startStreet ? `Parte da ${r.startStreet} · ${km}` : [km, r.examSite].filter(Boolean).join(' · ');
   return (
     <RoadToastFrame style={[s.stack, s.tryCard, CLAY_SHADOW.raise, { top }]}>
       <View style={{ flex: 1, minWidth: 0 }}>

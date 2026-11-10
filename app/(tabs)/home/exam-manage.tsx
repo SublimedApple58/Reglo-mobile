@@ -26,6 +26,9 @@ const MO = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott'
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmtDay = (iso: string) => { const d = new Date(iso); return `${WD[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}`; };
 const fmtTime = (iso: string) => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+/** «a tutti e due», «a tutti e tre»…: in lettere fino a dieci. */
+const COUNT_WORDS = ['', 'uno', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove', 'dieci'];
+const countWord = (n: number) => COUNT_WORDS[n] ?? String(n);
 // Studentless placeholder row for an exam created before its participants are
 // known (backend keeps it so the empty slot survives). Never shown as a student.
 const isExamPlaceholder = (a: AutoscuolaAppointmentWithRelations) =>
@@ -382,7 +385,7 @@ export default function ExamManageScreen() {
             <Text style={s.heroTitle}>Registra il percorso dell'esame</Text>
             {realAppts.length > 0 ? (
               <Text style={s.heroSub}>
-                {realAppts.length === 1 ? 'In bocca al lupo.' : `In bocca al lupo a tutti e ${realAppts.length}.`}
+                {realAppts.length === 1 ? 'In bocca al lupo.' : `In bocca al lupo a tutti e ${countWord(realAppts.length)}.`}
               </Text>
             ) : null}
           </View>
@@ -436,7 +439,7 @@ export default function ExamManageScreen() {
         // REG-639 «vita»: due parole gentili prima dell'esame.
         footnote={
           !readOnly && !roadExamToday && realAppts.length > 0
-            ? realAppts.length === 1 ? 'In bocca al lupo.' : `In bocca al lupo a tutti e ${realAppts.length}.`
+            ? realAppts.length === 1 ? 'In bocca al lupo.' : `In bocca al lupo a tutti e ${countWord(realAppts.length)}.`
             : undefined
         }
         action={

@@ -2041,6 +2041,8 @@ export type RoadExamRoute = {
   origin?: 'drawn' | 'exam';
   /** R4: quando si è svolto l'esame registrato. */
   examAt?: string | null;
+  /** R4: via del primo punto («Parte da Via …»); null se non trovata. */
+  startStreet?: string | null;
   createdAt?: string;
 };
 
