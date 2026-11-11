@@ -1764,6 +1764,13 @@ export type RoadStudentHotspot = {
   lastCheck?: { outcome: RoadHotspotOutcome; at: string } | null;
   /** REG-677: open = da lavorare, improving = l'ultima volta meglio, overcome = superato. */
   status?: 'open' | 'improving' | 'overcome';
+  /** Fix road-fix-allievo: ripetuto in almeno 2 guide (false = solo dall'ultima guida). Assente dai backend precedenti. */
+  repeated?: boolean;
+  /** Ha segnalazioni dell'ultima guida con l'allievo (solo in guida, da `getRoadPlan`). */
+  lastGuide?: boolean;
+  /** Zona: lunghezza (50 | 100 | 200) e tratto della zona più recente del punto; null/assente = punto. */
+  extentM?: number | null;
+  extent?: Array<[number, number]> | null;
 };
 
 /** REG-677: com'è andata ripassando sul punto critico. */

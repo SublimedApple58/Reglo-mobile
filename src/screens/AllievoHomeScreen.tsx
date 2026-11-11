@@ -40,7 +40,7 @@ import {
   GroupLessonInvite,
 } from '../types/regloApi';
 import { ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
-import { Avatar, ClayButton, ClayIconButton, ClayPressable } from '../components/clay';
+import { ClayButton, ClayIconButton } from '../components/clay';
 import { CLAY } from '../theme/clay';
 import {
   bookingExceptionCases,
@@ -1846,17 +1846,12 @@ export const AllievoHomeScreen = () => {
         title={firstName}
         scrollY={scrollY}
         actions={
-          <>
-            <ClayIconButton
-              icon={<Ionicons name="notifications-outline" size={21} color={CLAY.ink} />}
-              onPress={() => router.push('/(tabs)/home/notifications')}
-              accessibilityLabel={unreadNotifCount > 0 ? `Notifiche, ${unreadNotifCount} da leggere` : 'Notifiche'}
-              testID="home-bell"
-            />
-            <ClayPressable kind="small" onPress={() => router.push('/(tabs)/more')} accessibilityRole="button" accessibilityLabel="Il tuo profilo">
-              <Avatar userId={user?.id ?? null} name={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName ?? ''}` : firstName} size={40} />
-            </ClayPressable>
-          </>
+          <ClayIconButton
+            icon={<Ionicons name="notifications-outline" size={21} color={CLAY.ink} />}
+            onPress={() => router.push('/(tabs)/home/notifications')}
+            accessibilityLabel={unreadNotifCount > 0 ? `Notifiche, ${unreadNotifCount} da leggere` : 'Notifiche'}
+            testID="home-bell"
+          />
         }
       />
 

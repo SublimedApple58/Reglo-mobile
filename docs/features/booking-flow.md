@@ -77,3 +77,7 @@ Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, Bookin
 - **Notifications** — booking success can trigger proposal/confirmation
 - **Settings** — booking governance (limits, cutoff, actors) configured in settings
 - **Backend** — `docs/features/booking-engine.md` in `../reglo/`
+
+## Intestazione della home (11/11/2026)
+
+In alto a destra solo la campanella (`home-bell`). Tolto il volto dell'allievo: apriva la tab «Altro» (`/(tabs)/more`), nascosta all'allievo, e lasciava la barra senza voce selezionata. Profilo, impostazioni ed «Esci» restano nella tab Profilo (`SettingsScreen`).

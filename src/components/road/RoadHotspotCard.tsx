@@ -47,7 +47,7 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
     alert.phase === 'ahead'
       ? `Tra ${d.value} ${d.unit}${h.street ? ` · ${h.street}` : ''}`
       : alert.phase === 'at'
-        ? `Ci sei${h.street ? ` · ${h.street}` : ''}`
+        ? `${h.extentM ? 'Sei nella zona' : 'Ci sei'}${h.street ? ` · ${h.street}` : ''}`
         : 'Com’è andata questa volta?';
   const status = hotspotStatusLine(h);
   const progress = alert.phase === 'ahead' ? Math.max(0, Math.min(1, 1 - alert.meters / HOTSPOT_AHEAD_M)) : 1;
@@ -63,7 +63,7 @@ export const RoadHotspotCard = React.memo(function RoadHotspotCard({
           <Animated.Text key={alert.phase} entering={ROAD_TEXT_IN} style={s.t1} numberOfLines={1}>
             {top}
           </Animated.Text>
-          <Text style={s.t2} numberOfLines={1}>{h.label}</Text>
+          <Text style={s.t2} numberOfLines={1}>{h.extentM ? `${h.label} · tratto ${h.extentM} m` : h.label}</Text>
           {/* Note e stato lunghi: toccandoli si leggono per intero (Tiziano 31/10). */}
           <ExpandableText text={hotspotLine(h)} numberOfLines={2} style={s.t3} testID="road-hotspot-note" />
           {status ? <ExpandableText text={status} numberOfLines={1} style={s.t4} testID="road-hotspot-status" /> : null}

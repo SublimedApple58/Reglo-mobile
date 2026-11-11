@@ -34,7 +34,7 @@ export type RoadGuide = {
 };
 
 /** Massimo di punti dell'allievo sulla mappa: posti fissi in MapView (crash AIRMap). */
-export const GUIDE_HOTSPOT_SLOTS = 8;
+export const GUIDE_HOTSPOT_SLOTS = 12;
 /** Sulla linea se entro tanti metri da un suo vertice: la parte prima si attenua. */
 export const GUIDE_ON_LINE_M = 50;
 /** Quanti vertici avanti si cercano a ogni punto GPS (la linea è semplificata a ~10 m). */
@@ -65,8 +65,14 @@ export function advanceOnLine(line: LatLngTuple[], passed: number, point: { lat:
 }
 
 /** Le punte dei punti critici per la mappa (i più ripetuti). */
+/**
+ * I punti in guida: prima quelli con errori dell'ultima guida (tutti, anche
+ * segnati una volta), poi i ripetuti; a pari gruppo i più frequenti.
+ */
 export function guideHotspots(list: RoadStudentHotspot[] | null | undefined): RoadStudentHotspot[] {
-  return [...(list ?? [])].sort((a, b) => b.errors - a.errors).slice(0, GUIDE_HOTSPOT_SLOTS);
+  return [...(list ?? [])]
+    .sort((a, b) => Number(!!b.lastGuide) - Number(!!a.lastGuide) || b.errors - a.errors)
+    .slice(0, GUIDE_HOTSPOT_SLOTS);
 }
 
 const loading = new Set<string>();

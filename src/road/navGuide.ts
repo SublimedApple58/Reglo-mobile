@@ -261,10 +261,14 @@ export function navState(input: {
 
 // ─── Punti critici: avviso anticipato e ripasso ────────────────────────────
 
-/** Da quanto prima compare la card (in linea d'aria). */
+/** Da quanto prima compare la card (in linea d'aria; per una zona, dal tratto). */
 export const HOTSPOT_AHEAD_M = 180;
-/** Entro tanti metri si è «sul punto»: compaiono «Meglio» / «Ancora no». */
-export const HOTSPOT_AT_M = 45;
+/** Entro tanti metri dal centro si è «sul punto»: compaiono «Meglio» / «Ancora no». */
+export const HOTSPOT_AT_M = 40;
+/** Entro tanti metri dal tratto si è «dentro la zona». */
+export const HOTSPOT_ZONE_AT_M = 25;
+/** Zona senza tratto (non ancora calcolato): dentro se entro metà lunghezza + tanto dal centro. */
+const HOTSPOT_ZONE_FALLBACK_M = 20;
 /**
  * Passati accanto: il centro del punto è una media delle segnalazioni e la
  * strada può passarci a qualche decina di metri. Arrivati entro tanto e poi
@@ -275,8 +279,12 @@ export const HOTSPOT_PASS_M = 100;
 export const HOTSPOT_DECIDE_MS = 20_000;
 /** Allontanati di tanto senza esserci passati: l'avviso si chiude. */
 const HOTSPOT_AWAY_M = 260;
-/** Lo stesso punto riavvisa solo dopo essersene allontanati di tanto. */
-const HOTSPOT_REARM_M = 500;
+/** Fine del passaggio: oltre tanti metri dal punto... */
+export const HOTSPOT_REARM_M = 150;
+/** ...e almeno tanto dopo la chiusura della card: avvicinamento e «sopra» si riarmano. */
+export const HOTSPOT_REARM_MS = 45_000;
+/** Lo stesso avviso (avvicinamento o «sopra») sullo stesso punto non torna prima di tanto. */
+export const HOTSPOT_COOLDOWN_MS = 60_000;
 
 export type HotspotPhase = 'ahead' | 'at' | 'decide';
 
@@ -292,13 +300,76 @@ export type HotspotAlert = {
   decided?: boolean;
 };
 
-export type HotspotWatch = {
-  alert: HotspotAlert | null;
-  /** Punti già avvisati: chiave → si riarma dopo essersene allontanati. */
-  armed: Record<string, boolean>;
+/**
+ * Un punto in questo passaggio. Due inneschi separati: l'avvicinamento (180 m)
+ * e il «sopra» (40 m dal centro, 25 m dal tratto di una zona). Il «sopra»
+ * scatta anche se l'avvicinamento è già stato mostrato e chiuso. Il passaggio
+ * finisce oltre 150 m e 45 s dopo la chiusura della card: si riarmano entrambi.
+ */
+export type HotspotSeen = {
+  ahead: boolean;
+  at: boolean;
+  /** Quando si è chiusa l'ultima card del punto (null = ancora aperta). */
+  closedAt: number | null;
+  /** Ultimo avviso di ciascun tipo (ms), per il cooldown: resta dopo il riarmo. */
+  aheadAt: number | null;
+  atAt: number | null;
 };
 
-export const EMPTY_HOTSPOT_WATCH: HotspotWatch = { alert: null, armed: {} };
+export type HotspotWatch = {
+  alert: HotspotAlert | null;
+  /** Punti avvisati in questo passaggio (chiave → stato). */
+  seen: Record<string, HotspotSeen>;
+};
+
+export const EMPTY_HOTSPOT_WATCH: HotspotWatch = { alert: null, seen: {} };
+
+/** Distanza in metri da un punto a una linea [lat, lng][] (proiezione locale). */
+export function distanceToLineMeters(lat: number, lng: number, line: LatLngTuple[]): number {
+  if (line.length === 1) return haversineMeters(lat, lng, line[0][0], line[0][1]);
+  const kx = M_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180);
+  let best = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const ax = (line[i - 1][1] - lng) * kx;
+    const ay = (line[i - 1][0] - lat) * M_PER_DEG_LAT;
+    const bx = (line[i][1] - lng) * kx;
+    const by = (line[i][0] - lat) * M_PER_DEG_LAT;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2));
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return best;
+}
+
+/** Distanza dal punto critico: dal tratto se è una zona disegnata, altrimenti dal centro. */
+export function hotspotDistance(h: RoadStudentHotspot, p: { lat: number; lng: number }): number {
+  const center = haversineMeters(p.lat, p.lng, h.lat, h.lng);
+  if (h.extentM && h.extent && h.extent.length >= 2) return Math.min(center, distanceToLineMeters(p.lat, p.lng, h.extent));
+  return center;
+}
+
+/** Entro tanti metri (da `hotspotDistance`) si è sul punto o dentro la zona. */
+export function hotspotAtRadius(h: RoadStudentHotspot): number {
+  if (!h.extentM) return HOTSPOT_AT_M;
+  if (h.extent && h.extent.length >= 2) return HOTSPOT_ZONE_AT_M;
+  return h.extentM / 2 + HOTSPOT_ZONE_FALLBACK_M;
+}
+
+const cooled = (last: number | null, t: number) => last == null || t - last >= HOTSPOT_COOLDOWN_MS;
+
+/**
+ * La card si chiude (da sola o dalla schermata): da qui partono i 45 s del
+ * riarmo. Restituisce lo stesso oggetto se la card aperta non è quella.
+ */
+export function closeHotspotWatch(watch: HotspotWatch, key: string | undefined, t: number): HotspotWatch {
+  const cur = watch.alert;
+  if (!cur || (key && cur.hotspot.key !== key)) return watch;
+  const k = cur.hotspot.key;
+  const prev = watch.seen[k];
+  return { alert: null, seen: prev ? { ...watch.seen, [k]: { ...prev, closedAt: t } } : watch.seen };
+}
 
 /**
  * Un punto GPS: apre, aggiorna o chiude la card del punto critico. Restituisce
@@ -311,55 +382,82 @@ export function stepHotspotWatch(
   p: { lat: number; lng: number; t: number },
 ): HotspotWatch {
   let { alert } = watch;
-  let armed = watch.armed;
-  const rearm = (key: string, on: boolean) => {
-    if ((armed[key] ?? true) === on) return;
-    armed = { ...armed, [key]: on };
+  let seen = watch.seen;
+  const patch = (key: string, next: HotspotSeen) => {
+    seen = { ...seen, [key]: next };
   };
+  const openKey = alert?.hotspot.key ?? null;
 
-  // Punti già avvisati: si riarmano lontano da loro.
+  // Fine del passaggio: lontani e card chiusa da un po' → avvicinamento e «sopra» di nuovo pronti.
   for (const h of hotspots) {
-    if (armed[h.key] === false && haversineMeters(p.lat, p.lng, h.lat, h.lng) > HOTSPOT_REARM_M) rearm(h.key, true);
+    const st = seen[h.key];
+    if (!st || (!st.ahead && !st.at) || h.key === openKey || st.closedAt == null) continue;
+    if (p.t - st.closedAt >= HOTSPOT_REARM_MS && hotspotDistance(h, p) > HOTSPOT_REARM_M) {
+      patch(h.key, { ...st, ahead: false, at: false });
+    }
   }
+  const done = (next: HotspotAlert | null) =>
+    next === watch.alert && seen === watch.seen ? watch : { alert: next, seen };
 
-  if (alert?.decided) return armed === watch.armed ? watch : { alert, armed };
+  if (alert?.decided) return done(alert);
   if (alert) {
     const h = alert.hotspot;
-    const d = haversineMeters(p.lat, p.lng, h.lat, h.lng);
+    const d = hotspotDistance(h, p);
+    const atR = hotspotAtRadius(h);
     const minMeters = Math.min(alert.minMeters, d);
     if (alert.phase === 'ahead') {
-      if (d <= HOTSPOT_AT_M) alert = { ...alert, phase: 'at', meters: d, minMeters };
-      else if (minMeters <= HOTSPOT_PASS_M && d > minMeters + 15) {
+      if (d <= atR) {
+        alert = { ...alert, phase: 'at', meters: d, minMeters };
+        const st = seen[h.key];
+        if (st) patch(h.key, { ...st, at: true, atAt: p.t });
+      } else if (minMeters <= HOTSPOT_PASS_M && d > minMeters + 15) {
         alert = { ...alert, phase: 'decide', meters: d, minMeters, leftAt: p.t };
       } else if (d > minMeters + HOTSPOT_AWAY_M || d > HOTSPOT_AHEAD_M + HOTSPOT_AWAY_M) alert = null;
       else if (Math.round(d / 10) !== Math.round(alert.meters / 10)) alert = { ...alert, meters: d, minMeters };
     } else if (alert.phase === 'at') {
-      // Passato il punto: si decide (la card resta 15 s).
-      if (d > HOTSPOT_AT_M + 10) alert = { ...alert, phase: 'decide', meters: d, minMeters, leftAt: p.t };
+      // Passato il punto (o uscito dalla zona): si decide (la card resta 20 s).
+      if (d > atR + 10) alert = { ...alert, phase: 'decide', meters: d, minMeters, leftAt: p.t };
     } else if (alert.leftAt != null && p.t - alert.leftAt > HOTSPOT_DECIDE_MS) {
       alert = null;
     }
-    return alert === watch.alert && armed === watch.armed ? watch : { alert, armed };
+    if (!alert) {
+      const st = seen[h.key];
+      if (st) patch(h.key, { ...st, closedAt: p.t });
+    }
+    return done(alert);
   }
 
-  // Nessuna card: il punto armato più vicino entro 180 m.
-  let best: { h: RoadStudentHotspot; d: number } | null = null;
+  // Nessuna card: prima un «sopra» (il più vicino), poi un avvicinamento entro 180 m.
+  let at: { h: RoadStudentHotspot; d: number } | null = null;
+  let ahead: { h: RoadStudentHotspot; d: number } | null = null;
   for (const h of hotspots) {
-    if (armed[h.key] === false) continue;
-    const d = haversineMeters(p.lat, p.lng, h.lat, h.lng);
-    if (d <= HOTSPOT_AHEAD_M && (!best || d < best.d)) best = { h, d };
+    const d = hotspotDistance(h, p);
+    if (d > HOTSPOT_AHEAD_M) continue;
+    const st = seen[h.key];
+    if (d <= hotspotAtRadius(h)) {
+      if (!st?.at && cooled(st?.atAt ?? null, p.t) && (!at || d < at.d)) at = { h, d };
+    } else if (!st?.ahead && !st?.at && cooled(st?.aheadAt ?? null, p.t) && (!ahead || d < ahead.d)) {
+      ahead = { h, d };
+    }
   }
+  const best = at ?? ahead;
   if (best) {
-    rearm(best.h.key, false);
+    const st: HotspotSeen = seen[best.h.key] ?? { ahead: false, at: false, closedAt: null, aheadAt: null, atAt: null };
+    patch(
+      best.h.key,
+      at
+        ? { ...st, ahead: true, at: true, closedAt: null, atAt: p.t }
+        : { ...st, ahead: true, closedAt: null, aheadAt: p.t },
+    );
     alert = {
       hotspot: best.h,
-      phase: best.d <= HOTSPOT_AT_M ? 'at' : 'ahead',
+      phase: at ? 'at' : 'ahead',
       meters: best.d,
       minMeters: best.d,
       leftAt: null,
     };
   }
-  return alert === watch.alert && armed === watch.armed ? watch : { alert, armed };
+  return done(alert);
 }
 
 /** La frase della card: la nota dell'istruttore, o tipo e quante volte. */

@@ -22,7 +22,7 @@ import {
 } from './planAlerts';
 import { INITIAL_REROUTE, remainingStops, stepReroute, type RerouteState } from './reroute';
 import { advanceOnLine, type RoadGuide } from './roadGuide';
-import { EMPTY_HOTSPOT_WATCH, stepHotspotWatch, type HotspotWatch } from './navGuide';
+import { closeHotspotWatch, EMPTY_HOTSPOT_WATCH, stepHotspotWatch, type HotspotWatch } from './navGuide';
 import { createLiveMatcher, ensureRoadsNear, type MatchPoint } from './osmStore';
 import type { RoadMatcher } from './osmMatch';
 
@@ -479,9 +479,8 @@ export const roadStore = {
 
   /** REG-681: la card del punto critico si chiude (tempo scaduto, tocco, ripasso segnato). */
   closeHotspotAlert(key?: string) {
-    const cur = state.hotspotWatch.alert;
-    if (!cur || (key && cur.hotspot.key !== key)) return;
-    set({ hotspotWatch: { ...state.hotspotWatch, alert: null } });
+    const next = closeHotspotWatch(state.hotspotWatch, key, Date.now());
+    if (next !== state.hotspotWatch) set({ hotspotWatch: next });
   },
 
   /**

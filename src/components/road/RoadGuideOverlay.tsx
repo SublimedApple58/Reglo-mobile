@@ -15,6 +15,10 @@ import { RoadMarkerPin } from './RoadMapParts';
  * Riaggancio (REG-654): la linea nuova arriva al posto della vecchia, che sfuma
  * nei due posti `prev` (4 Polyline fisse in tutto).
  *
+ * Punto dell'allievo che è una zona (fix road-fix-allievo): il suo tratto in
+ * rosso più tenue delle zone di oggi (`LiveExtents`), sotto i segnaposto; due
+ * Polyline fisse per posto, vuote e trasparenti quando il punto è un punto.
+ *
  * TUTTO a posti fissi, sempre montato e messo PRIMA degli altri figli della
  * MapView: aggiungere/togliere figli fa crashare react-native-maps 1.20 con la
  * New Architecture (`AIRMap insertReactSubview`, REG-649). I posti vuoti stanno
@@ -30,6 +34,9 @@ const LINE_CASE_NIGHT = 'rgba(10,10,10,1)';
 const LINE_W = 10; // REG-690: più spessa (prima 8/14)
 const CASE_W = 16;
 const FADE_MS = 240;
+// Tratti delle zone passate: stesso rosso delle zone dal vivo, più tenue.
+const ZONE_HALO = 'rgba(220,38,38,0.14)';
+const ZONE_CORE = 'rgba(220,38,38,0.6)';
 
 type Pt = { latitude: number; longitude: number };
 
@@ -164,22 +171,66 @@ export const RoadGuideOverlay = React.memo(function RoadGuideOverlay({
   );
 });
 
+/**
+ * Comparsa del tratto in 240 ms (4 passi, curva morbida senza rimbalzo): `k`
+ * va da 0 a 1 quando `on` diventa vero, torna a 0 subito quando si spegne.
+ * Non dipende da «Riduci movimento».
+ */
+function useFadeIn(on: boolean) {
+  const [k, setK] = useState(on ? 1 : 0);
+  useEffect(() => {
+    if (!on) {
+      setK(0);
+      return;
+    }
+    const t0 = Date.now();
+    let step = 0;
+    let raf = 0;
+    const frame = () => {
+      const x = Math.min(1, (Date.now() - t0) / FADE_MS);
+      const next = Math.ceil(x * FADE_STEPS);
+      if (next !== step) {
+        step = next;
+        const q = step / FADE_STEPS;
+        setK(1 - (1 - q) * (1 - q));
+      }
+      if (x < 1) raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [on]);
+  return k;
+}
+
 const HotspotSlot = React.memo(function HotspotSlot({ hotspot, center }: { hotspot: RoadStudentHotspot | null; center: Pt }) {
   const coordinate = useMemo(
     () => (hotspot ? { latitude: hotspot.lat, longitude: hotspot.lng } : center),
     [hotspot, center],
   );
+  const still = useMemo(() => [center, center], [center]);
+  const zone = useMemo<Pt[] | null>(
+    () =>
+      hotspot?.extentM && hotspot.extent && hotspot.extent.length >= 2
+        ? hotspot.extent.map(([latitude, longitude]) => ({ latitude, longitude }))
+        : null,
+    [hotspot],
+  );
+  const k = useFadeIn(!!zone);
   return (
-    <RoadMarkerPin
-      coordinate={coordinate}
-      kind={hotspot?.kind ?? 'altro'}
-      label={hotspot?.label ?? ''}
-      small
-      sentiment="bad"
-      dot={false}
-      hidden={!hotspot}
-      zIndex={2}
-    />
+    <>
+      <Polyline coordinates={zone ?? still} strokeColor={withAlpha(ZONE_HALO, zone ? k : 0)} strokeWidth={14} lineCap="round" lineJoin="round" zIndex={1} />
+      <Polyline coordinates={zone ?? still} strokeColor={withAlpha(ZONE_CORE, zone ? k : 0)} strokeWidth={4} lineCap="round" lineJoin="round" zIndex={1} />
+      <RoadMarkerPin
+        coordinate={coordinate}
+        kind={hotspot?.kind ?? 'altro'}
+        label={hotspot?.label ?? ''}
+        small
+        sentiment="bad"
+        dot={false}
+        hidden={!hotspot}
+        zIndex={2}
+      />
+    </>
   );
 });
 

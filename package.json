@@ -12,7 +12,8 @@
     "android:staging": "EXPO_PUBLIC_API_URL=https://staging.reglo.it/api EXPO_PUBLIC_VERCEL_BYPASS=$(cat .staging-bypass 2>/dev/null) expo run:android",
     "ios:prod": "expo run:ios",
     "web": "expo start --web",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test:road": "npx -y tsx --test tests/road/*.test.ts"
   },
   "dependencies": {
     "@expo/ui": "0.2.0-beta.9",
