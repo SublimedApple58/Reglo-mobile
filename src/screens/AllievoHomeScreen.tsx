@@ -993,7 +993,17 @@ export const AllievoHomeScreen = () => {
     setCalendarRange({ mode: 'day', from, to, label: '', anchor: selectedDate });
   }, [selectedDate]);
 
-  const nextLesson = upcoming[0];
+  // Singole + posti di gruppo, in ordine: la «prossima guida» può essere di
+  // gruppo (Robatto: le guide moto sono tutte di gruppo).
+  const allUpcoming = useMemo(
+    () =>
+      [...upcoming, ...upcomingGroupLessons].sort(
+        (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+      ),
+    [upcoming, upcomingGroupLessons],
+  );
+  const nextLesson = allUpcoming[0];
+  const nextLessonIsGroup = !!nextLesson?.groupLessonId;
 
   const nextLessonCountdown = useMemo(() => {
     if (!nextLesson) return null;
@@ -1545,9 +1555,9 @@ export const AllievoHomeScreen = () => {
     if (policyMode === 'closed') return 'La tua autoscuola organizza le guide per te.';
     if (lessonsThisWeek >= 2) return `Questa settimana guidi ${lessonsThisWeek} volte. Bel ritmo!`;
     if (lessonsThisWeek === 1) return 'Questa settimana hai una guida. Buona strada!';
-    if (upcoming.length) return 'La prossima guida ti aspetta.';
+    if (allUpcoming.length) return 'La prossima guida ti aspetta.';
     return 'Prenota la tua prossima guida quando vuoi.';
-  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, upcoming.length, nextExam, examCountdown]);
+  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, allUpcoming.length, nextExam, examCountdown]);
 
   const instructorInitials = (name: string | null | undefined) => {
     if (!name) return null;
@@ -1569,9 +1579,7 @@ export const AllievoHomeScreen = () => {
 
   // ── Righe e sezioni ──
   const lessonRows = useMemo<HomeLessonRow[]>(() => {
-    const list = [...upcoming.slice(1), ...upcomingGroupLessons]
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
-      .slice(0, 3);
+    const list = allUpcoming.slice(1, 4);
     return list.map((l) => {
       const d = new Date(l.startsAt);
       const isGroup = !!l.groupLessonId;
@@ -1593,7 +1601,7 @@ export const AllievoHomeScreen = () => {
         onPress: () => (isGroup ? openGroupLessonDetail(l) : openLessonDetail(l)),
       };
     });
-  }, [upcoming, upcomingGroupLessons, mySwapByAppointment, openGroupLessonDetail, openLessonDetail]);
+  }, [allUpcoming, mySwapByAppointment, openGroupLessonDetail, openLessonDetail]);
 
   const pastRows = useMemo<HomeLessonRow[]>(
     () =>
@@ -1612,10 +1620,16 @@ export const AllievoHomeScreen = () => {
     [pastLessons, openLessonDetail],
   );
 
+  const openAnyLessonDetail = useCallback(
+    (lesson: AutoscuolaAppointmentWithRelations) =>
+      lesson.groupLessonId ? openGroupLessonDetail(lesson) : openLessonDetail(lesson),
+    [openGroupLessonDetail, openLessonDetail],
+  );
+
   const openAllLessons = useCallback(() => {
-    allLessonsStore.set({ lessons: upcoming, studentId: selectedStudentId, onOpenDetail: openLessonDetail });
+    allLessonsStore.set({ lessons: allUpcoming, studentId: selectedStudentId, onOpenDetail: openAnyLessonDetail });
     router.push('/(tabs)/home/all-lessons');
-  }, [upcoming, selectedStudentId, openLessonDetail, router]);
+  }, [allUpcoming, selectedStudentId, openAnyLessonDetail, router]);
 
   const openExam = useCallback(() => {
     if (!nextExam || !examCountdown) return;
@@ -1797,14 +1811,16 @@ export const AllievoHomeScreen = () => {
       day={longDay(nextLesson.startsAt)}
       time={`${timeRange(nextLesson)}${nextLesson.location ? ` · ${nextLesson.location.name}` : ''}`}
       who={
-        mySwapByAppointment.has(nextLesson.id)
-          ? 'Sostituzione richiesta'
-          : [nextLesson.instructor?.name ?? 'Istruttore da assegnare', nextLesson.vehicle?.name]
-              .filter(Boolean)
-              .join(' · ')
+        nextLessonIsGroup
+          ? 'Guida di gruppo'
+          : mySwapByAppointment.has(nextLesson.id)
+            ? 'Sostituzione richiesta'
+            : [nextLesson.instructor?.name ?? 'Istruttore da assegnare', nextLesson.vehicle?.name]
+                .filter(Boolean)
+                .join(' · ')
       }
-      initials={mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
-      onPress={() => openLessonDetail(nextLesson)}
+      initials={nextLessonIsGroup || mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
+      onPress={() => openAnyLessonDetail(nextLesson)}
     />
   ) : null;
 
@@ -1890,7 +1906,7 @@ export const AllievoHomeScreen = () => {
                   <CompactLessonCard
                     kicker={examHome.compact.kicker}
                     title={examHome.compact.title}
-                    onPress={() => openLessonDetail(nextLesson)}
+                    onPress={() => openAnyLessonDetail(nextLesson)}
                   />
                 ) : null}
               </>
@@ -1960,7 +1976,7 @@ export const AllievoHomeScreen = () => {
             {canFreelyBook ? <ClayButton title="Prenota una guida" onPress={openBookingFlow} style={styles.cta} testID="home-book" /> : null}
 
             {lessonRows.length ? (
-              <HomeSection title="Le tue guide" right={upcoming.length > 1 ? 'Tutte' : null} onRightPress={openAllLessons}>
+              <HomeSection title="Le tue guide" right={allUpcoming.length > 1 ? 'Tutte' : null} onRightPress={openAllLessons}>
                 <LessonsList rows={lessonRows} />
               </HomeSection>
             ) : !nextLesson && pastRows.length && policyMode !== 'open' ? (
