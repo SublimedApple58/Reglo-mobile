@@ -34,6 +34,7 @@ Push notification handling, intent routing, persistent inbox with 30-day expiry.
 | `appointment_cancelled` | Toast | Acknowledge |
 | `availability_published` | Toast + route | Route to home/booking |
 | `exam_scheduled` | Inbox (nessun drawer) | **REG-604**. Esame fissato (`reason: "created"`) o orario appena definito (`reason: "time_set"`): un solo kind, il titolo del push distingue. Niente da accettare → solo posta, come `appointment_rescheduled` |
+| `appointment_created` | Inbox (nessun drawer) | **REG-758**. Lo staff (o l'assistente vocale) ha fissato una o più guide: il backend le raggruppa in un avviso solo (`count`, `startsAt` = la prima). Titolo «Guida fissata» / «N guide fissate», sottotitolo «La prima: …». Id **stabile** `created_<appointmentId>` sia nella push sia nel recupero (niente doppioni). Il recupero lo manda solo se `getNotifications` dichiara `supports=appointment_created`: le build vecchie mostrerebbero una riga vuota |
 | `exam_ready_nudge` | Inbox (Toast) | **Owner-only**. Handler owner-gated in `NotificationOverlay` (`isOwner`). "N allievi pronti per l'esame". Id stabile `exam_ready_nudge_{companyId}` → dedup push/recovery. Overlay ora renderizza anche per titolare PURO (guard rilassato + prop `isOwner` da `_layout.tsx`). |
 
 ## «Orario da definire» (REG-604)

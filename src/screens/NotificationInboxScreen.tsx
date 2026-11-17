@@ -80,6 +80,10 @@ const getTitle = (item: PersistedNotification): string => {
         : `${item.data.count} allievi pronti per l'esame`;
     case 'exam_scheduled':
       return item.data.reason === 'time_set' ? "Orario dell'esame definito" : 'Esame fissato';
+    // REG-758: più guide fissate di fila arrivano in un avviso solo.
+    case 'appointment_created':
+      if (item.data.count > 1) return `${item.data.count} guide fissate`;
+      return item.data.isGroupLesson ? 'Guida di gruppo fissata' : 'Guida fissata';
   }
 };
 
@@ -128,6 +132,8 @@ const getSubtitle = (item: PersistedNotification): string => {
       return `${formatDay(item.data.startsAt)} · ${item.data.newLocationName}`;
     case 'exam_scheduled':
       return whenLabel({ ...item.data, isExam: true });
+    case 'appointment_created':
+      return item.data.count > 1 ? `La prima: ${whenLabel(item.data)}` : whenLabel(item.data);
     case 'theory_exam_countdown':
       return item.data.theoryExamAt
         ? `Esame il ${formatDay(item.data.theoryExamAt)}`
