@@ -24,7 +24,7 @@ import {
   pathForDate,
   pathLabel,
 } from '../utils/licensePaths';
-import { formatDay, formatTime } from '../utils/date';
+import { formatDay, formatLessonDuration, formatTime } from '../utils/date';
 import { colors } from '../theme/colors';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 
@@ -407,7 +407,10 @@ function LessonRow({
       <StateGlyph tone={tone} icon={icon} />
       <View style={ledger.rowBody}>
         <Text style={ledger.rowTitle} numberOfLines={1}>
-          {capitalize(formatDay(lesson.startsAt))} · {formatTime(lesson.startsAt)}
+          {/* REG-760: la durata in coda all'ora («Mar 12 nov · 09:00 · 1 h»). */}
+          {[capitalize(formatDay(lesson.startsAt)), formatTime(lesson.startsAt), formatLessonDuration(lesson.startsAt, lesson.endsAt)]
+            .filter(Boolean)
+            .join(' · ')}
         </Text>
         <Text style={ledger.rowSub} numberOfLines={1}>{subtitle}</Text>
       </View>

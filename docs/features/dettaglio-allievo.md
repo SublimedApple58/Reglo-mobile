@@ -18,7 +18,7 @@ Il foglio che si apre toccando un allievo (tab Allievi, agenda). Form sheet nati
 | File | Ruolo |
 |------|-------|
 | `src/screens/StudentNotesDetailScreen.tsx` | Il foglio: carica tutto all'apertura (`loadData`), divide prossime/storico, tiene handler e stato. Rotte `home/student-detail`, `notes/[studentId]`. |
-| `src/components/student/LessonHistoryRow.tsx` | Riga guida in `memo`: data, istruttore · veicolo · tipo, esito esame, pagellino apribile (stato locale), chip Road, note + matita. Usata dalla scheda e dal foglio intero. |
+| `src/components/student/LessonHistoryRow.tsx` | Riga guida in `memo`: data con ora d'inizio e durata («gio 22 ott · 22:07 · 1 h», REG-760), istruttore · veicolo · tipo, esito esame, pagellino apribile (stato locale), chip Road, note + matita. Usata dalla scheda e dal foglio intero. |
 | `src/screens/LessonHistorySheet.tsx` | Foglio «Tutte le guide» (`FormSheet list`). |
 | `app/(tabs)/{home,notes}/lesson-history.tsx` | Route, registrata in entrambi gli stack (`FORM_SHEET`). |
 | `src/stores/lessonHistoryStore.ts` | Seed del foglio: elenchi + handler. La scheda lo ripubblica a ogni ricarica, così il foglio aperto si aggiorna dopo un salvataggio. |
@@ -26,6 +26,7 @@ Il foglio che si apre toccando un allievo (tab Allievi, agenda). Form sheet nati
 ## Regole
 
 - Fluidità §15 del design system: niente transizioni di layout né `key` che rimontano lo storico; solo dissolvenze 180 ms; nessun fetch al tocco (i dati sono quelli del caricamento).
+- Durata nella riga data (REG-760, 20/11/2026): `formatLessonDuration` in `src/utils/date.ts` («45 min», «1 h», «1 h 30»), gemella di quella web in `reglo/lib/autoscuole/lesson-duration.ts`. Niente durata senza `endsAt` (esame da fissare). Scartata la variante con l'intervallo «22:07 – 23:07 · 1 h»: troppo lunga accanto alla matita.
 - Nuove azioni sulle guide vanno in `LessonHistoryRow` e negli handler della scheda (`openDetails`, `recordOutcome`, `openRoad`), passati anche dal seed: così valgono in scheda e in «Vedi tutte».
 - Data di nascita e altri dati anagrafici non arrivano da `/api/autoscuole/students`: per mostrarli serve prima il backend.
 

@@ -59,6 +59,9 @@ Dal 23/09 la vista usa il **linguaggio del registro**, condiviso con
 - `StateGlyph` — pastiglia tonda a sinistra che dice lo stato a colpo d'occhio
   (orologio programmata · spunta svolta · X annullata/non presentato · tocco
   esame), al posto dei badge pieni.
+- Titolo della riga: giorno · ora d'inizio · durata («Mer 16 set · 16:00 · 1 h»,
+  REG-760) con `formatLessonDuration` di `src/utils/date.ts`; senza `endsAt`
+  la durata non compare.
 - Stato come **testo colorato a destra**, una parola sola. Il dettaglio della
   penale ("Annullata tardi · Addebitata €20") va nella riga sotto.
 - `formatEuro` — **una sola definizione**, qui. Due copie divergenti sono state

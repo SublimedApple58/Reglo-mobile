@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StarRating } from '../StarRating';
 import { RoadHistoryChip } from '../road/RoadLessonCard';
 import { CLAY } from '../../theme/clay';
-import { formatDay, formatTime } from '../../utils/date';
+import { formatDay, formatLessonDuration, formatTime } from '../../utils/date';
 import { EXAM_TIME_TBD, examTimeIsTbd } from '../../utils/examTime';
 import { evaluationSummary, evaluationSummaryLabel } from '../../utils/evaluationSheet';
 import { asMotoLessonType, MOTO_LESSON_TYPE_LABELS } from '../../utils/motoLessonType';
@@ -20,9 +20,18 @@ import type { AutoscuolaAppointmentWithRelations, RoadStudentItem } from '../../
 const OPEN_IN = FadeIn.duration(180).reduceMotion(ReduceMotion.Never);
 const OPEN_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.Never);
 
+/** Riga data (REG-760): «gio 22 ott · 22:07 · 1 h»; la durata solo se nota. */
+function whenLabel(appt: AutoscuolaAppointmentWithRelations) {
+  if (examTimeIsTbd(appt)) return `${formatDay(appt.startsAt)} · ${EXAM_TIME_TBD}`;
+  return [formatDay(appt.startsAt), formatTime(appt.startsAt), formatLessonDuration(appt.startsAt, appt.endsAt)]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /**
- * Una guida dello storico allievo: data, istruttore · veicolo · tipo, esito
- * esame, pagellino apribile, percorso Road, note con la matita.
+ * Una guida dello storico allievo: data con la durata (REG-760), istruttore ·
+ * veicolo · tipo, esito esame, pagellino apribile, percorso Road, note con la
+ * matita.
  *
  * In `memo` e con il pagellino aperto/chiuso nello stato della riga (§15):
  * aprirne uno ridisegna solo questa riga, e niente transizioni di layout —
@@ -73,9 +82,8 @@ export const LessonHistoryRow = React.memo(function LessonHistoryRow({
   return (
     <View style={[s.row, divider && s.divider]}>
       <View style={s.rowBetween}>
-        <Text style={s.date}>
-          {formatDay(appt.startsAt)} · {examTimeIsTbd(appt) ? EXAM_TIME_TBD : formatTime(appt.startsAt)}
-        </Text>
+        {/* Con la matita accanto alla data (niente note) la riga le lascia spazio. */}
+        <Text style={[s.date, !note && !oldStars && s.dateBesidePencil]}>{whenLabel(appt)}</Text>
         {oldStars ? <StarRating value={appt.rating as number} readOnly size={13} tone="gold" /> : null}
       </View>
       <Text style={s.meta} numberOfLines={2}>{meta}</Text>
@@ -157,7 +165,8 @@ const s = StyleSheet.create({
   row: { paddingVertical: 14, paddingHorizontal: 18 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(17,17,17,0.12)' },
   rowBetween: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-  date: { fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
+  date: { flexShrink: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
+  dateBesidePencil: { paddingRight: 26 },
   meta: { fontSize: 14, color: CLAY.ink3, marginTop: 3 },
   inlineAction: { alignSelf: 'flex-start', marginTop: 8 },
   inlineActionTx: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
