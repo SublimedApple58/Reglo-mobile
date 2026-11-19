@@ -514,6 +514,36 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
         notificationEvents.emitDataChanged();
         return;
       }
+      /**
+       * REG-758: guida (o guide) fissata dallo staff. Solo posta, come
+       * `exam_scheduled`. L'id è stabile e uguale a quello del recupero dal
+       * server (`created_<prima guida>`): la stessa notizia non compare due volte.
+       */
+      if (intent === 'appointment_created') {
+        const persisted: PersistedNotification = {
+          kind: 'appointment_created',
+          id: `created_${data?.appointmentId ?? ''}`,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            appointmentIds: Array.isArray(data?.appointmentIds)
+              ? data.appointmentIds.map(String)
+              : undefined,
+            startsAt: String(data?.startsAt ?? ''),
+            count: Math.max(1, Number(data?.count) || 1),
+            isGroupLesson: data?.isGroupLesson === true,
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+        notificationEvents.emitDataChanged();
+        return;
+      }
       if (intent === 'appointment_location_changed') {
         const notifId = `location_changed_${data?.appointmentId ?? ''}_${Date.now()}`;
         const persisted: PersistedNotification = {

@@ -77,6 +77,19 @@ export type ExamScheduledData = {
   reason?: 'created' | 'time_set';
 };
 
+/**
+ * REG-758 — lo staff (o l'assistente vocale) ha fissato una o più guide
+ * all'allievo. Il backend raggruppa le guide fissate di fila in un avviso solo:
+ * `count` dice quante, `startsAt` è la prima per orario.
+ */
+export type AppointmentCreatedData = {
+  appointmentId: string;
+  appointmentIds?: string[];
+  startsAt: string;
+  count: number;
+  isGroupLesson?: boolean;
+};
+
 export type AvailabilityPublishedData = {
   instructorId: string;
   instructorName: string;
@@ -127,6 +140,7 @@ export type NotificationItem =
   | { kind: 'student_phase_change'; id: string; data: StudentPhaseChangeData }
   | { kind: 'exam_ready_nudge'; id: string; data: ExamReadyNudgeData }
   | { kind: 'exam_scheduled'; id: string; data: ExamScheduledData }
+  | { kind: 'appointment_created'; id: string; data: AppointmentCreatedData }
   | { kind: 'license_path_started'; id: string; data: LicensePathStartedData };
 
 /**

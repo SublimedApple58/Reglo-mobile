@@ -591,7 +591,10 @@ export const createRegloApi = (baseUrl?: string) => {
 
     getNotifications: async (limit = 20) =>
       client.request<Array<{ id: string; kind: string; data: Record<string, unknown>; createdAt: string }>>('/api/autoscuole/notifications', {
-        params: { limit: String(limit) },
+        // REG-758: dichiara i kind che questa build sa mostrare. Il server
+        // manda `appointment_created` solo a chi lo dichiara: una build
+        // vecchia lo mostrerebbe come una riga vuota e non letta.
+        params: { limit: String(limit), supports: 'appointment_created' },
       }),
 
     getOverview: async () => client.request<AutoscuolaOverview>('/api/autoscuole/overview'),
