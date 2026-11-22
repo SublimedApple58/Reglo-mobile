@@ -30,7 +30,7 @@ import { CLAY } from '../../theme/clay';
 import { SOFT_EXIT, SOFT_LAYOUT, SOFT_SWAP_IN, SOFT_SWAP_OUT, softEnter } from '../../utils/motion';
 import { LESSON_TYPE_OPTIONS } from '../../utils/lessonTypes';
 import { loadLastBookingSelection, saveLastBookingSelection, type LastBookingSelection } from '../../utils/lastBookingSelection';
-import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, transmissionLabel } from '../../utils/license';
+import { isMotoLicenseCategory, vehicleServesStudent, licenseCategoryLabel, pathPhrase, transmissionLabel } from '../../utils/license';
 import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, type MotoLessonType } from '../../utils/motoLessonType';
 
 type Entry = { id: string; date: Date; startTime: Date; duration: number };
@@ -986,7 +986,7 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
     const dayShort = capitalize(date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' }));
     const reason = data.suggestions?.find((x) => x.id === shownId)?.reason ?? null;
     const studentLine = [
-      shown?.licenseCategory ? `Patente ${shown.licenseCategory}` : null,
+      shown?.licenseCategory ? pathPhrase(shown.licenseCategory) : null,
       reason ? reason.charAt(0).toLowerCase() + reason.slice(1) : shown?.subtitle ?? null,
     ].filter(Boolean).join(' · ') || null;
     const durIdx = Math.max(0, durations.indexOf(duration));

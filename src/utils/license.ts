@@ -50,11 +50,37 @@ export const isMotoLicenseCategory = (c?: string | null): boolean =>
   !!c && (MOTO_LICENSE_CATEGORIES as string[]).includes(c);
 
 /**
+ * Motrice di ogni categoria con rimorchio (REG-507, specchio del web): un
+ * rimorchio non è un veicolo guidabile, il corso CE si fa sul camion C.
+ */
+const TRAILER_CATEGORY_MOTRICE: Record<string, string> = {
+  BE: 'B',
+  C1E: 'C1',
+  CE: 'C',
+  D1E: 'D1',
+  DE: 'D',
+};
+
+/**
+ * Mezzi su cui si fanno le qualificazioni (REG-507, REG-766): la CQC merci
+ * (sigla `CQC`) su camion C o C1, la CQC persone (`CQCP`) su autobus D o
+ * minibus D1, l'ADR sul camion C. Specchio di `QUALIFICATION_BASE_VEHICLES`
+ * in reglo/lib/autoscuole/license.ts.
+ */
+const QUALIFICATION_BASE_VEHICLES: Record<string, readonly string[]> = {
+  CQC: ['C', 'C1'],
+  CQCP: ['D', 'D1'],
+  ADR: ['C'],
+};
+
+/**
  * True when a vehicle of `vehicleCategory` is eligible for a student pursuing
- * `studentCategory`, applying the MOTO HIERARCHY AM < A1 < A2 < A: a moto
- * student may use any moto of category ≤ their own (A2 → A2/A1/AM, not A).
- * Non-moto categories (B/BE/C/CE/D/DE) have NO hierarchy — each only matches
- * itself; cross-class never matches.
+ * `studentCategory` — mirror of the backend:
+ *   MOTO:    AM < A1 < A2 < A (a moto of category ≤ the student's own)
+ *   TRAILER: the motrice of a trailer category (CE → C, DE → D, BE → B, …)
+ *   QUALIF.: CQC merci → C/C1 · CQC persone → D/D1 · ADR → C
+ * All one way only: a C student may not use a CE- or CQC-marked vehicle.
+ * Cross-class never matches. Same category always matches.
  */
 export const licenseCategoryEligible = (
   vehicleCategory: string,
@@ -69,8 +95,38 @@ export const licenseCategoryEligible = (
       (MOTO_LICENSE_CATEGORIES as string[]).indexOf(studentCategory)
     );
   }
+  if (TRAILER_CATEGORY_MOTRICE[studentCategory] === vehicleCategory) return true;
+  if (QUALIFICATION_BASE_VEHICLES[studentCategory]?.includes(vehicleCategory)) return true;
   return false;
 };
+
+/**
+ * Nome breve per lo schermo: le patenti restano la sigla («B», «CE»), le due
+ * CQC hanno il nome — «CQCP» non lo legge nessuno, e «CQC» da sola non dice
+ * più quale delle due (REG-766).
+ */
+const LICENSE_CATEGORY_SHORT: Record<string, string> = {
+  CQC: 'CQC merci',
+  CQCP: 'CQC persone',
+};
+
+export const licenseCategoryShort = (value: string | null | undefined): string =>
+  value ? LICENSE_CATEGORY_SHORT[value] ?? value : '';
+
+/**
+ * Il percorso dentro una frase: «patente C», «CQC persone». Sulle qualificazioni
+ * «patente» sarebbe falso.
+ */
+export const pathNoun = (category: string): string =>
+  category in QUALIFICATION_BASE_VEHICLES
+    ? licenseCategoryShort(category)
+    : `patente ${category}`;
+
+/** Lo stesso a inizio riga: «Patente C», «CQC persone». */
+export const pathPhrase = (category: string): string =>
+  category in QUALIFICATION_BASE_VEHICLES
+    ? licenseCategoryShort(category)
+    : `Patente ${category}`;
 
 /**
  * True when a vehicle's (category, transmission) serves a student's pursued

@@ -88,7 +88,8 @@ export const LICENSE_COLOR_ENTRIES: AgendaColorEntry[] = [
   ENTRY('de', 'Patente DE', 'DE', D_BG, D_SHADOW, 'd'),
   ENTRY('d1', 'Patente D1', 'D1', D_BG, D_SHADOW, 'd'),
   ENTRY('d1e', 'Patente D1E', 'D1E', D_BG, D_SHADOW, 'd'),
-  ENTRY('cqc', 'CQC (carta di qualificazione)', 'CQC', C_BG, C_SHADOW, 'c'),
+  ENTRY('cqc', 'CQC merci', 'CQC merci', C_BG, C_SHADOW, 'c'),
+  ENTRY('cqcp', 'CQC persone', 'CQC persone', D_BG, D_SHADOW, 'd'),
   ENTRY('adr', 'ADR (merci pericolose)', 'ADR', '#E4E8EE', 'rgba(71,85,105,0.2)'),
   ENTRY('none', 'Patente non impostata', 'Nessuna', '#F3F4F8', 'rgba(100,116,139,0.16)'),
 ];

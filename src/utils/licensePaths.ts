@@ -1,4 +1,5 @@
 import type { LicensePath } from '../types/regloApi';
+import { licenseCategoryShort } from './license';
 
 /**
  * REG-458 — a quale percorso patente appartiene una guida.
@@ -75,10 +76,11 @@ export function lessonsPathFilterId(
  * scrivere «CQC · Manuale» non vuol dire niente. Gemello di `isQualification`
  * nel repo web.
  */
+// `startsWith` copre anche la CQC persone (`CQCP`, REG-766).
 const QUALIFICATIONS = ['CQC', 'ADR'];
 export const isQualification = (category: string | null | undefined): boolean =>
   !!category && QUALIFICATIONS.some((q) => category.toUpperCase().startsWith(q));
 
-/** Come si chiama un percorso a schermo: "B", "A2", "CQC". */
+/** Come si chiama un percorso a schermo: "B", "A2", "CQC persone". */
 export const pathLabel = (path: LicensePath | null): string =>
-  path?.licenseCategory ?? 'attuale';
+  licenseCategoryShort(path?.licenseCategory) || 'attuale';

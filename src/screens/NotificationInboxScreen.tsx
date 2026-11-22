@@ -22,6 +22,7 @@ import { MORALE_ART } from '../theme/moraleArt';
 import { Avatar, CLAY_ROW_PRESSED, ClayEmpty, ClayIconButton, ClayList, ClaySection, clayRowPadding, markClayRow } from '../components/clay';
 import { formatDay, formatTime } from '../utils/date';
 import { EXAM_TIME_TBD_SHORT } from '../utils/examTime';
+import { pathNoun } from '../utils/license';
 
 /** Rosso solo per il testo delle azioni distruttive (§0). */
 const DESTRUCTIVE = '#C13515';
@@ -61,7 +62,7 @@ const getTitle = (item: PersistedNotification): string => {
       return 'Riprendi lo studio';
     case 'license_path_started':
       return item.data.licenseCategory
-        ? `Nuovo percorso: patente ${item.data.licenseCategory}`
+        ? `Nuovo percorso: ${pathNoun(String(item.data.licenseCategory))}`
         : 'Nuovo percorso avviato';
     case 'student_phase_change':
       switch (item.data.toPhase) {

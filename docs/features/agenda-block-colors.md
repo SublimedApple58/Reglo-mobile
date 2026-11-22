@@ -53,7 +53,8 @@ blocchi istruttore e stati **annullata/assente** restano col loro colore.
   dall'allievo (`licenseTagForStudent`: categoria + suffisso " autom." se
   `transmission === 'automatic'`). Il suffisso NON cambia colore: "B autom." è
   una B (REG-622, la distingue il bordo).
-  Una voce per ogni patente (REG-461: anche CE/C1/C1E, DE/D1/D1E, CQC, ADR);
+  Una voce per ogni patente (REG-461: anche CE/C1/C1E, DE/D1/D1E, CQC, ADR;
+  REG-766: CQC merci col colore della C, CQC persone `cqcp` con quello della D);
   le sotto-categorie ereditano colore e override della madre C/D finché non
   personalizzate (`resolveColorOverride`, usato anche dai pallini di
   `AppearanceSettingsScreen`).

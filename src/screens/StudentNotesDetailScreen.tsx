@@ -43,7 +43,7 @@ import {
   pathForDate,
 } from '../utils/licensePaths';
 import { colors } from '../theme';
-import { transmissionLabel } from '../utils/license';
+import { licenseCategoryShort, transmissionLabel } from '../utils/license';
 import { asExamOutcome, askExamOutcome, type ExamOutcome } from '../utils/examOutcome';
 import { impactAsync, ImpactFeedbackStyle } from '../utils/haptics';
 import { LessonHistoryRow } from '../components/student/LessonHistoryRow';
@@ -900,7 +900,7 @@ export const StudentNotesDetailScreen = () => {
         >
           <View style={{ flex: 1 }}>
             <Text style={s.cardTitle}>
-              {shownPath ? `Percorso ${shownPath.licenseCategory ?? ''}`.trim() : 'Tutti i percorsi'}
+              {shownPath ? `Percorso ${licenseCategoryShort(shownPath.licenseCategory)}`.trim() : 'Tutti i percorsi'}
             </Text>
             <Text style={s.cardSub}>
               {shownPath ? 'Numeri e storico di questo percorso' : 'Numeri e storico di tutti i percorsi'}
@@ -909,7 +909,7 @@ export const StudentNotesDetailScreen = () => {
           <Text style={s.link}>
             {shownPath
               ? hiddenByPath > 0 ? `Vedi tutto (${hiddenByPath})` : 'Vedi tutto'
-              : `Solo la ${thisPath?.licenseCategory ?? 'attuale'}`}
+              : `Solo la ${licenseCategoryShort(thisPath?.licenseCategory) || 'attuale'}`}
           </Text>
         </ClaySurface>
       ) : null}

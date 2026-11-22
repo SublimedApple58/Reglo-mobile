@@ -10,6 +10,7 @@ import { regloApi } from '../services/regloApi';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+import { pathNoun } from '../utils/license';
 
 export const AllievoLicensedScreen: React.FC = () => {
   const { user } = useSession();
@@ -23,8 +24,8 @@ export const AllievoLicensedScreen: React.FC = () => {
   const patenteLabel = (() => {
     if (!ultima?.licenseCategory) return null;
     const when = ultima.obtainedAt ? new Date(ultima.obtainedAt) : null;
-    if (!when || Number.isNaN(when.getTime())) return `patente ${ultima.licenseCategory}`;
-    return `patente ${ultima.licenseCategory}, ${when.toLocaleDateString('it-IT', {
+    if (!when || Number.isNaN(when.getTime())) return pathNoun(ultima.licenseCategory);
+    return `${pathNoun(ultima.licenseCategory)}, ${when.toLocaleDateString('it-IT', {
       month: 'long',
       year: 'numeric',
     })}`;

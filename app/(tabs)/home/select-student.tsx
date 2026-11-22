@@ -7,6 +7,7 @@ import { studentPickerStore } from '../../../src/stores/studentPickerStore';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { Avatar, ClayList, ClayListRow, ClaySearchField } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme/clay';
+import { pathPhrase } from '../../../src/utils/license';
 
 const normalize = (v: string) => v.trim().toLowerCase();
 /** Righe mostrate al massimo (le autoscuole hanno centinaia di allievi): oltre, si cerca. */
@@ -52,7 +53,7 @@ export default function SelectStudentScreen() {
         <ClayList style={s.list}>
           {shown.map((o) => {
             const selected = o.value === data.selectedId;
-            const meta = [o.subtitle, o.licenseCategory ? `Patente ${o.licenseCategory}` : null].filter(Boolean).join(' · ');
+            const meta = [o.subtitle, o.licenseCategory ? pathPhrase(o.licenseCategory) : null].filter(Boolean).join(' · ');
             return (
               <ClayListRow
                 key={o.value}
