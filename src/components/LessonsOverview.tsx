@@ -27,6 +27,7 @@ import {
 import { formatDay, formatLessonDuration, formatTime } from '../utils/date';
 import { colors } from '../theme/colors';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
+import { pathNoun } from '../utils/license';
 
 /**
  * Vista "Le tue guide" dell'allievo: quattro filtri — Tutte, Programmate,
@@ -286,7 +287,7 @@ export function LessonsOverview({ studentId, seededUpcoming, onOpenDetail }: Pro
               numberOfLines={1}
             >
               {shownPath
-                ? `Guide della patente ${pathLabel(shownPath)}`
+                ? `Guide della ${shownPath.licenseCategory ? pathNoun(shownPath.licenseCategory) : `patente ${pathLabel(shownPath)}`}`
                 : 'Tutte le guide, anche dei percorsi precedenti'}
             </Animated.Text>
             <Animated.Text

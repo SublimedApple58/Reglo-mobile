@@ -8,6 +8,7 @@ import { Avatar, ClayList, ClayListRow, ClaySearchField, markClayRow } from '../
 import { CLAY } from '../../../src/theme/clay';
 import { bookingSheetStore } from '../../../src/stores/bookingSheetStore';
 import { matchesPersonSearch } from '../../../src/utils/peopleSearch';
+import { pathPhrase } from '../../../src/utils/license';
 
 type Person = { id: string; name: string; detail: string | null; sortKey: string };
 
@@ -48,7 +49,7 @@ export default function QuickStudentSheet() {
         .map((o) => ({
           id: o.value,
           name: o.label,
-          detail: [o.licenseCategory ? `Patente ${o.licenseCategory}` : null, o.subtitle].filter(Boolean).join(' · ') || null,
+          detail: [o.licenseCategory ? pathPhrase(o.licenseCategory) : null, o.subtitle].filter(Boolean).join(' · ') || null,
           sortKey: o.label.toLocaleLowerCase('it'),
         }))
         .sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'it')),

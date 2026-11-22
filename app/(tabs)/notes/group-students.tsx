@@ -8,6 +8,8 @@ import { Avatar, ClayButton, ClayList, ClaySearchField } from '../../../src/comp
 import { SettingCheckRow } from '../../../src/components/SettingsRows';
 import { CLAY } from '../../../src/theme/clay';
 import { groupStudentsStore } from '../../../src/stores/groupStudentsStore';
+import { pathPhrase } from '../../../src/utils/license';
+import { isQualification } from '../../../src/utils/licensePaths';
 
 /**
  * «Allievi del gruppo» (modalità autonoma). REG-639 (Tiziano 28/10): form sheet
@@ -83,7 +85,9 @@ export default function GroupStudentsScreen() {
             const isSel = selected.includes(item.id);
             const assignedToOther = !isSel && !!item.assignedInstructorId;
             const license = item.licenseCategory
-              ? `Patente ${item.licenseCategory}${item.transmission === 'automatic' ? ' automatica' : ''}`
+              ? isQualification(item.licenseCategory)
+                ? pathPhrase(item.licenseCategory)
+                : `Patente ${item.licenseCategory}${item.transmission === 'automatic' ? ' automatica' : ''}`
               : null;
             const sub = [license, assignedToOther ? 'nel gruppo di un altro istruttore' : null].filter(Boolean).join(' · ');
             return (

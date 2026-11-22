@@ -7,6 +7,7 @@ import { examStudentsStore } from '../../../src/stores/examStudentsStore';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { Avatar, ClayButton, ClayList, ClayListRow, ClaySearchField } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme/clay';
+import { pathPhrase } from '../../../src/utils/license';
 
 const normalize = (v: string) => v.trim().toLowerCase();
 /** Righe mostrate al massimo: oltre, si chiede di scrivere per cercare. */
@@ -91,7 +92,7 @@ export default function SelectExamStudentsScreen() {
         <ClayList style={s.list}>
           {shown.map((o) => {
             const selected = draft.includes(o.value);
-            const meta = [o.examReady ? "Pronto per l'esame" : null, o.license ? `Patente ${o.license}` : null, o.subtitle]
+            const meta = [o.examReady ? "Pronto per l'esame" : null, o.license ? pathPhrase(o.license) : null, o.subtitle]
               .filter(Boolean)
               .join(' · ');
             return (
