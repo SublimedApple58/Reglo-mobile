@@ -94,6 +94,13 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Instructor Manage**: cluster settings (durations, booking actors, limits)
 - → **Backend**: `getAutoscuolaSettings()`, `updateInstructorSettings()`
 
+### Modalità manutenzione (REG-773)
+- → **Sessione / AuthGate**: `SessionContext.maintenance` decide se l'app intera è sostituita da `MaintenanceScreen`. Chi tocca `refreshMe`, `setAuthenticated` o il ramo di render di `AuthGate` deve tenere il gate (e la `<Slot/>` smontata in manutenzione).
+- → **apiClient**: ogni risposta con `message: "COMPANY_MAINTENANCE"` scatena `refreshMe`. Non trasformare quel messaggio in un errore generico prima che arrivi qui.
+- → **Notifications / push**: in manutenzione `registerPushToken` non parte; riparte allo sblocco (dipende da `state.maintenance`).
+- → **Settings**: riga solo titolare nel gruppo Account → `more/maintenance`.
+- ← **Backend** `GET /api/mobile/me` e login: campo `maintenance` per autoscuola (`describeMemberMaintenance` in reglo).
+
 ### Foto profilo + Firma allievo
 - → **Settings**: righe media dentro `profile-edit` (feature Settings); avatar della profile card in `SettingsScreen` mostra la foto
 - → **Session**: `refreshMe()` dopo ogni upload; `user.photoUrl/signatureUrl` arrivano SOLO da `/api/mobile/me`

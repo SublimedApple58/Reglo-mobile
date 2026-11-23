@@ -13,6 +13,7 @@
 | Pronto per l'esame (exam-ready) | [exam-ready.md](features/exam-ready.md) | `StudentNotesDetailScreen`, `CreateExamScreen`, `select-exam-students`, `examStudentsStore` |
 | Notifications | [notifications.md](features/notifications.md) | `NotificationOverlay`, `NotificationInboxScreen` (clay: sezioni per giorno, indietro anche da tab nell'app istruttore) |
 | Settings | [settings.md](features/settings.md) | `SettingsScreen`, `MoreScreen` (tab «Tu»: profilo, Gestione, «Esci»), `ClusterSettingsScreen`, `ClayAccountParts` |
+| Modalità manutenzione (REG-773: schermata per chi è bloccato, foglio di conferma del titolare) | [maintenance-mode.md](features/maintenance-mode.md) | `MaintenanceScreen`, `AuthGate` in `app/_layout.tsx`, `SessionContext` (`maintenance`), `more/maintenance`, `SettingsScreen` |
 | Avvisi su WhatsApp — consenso (REG-500) | [whatsapp-alerts.md](features/whatsapp-alerts.md) | `WhatsAppAlertsRow`, `settings/profile-edit`, `more/profile-edit`, `SignupScreen` |
 | Associazione istruttore via QR (REG-451) | [instructor-qr-link.md](features/instructor-qr-link.md) | `InstructorLinkScreen`, `settings/associa-istruttore`, `+native-intent`, `pendingInstructorLink`, `SettingsScreen` (riga Scansiona QR) |
 | Foto profilo + Firma allievo | [student-photo-signature.md](features/student-photo-signature.md) | `settings/profile-edit`, `settings/signature`, `SettingsScreen` (avatar), `apiClient` (FormData) |
