@@ -123,6 +123,21 @@ export type CompanySummary = {
   role: "admin" | "member" | string;
   autoscuolaRole: AutoscuolaRole | null;
   services: CompanyService[];
+  /**
+   * REG-773 — modalità manutenzione dell'autoscuola (null = attiva). `blocked`
+   * dice se blocca QUESTO membro: se sì l'app mostra solo MaintenanceScreen.
+   * Assente sui backend precedenti.
+   */
+  maintenance?: CompanyMaintenance | null;
+};
+
+/** REG-773 — `OWNER_ONLY`: solo titolari; `EVERYONE`: anche istruttori e allievi. */
+export type MaintenanceScope = 'OWNER_ONLY' | 'EVERYONE';
+
+export type CompanyMaintenance = {
+  scope: MaintenanceScope;
+  since: IsoDate | null;
+  blocked: boolean;
 };
 
 export type UserPublic = {
@@ -189,6 +204,8 @@ export type MePayload = {
   autoscuolaRole: AutoscuolaRole | null;
   instructorId?: Uuid | null;
   companies: CompanySummary[];
+  /** REG-773 — stato della manutenzione dell'autoscuola attiva. */
+  maintenance?: CompanyMaintenance | null;
 };
 
 export type LogoutPayload = { success: true };

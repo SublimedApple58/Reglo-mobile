@@ -11,6 +11,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { SessionProvider, useSession } from '../src/context/SessionContext';
 import { LoadingScreen } from '../src/screens/LoadingScreen';
 import { ForceUpdateScreen } from '../src/screens/ForceUpdateScreen';
+import { MaintenanceScreen } from '../src/screens/MaintenanceScreen';
 import { currentAppVersion, isBelowVersion, isLegacyBlocked } from '../src/config/forceUpdate';
 import { regloApi } from '../src/services/regloApi';
 import { peekLaunchPushIntent } from '../src/services/pushNotifications';
@@ -21,7 +22,7 @@ import {
 } from '../src/utils/pendingInstructorLink';
 import { colors } from '../src/theme';
 import { RoadController } from '../src/road/RoadController';
-import Animated, { FadeOut, ReduceMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { useAutoscuolaSettings } from '../src/hooks/queries/useAutoscuolaSettings';
 import { isInstructor } from '../src/utils/roles';
 
@@ -84,7 +85,7 @@ onlineManager.setEventListener((setOnline) => {
 });
 
 const AuthGate = () => {
-  const { status, autoscuolaRole, signOut, refreshMe } = useSession();
+  const { status, autoscuolaRole, signOut, refreshMe, maintenance } = useSession();
   const segments = useSegments();
   const router = useRouter();
   const roleRetryRef = useRef(false);
@@ -193,7 +194,14 @@ const AuthGate = () => {
 
   return (
     <>
-      {status !== 'loading' ? (
+      {status === 'ready' && maintenance ? (
+        // REG-773: autoscuola in manutenzione → solo la schermata dedicata.
+        // Le schermate dell'app si smontano, così non partono richieste che
+        // il backend respingerebbe comunque.
+        <Animated.View style={StyleSheet.absoluteFill} entering={FadeIn.duration(240).reduceMotion(ReduceMotion.Never)}>
+          <MaintenanceScreen />
+        </Animated.View>
+      ) : status !== 'loading' ? (
         <>
           <Slot />
           <RoadController />

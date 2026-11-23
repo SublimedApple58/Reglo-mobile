@@ -1,10 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { authStorage, RegloApiError, onAuthInvalidated } from '../services/apiClient';
+import { AppState } from 'react-native';
+import { authStorage, RegloApiError, onAuthInvalidated, onCompanyMaintenance } from '../services/apiClient';
 import { registerPushToken, unregisterPushToken } from '../services/pushNotifications';
 import { regloApi } from '../services/regloApi';
 import { sessionStorage } from '../services/sessionStorage';
 import { clearUserPhotoCache } from '../services/userPhotos';
-import { AuthPayload, AutoscuolaRole, CompanySummary, UserPublic } from '../types/regloApi';
+import { AuthPayload, AutoscuolaRole, CompanyMaintenance, CompanySummary, UserPublic } from '../types/regloApi';
 
 type SessionStatus = 'loading' | 'unauthenticated' | 'company_select' | 'ready';
 
@@ -15,6 +16,11 @@ type SessionState = {
   activeCompanyId: string | null;
   autoscuolaRole: AutoscuolaRole | null;
   instructorId: string | null;
+  /**
+   * REG-773 — manutenzione dell'autoscuola attiva, solo se blocca questo
+   * membro: l'app mostra MaintenanceScreen al posto di tutto il resto.
+   */
+  maintenance: CompanyMaintenance | null;
 };
 
 type SessionContextValue = SessionState & {
@@ -44,6 +50,12 @@ const unauthenticatedState: SessionState = {
   activeCompanyId: null,
   autoscuolaRole: null,
   instructorId: null,
+  maintenance: null,
+};
+
+const resolveMaintenance = (activeCompanyId: string | null, companies: CompanySummary[]) => {
+  const maintenance = companies.find((item) => item.id === activeCompanyId)?.maintenance ?? null;
+  return maintenance?.blocked ? maintenance : null;
 };
 
 const resolveStatus = (activeCompanyId: string | null, companies: CompanySummary[]) => {
@@ -73,6 +85,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     activeCompanyId: null,
     autoscuolaRole: null,
     instructorId: null,
+    maintenance: null,
   });
 
   const setAuthenticated = useCallback((payload: {
@@ -95,6 +108,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       activeCompanyId: payload.activeCompanyId,
       autoscuolaRole,
       instructorId: payload.instructorId ?? null,
+      maintenance: resolveMaintenance(payload.activeCompanyId, payload.companies),
     });
   }, []);
 
@@ -187,8 +201,33 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     });
   }, []);
 
+  // REG-773: una risposta «COMPANY_MAINTENANCE» (l'autoscuola è appena
+  // entrata in manutenzione) → si rilegge /me, che dice se blocca proprio noi.
+  const refreshRef = useRef(refreshMe);
+  refreshRef.current = refreshMe;
   useEffect(() => {
-    if (state.status !== 'ready' || !state.user?.id) return;
+    let inFlight = false;
+    return onCompanyMaintenance(() => {
+      if (inFlight) return;
+      inFlight = true;
+      refreshRef.current().catch(() => undefined).finally(() => { inFlight = false; });
+    });
+  }, []);
+
+  // In manutenzione: al ritorno in primo piano si ricontrolla, così allo
+  // sblocco l'app riparte senza dover rifare il login.
+  const blocked = !!state.maintenance;
+  useEffect(() => {
+    if (!blocked) return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') refreshRef.current().catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, [blocked]);
+
+  useEffect(() => {
+    // In manutenzione la registrazione verrebbe respinta: si rifà allo sblocco.
+    if (state.status !== 'ready' || !state.user?.id || state.maintenance) return;
     registerPushToken()
       .then((result) => {
         if (result.status === 'skipped') {
@@ -198,7 +237,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       .catch((error) => {
         console.warn('[Session] Push registration failed', error);
       });
-  }, [state.status, state.activeCompanyId, state.user?.id]);
+  }, [state.status, state.activeCompanyId, state.user?.id, state.maintenance]);
 
   // Shared by signIn / signUp / password-reset auto-login: if the user has a
   // single company and none active yet, select it, then commit the session.

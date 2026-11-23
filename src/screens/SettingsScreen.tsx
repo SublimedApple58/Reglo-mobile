@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
-import { ClayList, ClayListRow, ClaySection } from '../components/clay';
+import { ClayList, ClayListRow, ClaySection, Icon3D } from '../components/clay';
 import { ClayPageHeader } from '../components/ClayPageHeader';
 import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { AppVersionFooter, CLAY_DANGER, ClayTextRow, ProfileSummaryCard } from '../components/ClayAccountParts';
@@ -692,6 +692,16 @@ export const SettingsScreen = () => {
 
           <ClaySection title="Account">
             <ClayList>
+              {isOwner(autoscuolaRole) ? (
+                // REG-773: solo il titolare. Apre il foglio di conferma.
+                <ClayListRow
+                  leading={<Icon3D source={require('../../assets/icons3d-ai/barriera.png')} size={32} />}
+                  title="Modalità manutenzione"
+                  subtitle="Blocca subito l'accesso all'account"
+                  onPress={() => router.push('/(tabs)/more/maintenance')}
+                  testID="settings-maintenance"
+                />
+              ) : null}
               <ClayTextRow title="Elimina account" danger disabled={deletingAccount} onPress={handleDeleteAccount} />
             </ClayList>
           </ClaySection>

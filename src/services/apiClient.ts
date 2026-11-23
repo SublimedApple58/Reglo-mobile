@@ -90,6 +90,23 @@ const notifyAuthInvalidated = () => {
   authInvalidationListeners.forEach((fn) => fn());
 };
 
+/* ── REG-773: autoscuola in manutenzione ── */
+
+/** `message` delle risposte bloccate dalla modalità manutenzione (backend). */
+export const COMPANY_MAINTENANCE = 'COMPANY_MAINTENANCE';
+
+const maintenanceListeners = new Set<AuthEventListener>();
+
+/** Una richiesta è stata respinta perché l'autoscuola è in manutenzione. */
+export const onCompanyMaintenance = (listener: AuthEventListener) => {
+  maintenanceListeners.add(listener);
+  return () => { maintenanceListeners.delete(listener); };
+};
+
+const notifyCompanyMaintenance = () => {
+  maintenanceListeners.forEach((fn) => fn());
+};
+
 const buildUrl = (baseUrl: string, path: string) => {
   const trimmedBase = baseUrl.replace(/\/+$/, '');
   const withSlash = path.startsWith('/') ? path : `/${path}`;
@@ -219,6 +236,10 @@ export const createApiClient = (baseUrl = DEFAULT_BASE_URL) => {
     }
 
     const json = (await safeJson(response)) as ApiResponse<T> | null;
+
+    if (json && (json as ApiError).message === COMPANY_MAINTENANCE) {
+      notifyCompanyMaintenance();
+    }
 
     if (!response.ok) {
       console.error('[Reglo API] HTTP error', response.status, json);

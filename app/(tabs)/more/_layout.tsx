@@ -30,6 +30,8 @@ export default function MoreLayout() {
       <Stack.Screen name="select-options-long" options={FORM_SHEET} />
       <Stack.Screen name="color-picker" options={FORM_SHEET} />
       <Stack.Screen name="hours-period" options={FORM_SHEET} />
+      {/* REG-773: conferma della modalità manutenzione (titolare). */}
+      <Stack.Screen name="maintenance" options={FORM_SHEET} />
     </Stack>
   );
 }

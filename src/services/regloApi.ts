@@ -3,6 +3,7 @@ import {
   AgendaBootstrapParams,
   AgendaBootstrapPayload,
   AppConfig,
+  MaintenanceScope,
   InstructorLinkPreview,
   InstructorLinkResult,
   AuthPayload,
@@ -230,6 +231,12 @@ export const createRegloApi = (baseUrl?: string) => {
         body: input,
       }),
     me: async () => client.request<MePayload>('/api/mobile/me'),
+    /** REG-773 — il titolare mette in manutenzione l'autoscuola. Lo sblocco è solo del backoffice. */
+    activateMaintenance: async (input: { scope: MaintenanceScope; confirmName: string }) =>
+      client.request<{ scope: MaintenanceScope | null; since: string | null }>('/api/autoscuole/maintenance', {
+        method: 'POST',
+        body: input,
+      }),
     selectCompany: async (input: SelectCompanyInput) => {
       const payload = await client.request<SelectCompanyPayload>('/api/mobile/auth/select-company', {
         method: 'POST',
