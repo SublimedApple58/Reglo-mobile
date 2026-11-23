@@ -42,7 +42,9 @@ export default function MaintenanceSheet() {
   const [error, setError] = useState<string | null>(null);
 
   const confirmed = normalize(companyName).length > 0 && normalize(typed) === normalize(companyName);
-  const dirty = typed.length > 0 || scope !== 'OWNER_ONLY';
+  // Legato a `!saving` (regola di FormSheet): dopo la conferma il foglio si
+  // chiude senza la domanda «Vuoi uscire senza salvare?».
+  const dirty = !saving && (typed.length > 0 || scope !== 'OWNER_ONLY');
 
   const handleConfirm = async () => {
     if (!confirmed || saving) return;
