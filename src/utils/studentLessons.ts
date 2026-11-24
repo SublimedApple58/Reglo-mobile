@@ -42,8 +42,9 @@ export const isPastLesson = (l: AutoscuolaAppointmentWithRelations, now = Date.n
 export const isDoneLesson = (l: { status?: string | null }) => DONE_STATUSES.has(lessonStatus(l));
 
 /**
- * REG-785: «Assente» e «Annullata» a parole, come nello storico allievo
- * dell'istruttore (`LessonHistoryRow`): stessi testi e colori.
+ * REG-785/786: «Assente» nello stesso rosso dello storico dell'istruttore
+ * (`LessonHistoryRow`, che lì dice «Allievo assente» col glifo); qui parla
+ * all'allievo, e le annullate restano nella sua lista in grigio.
  */
 export const LESSON_STATUS_LINE: Record<string, { label: string; color: string }> = {
   no_show: { label: 'Assente', color: TONE.red.ink },
