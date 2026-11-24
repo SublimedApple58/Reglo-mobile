@@ -20,7 +20,9 @@ export default function CreditsNeededSheet() {
       testID="credits-needed-sheet"
       cta={<ClayButton title={cta || 'Ho capito'} variant="secondary" onPress={() => router.back()} />}
     >
-      <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 8 }}>
+      {/* Il salvadanaio sale nella riga della X: l'aria che tiene sopra di sé
+          per la caduta della moneta non si somma all'intestazione (Tiziano 24/11). */}
+      <View style={{ alignItems: 'center', marginTop: -64, paddingBottom: 8 }}>
         <PiggyHero size={120} />
         <CreditsText title={title || 'Crediti finiti'} line={line || 'Ricarica in segreteria e prenoti.'} />
       </View>
