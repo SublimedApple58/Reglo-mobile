@@ -114,10 +114,10 @@ e `requestRefresh()` (come `invalidateAllData` della home).
 Regola di Tiziano: «priorità n.1 card grande; le cose un po' meno importanti card più piccole; le cose molto meno importanti niente card». Anteprime `/tmp/hiro-anteprime/reg-784/v6/`.
 - **Livello 1 — UNA card grande**, la prima che vale in quest'ordine: esame prenotato (`ExamHeroCard`, viola, invariata) > prossima guida (`NextLessonCard`) > prenotazioni in pausa (`PausedCard`) > crediti finiti (`CreditsPrimaryCard`, salvadanaio su bianco) > posto liberato (`LiveOfferCard`) > prenota (`BookPrimaryCard`, bottone `home-book` dentro la card) > stato vuoto (`EmptyLessonCard`).
 - **Livello 2 — al massimo UNA card piccola** (`HomeSmallCard`, ritaglio/icona a sinistra + due righe):
-  - sotto l'esame: la prossima guida; la cosa dopo ancora entra come riga in fondo alla stessa card («Prenotazioni in pausa», «Crediti finiti · Ricarica in segreteria», «Prenota un'altra guida · 4 guide di credito»);
+  - sotto l'esame: la prossima guida; la cosa dopo ancora entra come riga in fondo alla stessa card («Prenotazioni in pausa», «Crediti finiti · Ricarica in segreteria»); la prenotazione è la CTA sotto (REG-786);
   - sotto la prossima guida: pausa o crediti finiti (salvadanaio piccolo `PiggyCoin`, tocco → foglio `credits-needed`).
-- **Livello 3 — righe piatte** (`FlatRow`, filo sottile, niente card): «Prenota una/un'altra guida» sotto l'esame o col posto liberato, Posti liberi (il posto liberato quando non è la card grande), Quando puoi prenotare tu, Altro.
-- **REG-786** (Tiziano 25/11): «Prenota guida» è la CTA primaria: con la prossima guida come card grande sta DENTRO la card (bottone nero a tutta larghezza + «Hai N guide di credito»), mai con l'esame. «Le tue guide», «Ultime guide» e «Il tuo percorso» sono passate nella tab Guide, gli Scambi nella loro tab (`student-tabs.md`).
+- **Livello 3 — righe piatte** (`FlatRow`, filo sottile, niente card): «Prenota una guida» solo col posto liberato come card grande, Posti liberi (il posto liberato quando non è la card grande), Quando puoi prenotare tu, Altro.
+- **REG-786** (Tiziano 25/11, giro v2): «Prenota guida» è la CTA primaria `BookCta`: bottone nero a tutta larghezza in un blocco a sé sotto la card principale (o sotto la card piccola della prossima guida con l'esame), mai dentro la card né attaccato all'esame, + «Hai N guide di credito». «Le tue guide», «Ultime guide» e «Il tuo percorso» sono passate nella tab Guide, gli Scambi nella loro tab (`student-tabs.md`).
 - Stessa distanza (18 pt) tra intestazione e card grande in tutti gli stati, esame compreso.
 - Skeleton con la stessa forma: blocco della card grande + righe.
 

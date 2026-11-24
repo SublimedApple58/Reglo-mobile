@@ -68,8 +68,6 @@ export const NextLessonCard = memo(function NextLessonCard({
   who,
   initials,
   onPress,
-  onBook,
-  bookNote,
 }: {
   when: string;
   day: string;
@@ -77,14 +75,6 @@ export const NextLessonCard = memo(function NextLessonCard({
   who: string | null;
   initials: string | null;
   onPress: () => void;
-  /**
-   * REG-786 (Tiziano 25/11): «Prenota guida» è la CTA primaria e sta DENTRO la
-   * card grande, a tutta larghezza, la cosa più evidente della home. Assente
-   * quando l'allievo non può prenotare da solo.
-   */
-  onBook?: () => void;
-  /** Riga sotto la CTA (es. «Hai 4 guide di credito»). */
-  bookNote?: string | null;
 }) {
   return (
     <ClaySurface padded={false} onPress={onPress} style={s.big} accessibilityLabel={`${when}, ${day}, ${time}`}>
@@ -104,12 +94,6 @@ export const NextLessonCard = memo(function NextLessonCard({
               {who}
             </Text>
           </View>
-        ) : null}
-        {onBook ? (
-          <>
-            <ClayButton title="Prenota guida" onPress={onBook} style={s.cardCta} testID="home-book" />
-            {bookNote ? <Text style={s.bookNote}>{bookNote}</Text> : null}
-          </>
         ) : null}
       </View>
     </ClaySurface>
@@ -220,6 +204,28 @@ export const HomeSmallCard = memo(function HomeSmallCard({
   );
 });
 
+// ── CTA primaria «Prenota» (REG-786, Tiziano 25/11) ──────────────────────────
+// Blocco a sé sotto la card principale (o sotto la card piccola della prossima
+// guida quando la principale è l'esame): il bottone nero più evidente della
+// home, il credito in una riga discreta sotto. Mai dentro la card della guida.
+
+export const BookCta = memo(function BookCta({
+  title,
+  note,
+  onPress,
+}: {
+  title: string;
+  note?: string | null;
+  onPress: () => void;
+}) {
+  return (
+    <View style={s.bookCta}>
+      <ClayButton title={title} onPress={onPress} testID="home-book" />
+      {note ? <Text style={s.bookNote}>{note}</Text> : null}
+    </View>
+  );
+});
+
 // ── Livello 1: crediti finiti senza guide (salvadanaio su bianco) ─────────────
 
 export const CreditsPrimaryCard = memo(function CreditsPrimaryCard({ title, line }: { title: string; line: string }) {
@@ -249,7 +255,7 @@ export const BookPrimaryCard = memo(function BookPrimaryCard({ line, onBook }: {
         <Text style={s.when}>Nessuna guida in programma</Text>
         <Text style={s.day}>Prenota la prossima</Text>
         <Text style={s.time}>{line}</Text>
-        <ClayButton title="Prenota una guida" onPress={onBook} style={s.cardCta} testID="home-book" />
+        <ClayButton title="Prenota guida" onPress={onBook} style={s.cardCta} testID="home-book" />
       </View>
     </ClaySurface>
   );
@@ -571,6 +577,7 @@ const s = StyleSheet.create({
 
   coverPlain: { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 2 },
   cardCta: { marginTop: 16 },
+  bookCta: { marginTop: 18 },
   bookNote: { fontSize: 13.5, color: CLAY.ink3, textAlign: 'center', marginTop: 10 },
 
   small: { marginTop: 14 },

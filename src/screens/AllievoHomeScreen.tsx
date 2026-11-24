@@ -62,6 +62,7 @@ import {
   PausedCard,
   HomeSmallCard,
   CreditsPrimaryCard,
+  BookCta,
   BookPrimaryCard,
   FlatRow,
 } from './allievoHome/HomeSections';
@@ -1788,10 +1789,6 @@ export const AllievoHomeScreen = () => {
       }
       initials={nextLessonIsGroup || mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
       onPress={() => openAnyLessonDetail(nextLesson)}
-      // REG-786: «Prenota guida» dentro la card grande (mai sotto l'esame: lì
-      // la card grande è l'esame e la prossima guida scende a livello 2).
-      onBook={canFreelyBook && !isPaused && !creditsHold ? openBookingFlow : undefined}
-      bookNote={creditsLeft ? `Hai ${creditsLeft}` : null}
     />
   ) : null;
 
@@ -1844,6 +1841,12 @@ export const AllievoHomeScreen = () => {
   const pauseThumb = <Icon3D source={HOME_ART.salvadanaio} size={50} />;
   let smallCard: React.ReactNode = null;
   let bookRowLabel: string | null = null;
+  // REG-786 (Tiziano 25/11): «Prenota guida» è la CTA primaria, un bottone nero
+  // a tutta larghezza in un blocco a sé subito sotto la card principale (mai
+  // dentro la card, che racconta solo la prossima guida). Con l'esame non si
+  // aggancia alla card dell'esame: va sotto la card piccola della prossima guida.
+  let bookCtaLabel: string | null = null;
+  const canBookNow = canFreelyBook && !isPaused && !creditsHold;
   if (examHome && nextLesson && examHome.compact) {
     smallCard = (
       <HomeSmallCard
@@ -1857,12 +1860,11 @@ export const AllievoHomeScreen = () => {
             ? { title: 'Prenotazioni in pausa', value: pausedLine }
             : creditsHold
               ? { title: creditsTitle, value: 'Ricarica in segreteria', onPress: openCreditsSheet }
-              : canFreelyBook
-                ? { title: "Prenota un'altra guida", value: creditsLeft, onPress: openBookingFlow, testID: 'home-book' }
-                : null
+              : null
         }
       />
     );
+    if (canBookNow) bookCtaLabel = "Prenota un'altra guida";
   } else if (examHome || nextLesson) {
     if (isPaused) {
       smallCard = <HomeSmallCard thumb={pauseThumb} titleFirst title="Prenotazioni in pausa" kicker={pausedLine} />;
@@ -1870,13 +1872,16 @@ export const AllievoHomeScreen = () => {
       smallCard = (
         <HomeSmallCard testID="home-credits-card" thumb={pigThumb} titleFirst title={creditsTitle} kicker={creditsLine} onPress={openCreditsSheet} />
       );
-    } else if (canFreelyBook && (examHome || !nextLesson)) {
-      // Sotto l'esame la prenotazione resta una riga (non si accoppia alla card dell'esame).
-      bookRowLabel = nextLesson ? "Prenota un'altra guida" : 'Prenota una guida';
+    } else if (canFreelyBook) {
+      bookCtaLabel = nextLesson ? "Prenota un'altra guida" : 'Prenota guida';
     }
   } else if (offerIsPrimary && canFreelyBook) {
+    // Col posto liberato la CTA nera è «Prendilo»: la prenotazione resta una riga.
     bookRowLabel = 'Prenota una guida';
   }
+  const bookCta = bookCtaLabel ? (
+    <BookCta title={bookCtaLabel} note={creditsLeft ? `Hai ${creditsLeft}` : null} onPress={openBookingFlow} />
+  ) : null;
   const bookRow = bookRowLabel ? (
     <View style={styles.underRows}>
       <FlatRow
@@ -1938,6 +1943,9 @@ export const AllievoHomeScreen = () => {
 
             {/* ── Livello 2: al massimo una card piccola ── */}
             {smallCard}
+
+            {/* ── CTA primaria: prenota, blocco a sé sotto le card ── */}
+            {bookCta}
 
             {/* ── Livello 3: tutto il resto a righe ── */}
             {bookRow}

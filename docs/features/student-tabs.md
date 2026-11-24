@@ -16,8 +16,8 @@ Via per l'allievo in pratica: tab **Notifiche** (resta la campanella della home 
 
 ## Home
 - Via «Le tue guide», «Ultime guide», «Il tuo percorso» (`PathRows`) e la riga «Scambi» di «Altro»: stanno nelle tab Guide e Scambi.
-- **«Prenota guida» dentro la card grande** della prossima guida (`NextLessonCard` props `onBook`, `bookNote`), CTA nera a tutta larghezza, con «Hai N guide di credito» sotto. Solo se l'allievo può prenotare da sé (`canFreelyBook`, niente pausa né crediti finiti). Senza guide in programma la card grande è già `BookPrimaryCard` col bottone dentro.
-- **Eccezione esame**: con l'esame la card grande è l'esame e la prenotazione NON si accoppia a quella card: resta la riga in fondo alla card piccola della prossima guida, o una riga piatta.
+- **CTA primaria `BookCta`** (giro v2, Tiziano 25/11): blocco a sé subito SOTTO la card principale, mai dentro (la card racconta solo la prossima guida: data, orario, sede, istruttore, auto). Bottone nero clay a tutta larghezza «Prenota un'altra guida», sotto in grigio «Hai N guide di credito». Solo se l'allievo può prenotare da sé (`canFreelyBook`, niente pausa né crediti finiti). Senza guide in programma la card grande è `BookPrimaryCard` col bottone «Prenota guida».
+- **Con l'esame**: stessa CTA nera (non una riga) sotto la card piccola della prossima guida, mai attaccata alla card dell'esame; senza prossima guida «Prenota guida» sotto la card dell'esame, staccata. Unica riga rimasta: col posto liberato come card grande (la CTA nera lì è «Prendilo»).
 
 ## Guide (`src/screens/StudentGuideScreen.tsx`)
 Una pagina sola: `ClayNavBar` a titolo grande, `Animated.FlatList` con righe `memo`, skeleton.
