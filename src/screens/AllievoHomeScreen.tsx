@@ -40,7 +40,7 @@ import {
   GroupLessonInvite,
 } from '../types/regloApi';
 import { ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
-import { ClayButton, ClayIconButton } from '../components/clay';
+import { ClayIconButton, Icon3D } from '../components/clay';
 import { CLAY } from '../theme/clay';
 import {
   bookingExceptionCases,
@@ -59,11 +59,14 @@ import {
   HomeRow,
   HomeRowsList,
   HomeSection,
-  HomeTile,
   LessonsList,
   NextLessonCard,
   PausedCard,
-  StatTiles,
+  HomeSmallCard,
+  CreditsPrimaryCard,
+  BookPrimaryCard,
+  FlatRow,
+  PathRows,
 } from './allievoHome/HomeSections';
 import { lessonDetailStore } from '../stores/lessonDetailStore';
 import { groupLessonStudentStore } from '../stores/groupLessonStudentStore';
@@ -75,12 +78,12 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 
 import { formatTime } from '../utils/date';
 import { examTimeIsTbd } from '../utils/examTime';
-import { CompactLessonCard, ExamHeroCard } from './allievoHome/ExamHomeCards';
+import { ExamHeroCard } from './allievoHome/ExamHomeCards';
 import { slotLocationParam } from '../utils/slotLocation';
 import { transmissionLabel } from '../utils/license';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CreditsCard } from '../components/credits/CreditsHero';
+import { PiggyCoin } from '../components/credits/CreditsHero';
 import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
 
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
@@ -1562,10 +1565,13 @@ export const AllievoHomeScreen = () => {
   }, [upcoming, upcomingGroupLessons]);
 
   const featuredOffer = liveOffers[0] ?? null;
+  // Il posto liberato è la card grande solo se prima non c'è niente di più
+  // importante (esame, prossima guida, pausa, crediti); altrimenti è una riga.
+  const offerIsPrimary =
+    !!featuredOffer && !policyHold && !creditsHold && !nextLesson && !(nextExam && examCountdown);
 
   const mood = useMemo(() => {
-    // Con la card esame la frase sotto il nome sparisce (anteprima 1i/1j).
-    if (nextExam && examCountdown) return null;
+    if (nextExam && examCountdown) return "Manca poco all'esame.";
     if (policyHold === 'blocked') return 'Le guide che hai già fissato restano valide.';
     if (creditsHold) return allUpcoming.length ? 'Le guide già fissate restano.' : 'Prima una ricarica, poi si guida.';
     if (featuredOffer) return 'Si è liberato un posto: prendilo prima degli altri.';
@@ -1655,23 +1661,15 @@ export const AllievoHomeScreen = () => {
     router.push('/(tabs)/home/exam-detail');
   }, [nextExam, examCountdown, router]);
 
-  const tiles = useMemo<HomeTile[]>(() => {
-    const out: HomeTile[] = [];
-    if (pastLessons.length) {
-      out.push({
-        key: 'done',
-        icon: HOME_ART.volante,
-        value: `${pastLessons.length} ${pastLessons.length === 1 ? 'guida' : 'guide'}`,
-        label: 'già fatte',
-      });
-    }
-    // L'esame ha la sua card in cima: qui non si ripete.
-    if (policyMode === 'closed' && pastLessons[0]) {
-      const wd = new Date(pastLessons[0].startsAt).toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
-      out.push({ key: 'last', icon: HOME_ART.agenda, value: wd.charAt(0).toUpperCase() + wd.slice(1), label: 'ultima guida' });
-    }
-    return out;
-  }, [pastLessons, policyMode]);
+  // «Il tuo percorso»: guide fatte e la data dell'ultima (righe, livello 3).
+  const lastLessonLabel = useMemo(() => {
+    const last = pastLessons[0];
+    if (!last) return null;
+    const d = new Date(last.startsAt);
+    const wd = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+    const mon = d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+    return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d.getDate()} ${mon}`;
+  }, [pastLessons]);
 
   const bookingCases = useMemo<BookingCaseItem[]>(() => {
     if (!bookingPolicy) return [];
@@ -1687,7 +1685,7 @@ export const AllievoHomeScreen = () => {
 
   const freeRows = useMemo<HomeRow[]>(() => {
     const rows: HomeRow[] = [];
-    for (const offer of liveOffers.slice(1)) {
+    for (const offer of liveOffers.slice(offerIsPrimary ? 1 : 0)) {
       rows.push({
         key: `offer-${offer.id}`,
         icon: HOME_ART.campanella,
@@ -1724,7 +1722,7 @@ export const AllievoHomeScreen = () => {
       });
     }
     return rows;
-  }, [liveOffers, canTakeGroupSeats, policyMode, firstGroupInvite, groupInvites.length, lastMinute, bookingPolicy, openSlotOffer, router]);
+  }, [liveOffers, offerIsPrimary, canTakeGroupSeats, policyMode, firstGroupInvite, groupInvites.length, lastMinute, bookingPolicy, openSlotOffer, router]);
 
   const moreRows = useMemo<HomeRow[]>(() => {
     const rows: HomeRow[] = [];
@@ -1870,6 +1868,129 @@ export const AllievoHomeScreen = () => {
     )
   ) : null;
 
+  // ── Gerarchia a tre livelli (v6) ──
+  const isPaused = policyHold === 'blocked';
+  const unpaidCount =
+    bookingOptions?.bookingBlockReason === 'unpaid_threshold' && bookingOptions.unpaidLessonCount
+      ? bookingOptions.unpaidLessonCount
+      : null;
+  const creditsLeft = bookingOptions?.lessonCredits?.required ? `${bookingOptions.lessonCredits.availableLabel} di credito` : null;
+  const creditsTitle = creditsHold?.title ?? 'Crediti finiti';
+  const creditsLine = 'Ricarica in segreteria e prenoti.';
+  const openCreditsSheet = () =>
+    router.push({ pathname: '/(tabs)/home/credits-needed', params: { title: creditsTitle, line: creditsLine } });
+  const pausedLine = unpaidCount
+    ? `${unpaidCount} ${unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare'}`
+    : 'Sospese dalla segreteria';
+
+  const pausedCard = (
+    <PausedCard
+      title="Prenotazioni in pausa"
+      count={unpaidCount}
+      countLabel={unpaidCount ? (unpaidCount === 1 ? 'guida da pagare' : 'guide da pagare') : 'Sospese dalla segreteria'}
+      text={
+        unpaidCount
+          ? 'Finché non le saldi non puoi prenotare né prendere posti liberi. Quando paghi in segreteria si riaprono da sole.'
+          : 'Non puoi prenotare né prendere posti liberi. Per riaprirle parla con la segreteria.'
+      }
+    />
+  );
+
+  let primaryCard: React.ReactNode;
+  if (examHome) {
+    primaryCard = (
+      <ExamHeroCard
+        big={examHome.big}
+        unit={examHome.unit}
+        whenLine={examHome.whenLine}
+        lessonPositions={examHome.lessonPositions}
+        onPress={openExam}
+      />
+    );
+  } else if (nextLessonCard) {
+    primaryCard = nextLessonCard;
+  } else if (isPaused) {
+    primaryCard = pausedCard;
+  } else if (creditsHold) {
+    primaryCard = <CreditsPrimaryCard title={creditsTitle} line={creditsLine} />;
+  } else if (offerIsPrimary && featuredOffer) {
+    primaryCard = (
+      <LiveOfferCard
+        offer={featuredOffer}
+        day={`${shortDay(featuredOffer.slot.startsAt)} · ${formatTime(featuredOffer.slot.startsAt)}`}
+        onTake={() => openSlotOffer(featuredOffer.id)}
+      />
+    );
+  } else if (canFreelyBook) {
+    primaryCard = (
+      <BookPrimaryCard
+        line={
+          creditsLeft
+            ? `Hai ${creditsLeft}.`
+            : nextExam && examCountdown
+              ? `Mancano ${examCountdown.days} giorni all'esame.`
+              : 'Scegli giorno e ora.'
+        }
+        onBook={openBookingFlow}
+      />
+    );
+  } else {
+    primaryCard = emptyCard;
+  }
+
+  // Livello 2: quello che viene subito dopo la card grande, in UNA card piccola.
+  // Sotto l'esame è la prossima guida, e la cosa dopo ancora (pausa, crediti,
+  // prenota) entra come riga in fondo alla stessa card.
+  const pigThumb = <PiggyCoin size={46} top={14} />;
+  const pauseThumb = <Icon3D source={HOME_ART.salvadanaio} size={50} />;
+  let smallCard: React.ReactNode = null;
+  let bookRowLabel: string | null = null;
+  if (examHome && nextLesson && examHome.compact) {
+    smallCard = (
+      <HomeSmallCard
+        testID="home-next-lesson-compact"
+        thumb="car"
+        kicker={examHome.compact.kicker}
+        title={examHome.compact.title}
+        onPress={() => openAnyLessonDetail(nextLesson)}
+        footer={
+          isPaused
+            ? { title: 'Prenotazioni in pausa', value: pausedLine }
+            : creditsHold
+              ? { title: creditsTitle, value: 'Ricarica in segreteria', onPress: openCreditsSheet }
+              : canFreelyBook
+                ? { title: "Prenota un'altra guida", value: creditsLeft, onPress: openBookingFlow, testID: 'home-book' }
+                : null
+        }
+      />
+    );
+  } else if (examHome || nextLesson) {
+    if (isPaused) {
+      smallCard = <HomeSmallCard thumb={pauseThumb} titleFirst title="Prenotazioni in pausa" kicker={pausedLine} />;
+    } else if (creditsHold) {
+      smallCard = (
+        <HomeSmallCard testID="home-credits-card" thumb={pigThumb} titleFirst title={creditsTitle} kicker={creditsLine} onPress={openCreditsSheet} />
+      );
+    } else if (canFreelyBook) {
+      bookRowLabel = nextLesson ? "Prenota un'altra guida" : 'Prenota una guida';
+    }
+  } else if (offerIsPrimary && canFreelyBook) {
+    bookRowLabel = 'Prenota una guida';
+  }
+  const bookRow = bookRowLabel ? (
+    <View style={styles.underRows}>
+      <FlatRow
+        first
+        strong
+        leading={<Icon3D source={HOME_ART.volante} size={34} />}
+        title={bookRowLabel}
+        subtitle={creditsLeft ? `Hai ${creditsLeft}` : null}
+        onPress={openBookingFlow}
+        testID="home-book"
+      />
+    </View>
+  ) : null;
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
@@ -1900,78 +2021,26 @@ export const AllievoHomeScreen = () => {
 
         {!dataReady ? (
           <Animated.View exiting={FadeOut.duration(150)} style={styles.skeleton}>
+            {/* Stessa forma della home: la card grande, poi righe. */}
             <SkeletonBlock width="100%" height={258} radius={28} />
-            <View style={styles.skeletonTiles}>
-              <SkeletonBlock width="48%" height={74} radius={22} />
-              <SkeletonBlock width="48%" height={74} radius={22} />
+            <View style={styles.skeletonRows}>
+              <SkeletonBlock width="38%" height={16} radius={8} />
+              <SkeletonBlock width="100%" height={44} radius={12} />
+              <SkeletonBlock width="100%" height={44} radius={12} />
             </View>
-            <SkeletonBlock width="100%" height={54} radius={27} />
           </Animated.View>
         ) : (
           <Animated.View entering={FadeIn.duration(220)}>
-            {/* ── Esame prenotato: è SEMPRE la card protagonista (Tiziano 10/11),
-                la prossima guida scende in una card compatta subito sotto. ── */}
-            {examHome ? (
-              <>
-                <ExamHeroCard
-                  big={examHome.big}
-                  unit={examHome.unit}
-                  whenLine={examHome.whenLine}
-                  lessonPositions={examHome.lessonPositions}
-                  onPress={openExam}
-                />
-                {nextLesson && examHome.compact ? (
-                  <CompactLessonCard
-                    kicker={examHome.compact.kicker}
-                    title={examHome.compact.title}
-                    onPress={() => openAnyLessonDetail(nextLesson)}
-                  />
-                ) : null}
-              </>
-            ) : null}
+            {/* ── Livello 1: UNA card grande, la cosa più importante (v6, Tiziano 24/11):
+                esame > prossima guida > pausa > crediti finiti > posto liberato >
+                prenota > stato vuoto. ── */}
+            {primaryCard}
 
-            {/* ── Prenotazioni in pausa ── */}
-            {policyHold === 'blocked' ? (
-              <PausedCard
-                title="Prenotazioni in pausa"
-                count={
-                  bookingOptions?.bookingBlockReason === 'unpaid_threshold' && bookingOptions.unpaidLessonCount
-                    ? bookingOptions.unpaidLessonCount
-                    : null
-                }
-                countLabel={
-                  bookingOptions?.bookingBlockReason === 'unpaid_threshold' && bookingOptions.unpaidLessonCount
-                    ? bookingOptions.unpaidLessonCount === 1
-                      ? 'guida da pagare'
-                      : 'guide da pagare'
-                    : 'Sospese dalla segreteria'
-                }
-                text={
-                  bookingOptions?.bookingBlockReason === 'unpaid_threshold'
-                    ? 'Finché non le saldi non puoi prenotare né prendere posti liberi. Quando paghi in segreteria si riaprono da sole.'
-                    : 'Non puoi prenotare né prendere posti liberi. Per riaprirle parla con la segreteria.'
-                }
-              />
-            ) : null}
+            {/* ── Livello 2: al massimo una card piccola ── */}
+            {smallCard}
 
-            {/* ── Crediti finiti (REG-784) ── */}
-            {creditsHold ? (
-              <Animated.View entering={FadeIn.duration(220)}>
-                <CreditsCard
-                  title={creditsHold.title ?? 'Crediti finiti'}
-                  line="Ricarica in segreteria e prenoti."
-                />
-              </Animated.View>
-            ) : null}
-
-            {/* ── Posto liberato in evidenza ── */}
-            {!policyHold && featuredOffer ? (
-              <LiveOfferCard
-                offer={featuredOffer}
-                day={`${shortDay(featuredOffer.slot.startsAt)} · ${formatTime(featuredOffer.slot.startsAt)}`}
-                onTake={() => openSlotOffer(featuredOffer.id)}
-              />
-            ) : null}
+            {/* ── Livello 3: tutto il resto a righe ── */}
+            {bookRow}
 
             {/* ── Solo eccezioni senza posti: quando puoi prenotare tu ── */}
             {!policyHold && policyMode === 'exceptions' && !featuredOffer && freeRows.length === 0 && bookingCases.length ? (
@@ -1984,34 +2053,30 @@ export const AllievoHomeScreen = () => {
               </HomeSection>
             ) : null}
 
-            {/* ── Altri posti liberi ── */}
             {!policyHold && freeRows.length ? (
               <HomeSection
-                title={featuredOffer ? 'Altri posti liberi' : 'Posti liberi'}
+                title={offerIsPrimary ? 'Altri posti liberi' : 'Posti liberi'}
                 footer={policyMode === 'exceptions' ? 'Questi li prenoti tu. Tutte le altre guide le fissa la tua autoscuola.' : null}
               >
                 <HomeRowsList rows={freeRows} />
               </HomeSection>
             ) : null}
 
-            {/* ── Prossima guida (o stato vuoto con l'immagine) ── */}
-            <View style={policyMode === 'exceptions' && !policyHold ? styles.afterCases : undefined}>
-              {examHome ? null : nextLessonCard ?? emptyCard}
-            </View>
-
-            {examHome ? null : <StatTiles tiles={tiles} />}
-
-            {canFreelyBook && !creditsHold ? <ClayButton title="Prenota una guida" onPress={openBookingFlow} style={styles.cta} testID="home-book" /> : null}
-
             {lessonRows.length ? (
               <HomeSection title="Le tue guide" right={allUpcoming.length > 1 ? 'Tutte' : null} onRightPress={openAllLessons}>
                 <LessonsList rows={lessonRows} />
               </HomeSection>
             ) : !nextLesson && pastRows.length && policyMode !== 'open' ? (
-              <HomeSection title="Guide fatte">
+              <HomeSection title="Ultime guide">
                 <LessonsList rows={pastRows} />
               </HomeSection>
             ) : null}
+
+            <PathRows
+              done={pastLessons.length}
+              last={lastLessonLabel}
+              onLastPress={pastLessons[0] ? () => openLessonDetail(pastLessons[0]) : undefined}
+            />
 
             {moreRows.length ? (
               <HomeSection title="Altro">
@@ -2058,8 +2123,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   scroll: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 },
   skeleton: { marginTop: 18, gap: 14 },
-  skeletonTiles: { flexDirection: 'row', justifyContent: 'space-between' },
-  afterCases: { marginTop: 6 },
-  cta: { marginTop: 18 },
+  skeletonRows: { marginTop: 14, gap: 14 },
+  underRows: { marginTop: 10 },
   holdNote: { fontSize: 13.5, lineHeight: 19, color: CLAY.ink3, marginTop: 18, paddingHorizontal: 4 },
 });

@@ -2,7 +2,8 @@
  * Home allievo con un esame prenotato (anteprime approvate da Tiziano il
  * 10/11/2026: /tmp/hiro-anteprime/prenotazione-eccezioni/mob-1i, mob-1j,
  * mobile-v7-esame.html). L'esame è SEMPRE la card protagonista; sotto, la
- * prossima guida in una card compatta.
+ * prossima guida nella card piccola `HomeSmallCard` (gerarchia a tre livelli,
+ * REG-784 v6).
  *
  * Misure verificate col mockup (pt):
  * - inset interno 20 su TUTTE e due le card (bordi interni in colonna);
@@ -17,12 +18,9 @@
  *   dell'inchiostro sta sul filo dei 20 pt come il testo sotto.
  */
 import React, { memo, useCallback, useState } from 'react';
-import { Image, LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { Ionicons } from '@expo/vector-icons';
 import { ClayPressable, Icon3D } from '../../components/clay';
-import { CLAY, CLAY_SHADOW } from '../../theme/clay';
-import { CLAY_RADIUS } from '../../theme/spacing';
 import { HOME_ART } from './HomeSections';
 
 export const EXAM_TONE = {
@@ -148,46 +146,10 @@ export const ExamHeroCard = memo(function ExamHeroCard({
   );
 });
 
-/** Prossima guida, ridotta: ritaglio dell'immagine + due righe. */
-export const CompactLessonCard = memo(function CompactLessonCard({
-  kicker,
-  title,
-  onPress,
-}: {
-  /** «Prossima guida · tra 2 giorni», «Ultima guida · domani». */
-  kicker: string;
-  /** «Ven 14 nov · 15:00 – 16:00». */
-  title: string;
-  onPress: () => void;
-}) {
-  return (
-    <ClayPressable
-      kind="card"
-      onPress={onPress}
-      style={s.compact}
-      accessibilityRole="button"
-      accessibilityLabel={`${kicker}, ${title}`}
-      testID="home-next-lesson-compact"
-    >
-      <View style={s.thumb}>
-        <Image source={HOME_ART.hero} style={s.thumbImg} resizeMode="cover" accessibilityIgnoresInvertColors />
-      </View>
-      <View style={s.compactText}>
-        <Text style={s.kicker} numberOfLines={1}>
-          {kicker}
-        </Text>
-        <Text style={s.title} numberOfLines={1}>
-          {title}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} />
-    </ClayPressable>
-  );
-});
-
 const s = StyleSheet.create({
   hero: {
-    marginTop: 22,
+    // Stessa distanza dall'intestazione delle altre card grandi (Tiziano 24/11).
+    marginTop: 18,
     borderRadius: 30,
     backgroundColor: EXAM_TONE.bg,
     boxShadow: [
@@ -256,23 +218,4 @@ const s = StyleSheet.create({
   },
   labels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   label: { fontSize: 12.5, lineHeight: 16, color: EXAM_TONE.label },
-
-  compact: {
-    marginTop: 14,
-    borderRadius: CLAY_RADIUS.card,
-    backgroundColor: CLAY.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 17,
-    paddingHorizontal: EXAM_HOME_INSET,
-    ...CLAY_SHADOW.raise,
-  },
-  thumb: { width: 80, height: 58, borderRadius: 16, overflow: 'hidden', backgroundColor: CLAY.surface },
-  // Ritaglio dell'immagine della home centrato sull'auto (come il mockup:
-  // cover + zoom 1,9 centrato al 50%/55%).
-  thumbImg: { position: 'absolute', width: 330, height: 110, left: -125, top: -29 },
-  compactText: { flex: 1, minWidth: 0 },
-  kicker: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3 },
-  title: { fontSize: 16.5, lineHeight: 21, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, marginTop: 2 },
 });
