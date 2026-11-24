@@ -1794,10 +1794,10 @@ export const AllievoHomeScreen = () => {
     if (nextLesson) {
       const d = new Date(nextLesson.startsAt);
       const wd = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
-      const isLast = beforeExam.length === 1 && beforeExam[0].id === nextLesson.id;
       const when = nextLessonCountdown ? ` \u00B7 ${nextLessonCountdown.toLowerCase()}` : '';
       compact = {
-        kicker: `${isLast ? 'Ultima guida' : 'Prossima guida'}${when}`,
+        // Sempre «Prossima guida»: «Ultima» si leggeva come una guida già fatta.
+        kicker: `Prossima guida${when}`,
         title: `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d.getDate()} ${mon(d)} \u00B7 ${timeRange(nextLesson)}`,
       };
     }
