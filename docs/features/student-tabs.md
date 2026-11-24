@@ -1,0 +1,46 @@
+# Tab dell'allievo: Home · Guide · Scambi · Profilo (REG-786)
+
+Scelta di Tiziano del 24/11/2026: variante V1, anteprime in `/tmp/hiro-anteprime/allievo-tab/v2/` (V1a, V1b, V1c, D1, D2). Correzione del 25/11: «Prenota guida» è la CTA primaria della home.
+
+## Chi la vede
+Solo l'allievo in **pratica** (`useStudentPhase().phase === 'PRATICA'`). In attesa e patentato: solo la Home. In teoria: Home (quiz), Profilo, Notifiche, come prima.
+
+| Tab | Route | Note |
+|---|---|---|
+| Home | `home/index` | gerarchia a tre livelli di REG-784 (`student-booking-exceptions.md`) |
+| Guide | `guide/index` → `StudentGuideScreen` | sempre, in pratica |
+| Scambi | `swaps/index` → `StudentSwapsScreen` | solo se gli scambi sono accesi (`useSwapEnabled`) |
+| Profilo | `settings/index` | la tab «Impostazioni» con il titolo «Profilo» per tutti gli allievi |
+
+Via per l'allievo in pratica: tab **Notifiche** (resta la campanella della home → `home/notifications`; anche il campanello di `NotificationOverlay`) e tab **Note** (diventata la riga «Come stai andando» della tab Guide). Glifi della barra in `AppTabBar` (`STUDENT_ICONS`): calendario, frecce, persona.
+
+## Home
+- Via «Le tue guide», «Ultime guide», «Il tuo percorso» (`PathRows`) e la riga «Scambi» di «Altro»: stanno nelle tab Guide e Scambi.
+- **«Prenota guida» dentro la card grande** della prossima guida (`NextLessonCard` props `onBook`, `bookNote`), CTA nera a tutta larghezza, con «Hai N guide di credito» sotto. Solo se l'allievo può prenotare da sé (`canFreelyBook`, niente pausa né crediti finiti). Senza guide in programma la card grande è già `BookPrimaryCard` col bottone dentro.
+- **Eccezione esame**: con l'esame la card grande è l'esame e la prenotazione NON si accoppia a quella card: resta la riga in fondo alla card piccola della prossima guida, o una riga piatta.
+
+## Guide (`src/screens/StudentGuideScreen.tsx`)
+Una pagina sola: `ClayNavBar` a titolo grande, `Animated.FlatList` con righe `memo`, skeleton.
+- **Dati**: `useAppointments({ studentId: user.id, from: −36 mesi, to: +120 giorni, limit: 500 })`, ramo **pieno** (non `light`): porta `manualPaymentStatus`, `creditApplied` e il pagellino (il server lo manda solo se `studentNotesEnabled`). Cache TanStack condivisa (`['appointments']` invalidato da prenotazioni e annullamenti).
+- **Riepilogo**: «Da <mese della prima guida fatta>», N guide fatte, ore al volante (somma delle durate). Copertina `assets/vita/cartina-road` se Road è condiviso con l'allievo (`roadEnabled && studentNotesEnabled`), altrimenti il volante 3D. I km non ci sono: il server non dà all'allievo i percorsi di tutte le guide (`getRoadForStudent` è solo staff) e il task è solo app.
+- **Come stai andando** (solo con le note condivise): l'ultimo voto di ogni voce (`studentEvaluationLevels`), la più debole in parole; tocco → `guide/notes` (`StudentMyNotesScreen` con `onBack`).
+- **In arrivo**: guide future (esami esclusi, hanno la loro card in home); tocco → `guide/lesson-detail` (stesso foglio della home) con «Cerca sostituto»/«Annulla» via `useStudentLessonActions`; posto di gruppo → `guide/group-lesson-detail`.
+- **Fatte**: per mese, le prime 8 e poi «Tutte». Svolte, assenze e annullate dall'allievo (`isPastLesson` in `src/utils/studentLessons.ts`). A destra una parola: «Da pagare» (nero 600, regola `isLessonUnpaid` gemella del backend) > «Assente»/«Annullata» (testi e colori di REG-785, `LESSON_STATUS_LINE`) > «Pagata» (solo con credito o segnata pagata). Niente importi in euro (REG-780).
+
+## Foglio della guida fatta (`guide/lesson`, `StudentDoneLessonSheet`)
+`FORM_SHEET` ad altezza adattiva, seed in `doneLessonStore`.
+- Percorso Road (mappa, km, minuti, «da rivedere», «Lungo il percorso» con le segnalazioni non «fatte bene» numerate) **solo** se `GET /road/appointments/:id` risponde: il server applica già Road acceso + «Mostra note e percorsi nell'app allievi» (`studentNotesEnabled`). Le tracce delle ultime 6 guide fatte si prendono in anticipo dalla tab (`prefetchQuery`), così il foglio si apre con la mappa. Tocco sulla mappa → `guide/road-map`.
+- Pagamento: «Da pagare · Saldala in segreteria» oppure «Pagata · Con 1 guida di credito / Saldata in segreteria».
+- Valutazione: le voci in parole (`scoreWord`: Bene ≥ 75%, Da rifinire ≥ 50%, Da rivedere) con «Le vedi perché la tua autoscuola le condivide.».
+
+## Scambi (`src/screens/StudentSwapsScreen.tsx`)
+- Dati in cache con `useStudentSwaps` (`['swap-offers']`, `['swap-my-offers']`, aggiornati da push di scambio, `notificationEvents.emitDataChanged` e ogni 30 s mentre la tab è aperta).
+- La prima guida dei compagni in evidenza (copertina, «Lasciata da un compagno · domani», «Prendila»), le altre a righe con «Prendi». Prendere chiede conferma (alert nativo), poi `respondSwapOffer`; crediti insufficienti → `swaps/credits-needed` (REG-784).
+- «Le tue richieste»: «In attesa», tocco → `swaps/swap-detail` per revocare.
+- `home/swaps` (vecchia `SwapOffersScreen`) resta per i link vecchi; le notifiche di scambio aprono la tab (`NotificationInboxScreen`).
+
+## Route riusate in più stack
+`guide/lesson-detail`, `guide/group-lesson-detail`, `guide/road-map`, `swaps/swap-detail`, `swaps/credits-needed` ri-esportano le route di `home/`. `home/lesson-detail` apre la mappa nello stack in cui sta (`useSegments`).
+
+## File
+`app/(tabs)/_layout.tsx`, `src/components/AppTabBar.tsx`, `app/(tabs)/guide/*`, `app/(tabs)/swaps/*`, `src/screens/StudentGuideScreen.tsx`, `src/screens/StudentDoneLessonSheet.tsx`, `src/screens/StudentSwapsScreen.tsx`, `src/hooks/useStudentSwaps.ts`, `src/hooks/useStudentLessonActions.ts`, `src/stores/doneLessonStore.ts`, `src/utils/studentLessons.ts`, `src/screens/allievoHome/HomeSections.tsx` (`FlatRow` `valueStyle`/`trailing`, `NextLessonCard` `onBook`), `AllievoHomeScreen`, `SettingsScreen` («Le tue guide» solo fuori dalla pratica), `StudentMyNotesScreen` (`onBack`, `lessonDetailPath`), `NotificationOverlay`, `NotificationInboxScreen`.

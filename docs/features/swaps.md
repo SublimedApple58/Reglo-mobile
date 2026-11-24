@@ -45,3 +45,6 @@ No longer uses Screen / BottomSheet / Button.
 - **Notifications** — swap offers arrive via push → NotificationOverlay
 - **Booking Flow** — accepted swap changes student's schedule
 - **Settings** — swap enabled flag from company settings
+
+## Tab Scambi (REG-786)
+Per l'allievo in pratica gli scambi hanno una tab propria (`StudentSwapsScreen`, `app/(tabs)/swaps/`): guida da prendere in evidenza, le altre a righe con «Prendi» (conferma nativa), le proprie richieste. Dettagli in `student-tabs.md`. La riga «Scambi» della home non c'è più; `home/swaps` resta per i link vecchi.

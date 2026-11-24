@@ -386,9 +386,9 @@ export const NotificationInboxScreen = ({ asTab = false }: { asTab?: boolean } =
       // Swap-related (offer or accepted confirmation) → open the "Scambi"
       // section (no drawer). From the tab we push (keep the tab in the stack);
       // from the pushed route we replace (don't stack the inbox underneath).
+      // REG-786: gli scambi hanno la loro tab.
       if (isSwapRelated(item.kind)) {
-        if (asTab) router.push('/(tabs)/home/swaps');
-        else router.replace('/(tabs)/home/swaps');
+        router.navigate('/(tabs)/swaps');
         return;
       }
 

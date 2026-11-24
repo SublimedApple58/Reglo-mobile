@@ -9,7 +9,7 @@
  * (nessuna molla).
  */
 import React, { memo } from 'react';
-import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CLAY_ROW_PRESSED, ClayButton, ClayPressable, ClaySurface, Icon3D } from '../../components/clay';
 import { PiggyCoin } from '../../components/credits/CreditsHero';
@@ -68,6 +68,8 @@ export const NextLessonCard = memo(function NextLessonCard({
   who,
   initials,
   onPress,
+  onBook,
+  bookNote,
 }: {
   when: string;
   day: string;
@@ -75,6 +77,14 @@ export const NextLessonCard = memo(function NextLessonCard({
   who: string | null;
   initials: string | null;
   onPress: () => void;
+  /**
+   * REG-786 (Tiziano 25/11): «Prenota guida» è la CTA primaria e sta DENTRO la
+   * card grande, a tutta larghezza, la cosa più evidente della home. Assente
+   * quando l'allievo non può prenotare da solo.
+   */
+  onBook?: () => void;
+  /** Riga sotto la CTA (es. «Hai 4 guide di credito»). */
+  bookNote?: string | null;
 }) {
   return (
     <ClaySurface padded={false} onPress={onPress} style={s.big} accessibilityLabel={`${when}, ${day}, ${time}`}>
@@ -94,6 +104,12 @@ export const NextLessonCard = memo(function NextLessonCard({
               {who}
             </Text>
           </View>
+        ) : null}
+        {onBook ? (
+          <>
+            <ClayButton title="Prenota guida" onPress={onBook} style={s.cardCta} testID="home-book" />
+            {bookNote ? <Text style={s.bookNote}>{bookNote}</Text> : null}
+          </>
         ) : null}
       </View>
     </ClaySurface>
@@ -247,6 +263,8 @@ export const FlatRow = memo(function FlatRow({
   title,
   subtitle,
   value,
+  valueStyle,
+  trailing,
   onPress,
   first,
   strong,
@@ -257,6 +275,10 @@ export const FlatRow = memo(function FlatRow({
   title: string;
   subtitle?: string | null;
   value?: string | null;
+  /** REG-786: «Da pagare» in nero 600, «Pagata» in grigio. */
+  valueStyle?: StyleProp<TextStyle>;
+  /** REG-786: azione a destra al posto del chevron (es. «Prendi» negli Scambi). */
+  trailing?: React.ReactNode;
   onPress?: () => void;
   first?: boolean;
   strong?: boolean;
@@ -283,8 +305,8 @@ export const FlatRow = memo(function FlatRow({
             </Text>
           ) : null}
         </View>
-        {value ? <Text style={s.rv}>{value}</Text> : null}
-        {onPress ? <Ionicons name="chevron-forward" size={17} color={CLAY.ink3} /> : null}
+        {value ? <Text style={[s.rv, valueStyle]}>{value}</Text> : null}
+        {trailing ?? (onPress ? <Ionicons name="chevron-forward" size={17} color={CLAY.ink3} /> : null)}
       </View>
     </Pressable>
   );
@@ -549,6 +571,7 @@ const s = StyleSheet.create({
 
   coverPlain: { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 2 },
   cardCta: { marginTop: 16 },
+  bookNote: { fontSize: 13.5, color: CLAY.ink3, textAlign: 'center', marginTop: 10 },
 
   small: { marginTop: 14 },
   smallMain: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 18 },

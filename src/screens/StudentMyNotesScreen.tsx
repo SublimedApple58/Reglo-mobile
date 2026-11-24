@@ -88,7 +88,15 @@ const findLinkedStudent = (
   return byName ?? null;
 };
 
-export const StudentMyNotesScreen = () => {
+/**
+ * REG-786: dalla tab Guide («Come stai andando») si apre come pagina dello
+ * stack Guide: `onBack` mette la freccia e `lessonDetailPath` tiene il
+ * dettaglio guida nello stesso stack (senza saltare alla tab Home).
+ */
+export const StudentMyNotesScreen = ({
+  onBack,
+  lessonDetailPath = '/(tabs)/home/lesson-detail',
+}: { onBack?: () => void; lessonDetailPath?: string } = {}) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   /**
@@ -107,8 +115,8 @@ export const StudentMyNotesScreen = () => {
       onSwap: () => undefined,
       onCancel: () => undefined,
     });
-    router.push('/(tabs)/home/lesson-detail');
-  }, [router]);
+    router.push(lessonDetailPath as never);
+  }, [router, lessonDetailPath]);
   const { user } = useSession();
   const [appointments, setAppointments] = useState<AutoscuolaAppointmentWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
@@ -340,6 +348,11 @@ export const StudentMyNotesScreen = () => {
         )}
         <Animated.View style={[StyleSheet.absoluteFill, st.headerBorder, borderStyle]} />
         <View style={st.headerRow}>
+          {onBack ? (
+            <Pressable onPress={onBack} hitSlop={14} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Indietro" testID="notes-back">
+              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+            </Pressable>
+          ) : null}
           <Animated.Text style={[st.compactTitle, compactStyle]} numberOfLines={1}>
             Le mie note
           </Animated.Text>
@@ -482,6 +495,7 @@ const st = StyleSheet.create({
   headerBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md },
   compactTitle: { fontSize: 17, fontWeight: '600', color: colors.textPrimary },
+  backBtn: { width: 36, height: 36, alignItems: 'flex-start', justifyContent: 'center', marginRight: 4 },
 
   /* Large title */
   largeTitle: { fontSize: 24, fontWeight: '700', color: '#111111', letterSpacing: -0.3 },

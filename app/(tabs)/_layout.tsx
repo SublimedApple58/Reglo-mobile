@@ -2,7 +2,6 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { useSession } from '../../src/context/SessionContext';
 import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
-import { useStudentNotesEnabled } from '../../src/hooks/useStudentNotesEnabled';
 import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
 import { useQuizEnabled } from '../../src/hooks/useQuizEnabled';
 import { QuizProvider } from '../../src/context/QuizContext';
@@ -53,7 +52,6 @@ function topPageIsRoot(state: NestedState): boolean {
 export default function TabsLayout() {
   const { autoscuolaRole, user, status } = useSession();
   const { enabled: swapEnabled } = useSwapEnabled();
-  const { enabled: studentNotesEnabled } = useStudentNotesEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
   const { phase: studentPhase, hasQuizAccess, licenseCategory: studentLicenseCategory, needsLicensePath } = useStudentPhase();
@@ -68,8 +66,8 @@ export default function TabsLayout() {
   // Students in AWAITING: only the home neutral screen — no functional tabs.
   // Students in PATENTATO: only home tab is visible.
   // Students in TEORIA: quiz central, no swaps.
-  const showNotesTab =
-    (showRoleTab || studentNotesEnabled) && !isStudentAwaiting && !isStudentLicensed && !isStudentInTeoria;
+  // REG-786: la tab Note dell'allievo è diventata «Come stai andando» nella tab Guide.
+  const showNotesTab = showRoleTab;
   // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
   const showMoreTab = isInstructor || isInstructorOwner || (showRoleTab && vehiclesEnabled);
   // Quiz tab: hidden for TEORIA students (quiz is integrated into the home).
@@ -84,8 +82,14 @@ export default function TabsLayout() {
   React.useEffect(() => {
     if (showDriveTab) warmRoadFree();
   }, [showDriveTab]);
+  // REG-786 (V1, Tiziano 24/11): l'allievo in pratica ha Home · Guide · Scambi ·
+  // Profilo. Le notifiche restano nella campanella della home, le note
+  // («Come stai andando») stanno nella tab Guide.
+  const isStudentDriving = isStudent && !isStudentAwaiting && !isStudentLicensed && !isStudentInTeoria;
+  const showGuideTab = isStudentDriving;
+  const showSwapsTab = isStudentDriving && swapEnabled;
   const showInboxTab =
-    !instructorApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed));
+    !instructorApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed && !isStudentDriving));
   const isOwner = autoscuolaRole === 'OWNER';
   const tabBarHeight = useTabBarHeight();
 
@@ -99,6 +103,8 @@ export default function TabsLayout() {
     if (!showQuizTab) set.add('quiz');
     if (!showInboxTab) set.add('inbox');
     if (!showDriveTab) set.add('drive');
+    if (!showGuideTab) set.add('guide');
+    if (!showSwapsTab) set.add('swaps');
     // Settings hidden when "Altro" is shown (accessed from More screen)
     if (showMoreTab) set.add('settings');
     // Awaiting / Licensed students see only home — no settings either.
@@ -111,6 +117,8 @@ export default function TabsLayout() {
     showQuizTab,
     showInboxTab,
     showDriveTab,
+    showGuideTab,
+    showSwapsTab,
     instructorApp,
     isStudentAwaiting,
     isStudentLicensed,
@@ -158,13 +166,15 @@ export default function TabsLayout() {
         }}
       >
         <Tabs.Screen name="home" options={{ title: instructorApp ? 'Agenda' : 'Home' }} />
+        <Tabs.Screen name="guide" options={{ href: showGuideTab ? '/(tabs)/guide' : null, title: 'Guide' }} />
+        <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
         <Tabs.Screen name="role" options={{ href: showRoleTab && !instructorApp ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
         {/* Road montata in anticipo (fluidità 29/10): la mappa nasce a riposo
             dopo l'avvio, non al primo tocco. Solo per chi ha la tab. */}
         <Tabs.Screen name="drive" options={{ href: showDriveTab ? '/(tabs)/drive' : null, title: 'Road', lazy: !showDriveTab }} />
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
         <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: instructorApp ? 'Tu' : 'Altro' }} />
-        <Tabs.Screen name="settings" options={{ title: 'Impostazioni' }} />
+        <Tabs.Screen name="settings" options={{ title: isStudent ? 'Profilo' : 'Impostazioni' }} />
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
         <Tabs.Screen name="inbox" options={{ href: showInboxTab ? '/(tabs)/inbox' : null, title: 'Notifiche' }} />
       </Tabs>

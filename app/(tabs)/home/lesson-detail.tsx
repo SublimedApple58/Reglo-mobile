@@ -2,7 +2,7 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { lessonDetailStore } from '../../../src/stores/lessonDetailStore';
 import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
 import { formatDay, formatTime } from '../../../src/utils/date';
@@ -45,6 +45,9 @@ const formatLessonType = (value: string | null | undefined) => {
 
 export default function LessonDetailScreen() {
   const router = useRouter();
+  // REG-786: il foglio vive anche nello stack della tab Guide: la mappa si apre lì.
+  const segments = useSegments() as string[];
+  const stack = segments[1] === 'guide' ? 'guide' : 'home';
   const data = useSyncExternalStore(lessonDetailStore.subscribe, lessonDetailStore.get);
 
   useEffect(() => {
@@ -150,7 +153,7 @@ export default function LessonDetailScreen() {
             <Pressable
               onPress={() => {
                 roadRouteMapStore.set(road);
-                router.push('/(tabs)/home/road-map');
+                router.push(`/(tabs)/${stack}/road-map`);
               }}
               accessibilityRole="button"
               accessibilityLabel="Apri la mappa del percorso"

@@ -30,6 +30,7 @@ import { instructorSettingsStore } from '../stores/instructorSettingsStore';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
 import { isInstructor, isOwner, isStudent } from '../utils/roles';
+import { useStudentPhase } from '../hooks/useStudentPhase';
 
 const reminderOptions = [120, 60, 30, 20, 15] as const;
 
@@ -580,6 +581,10 @@ export const SettingsScreen = () => {
   });
 
   /* ─── Student render ─────────────────────────────────────────────── */
+  // REG-786: in pratica le guide stanno nella tab Guide; qui restano per le altre fasi.
+  const { phase: studentPhase } = useStudentPhase();
+  const showLessonsRow = studentPhase !== 'PRATICA';
+
   const renderStudentContent = () => (
     <>
       <Animated.View entering={softStagger(0)}>
@@ -602,7 +607,9 @@ export const SettingsScreen = () => {
       <Animated.View entering={softStagger(2)}>
         <ClaySection title="Preferenze">
           <ClayList>
-            <ClayListRow title="Le tue guide" onPress={() => router.push('/(tabs)/settings/le-tue-guide')} />
+            {showLessonsRow ? (
+              <ClayListRow title="Le tue guide" onPress={() => router.push('/(tabs)/settings/le-tue-guide')} />
+            ) : null}
             <ClayListRow
               title="Disponibilità"
               subtitle={

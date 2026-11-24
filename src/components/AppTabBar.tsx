@@ -51,6 +51,16 @@ const ACTIVE = '#111111';
 const INACTIVE = '#9A9A9F';
 
 /**
+ * Allievo in pratica (REG-786, V1): Home · Guide · Scambi · Profilo, stessi
+ * glifi delle anteprime approvate (contorno a riposo, pieno sulla voce attiva).
+ */
+const STUDENT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  guide: 'calendar-outline',
+  swaps: 'swap-horizontal-outline',
+  settings: 'person-circle-outline',
+};
+
+/**
  * Istruttore (REG-638, «T1 piatta»): Agenda · Road · Allievi · Tu, glifi in
  * stile SF Symbols — contorno grigio a riposo, pieni neri sulla voce attiva.
  */
@@ -151,6 +161,7 @@ export const AppTabBar = ({
   navigation,
   hiddenTabs,
   isOwner,
+  isStudent,
   isStudentTeoria,
   isStudentMoto,
   showRoleTab,
@@ -235,7 +246,7 @@ export const AppTabBar = ({
           // moto student gets a moto-flavoured Home icon. Ionicons has no
           // "motorcycle", so we reuse the instructor-side moto proxy.
           let tabIconOverride: keyof typeof Ionicons.glyphMap | undefined =
-            instructorApp ? INSTRUCTOR_ICONS[route.name] : undefined;
+            instructorApp ? INSTRUCTOR_ICONS[route.name] : isStudent ? STUDENT_ICONS[route.name] : undefined;
           if (isStudentTeoria && route.name === 'home') {
             tabIconOverride = 'book-outline';
           } else if (isStudentMoto && route.name === 'home') {

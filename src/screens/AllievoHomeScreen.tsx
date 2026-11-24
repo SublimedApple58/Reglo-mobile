@@ -55,22 +55,18 @@ import {
   FeaturedOfferCard,
   HOME_ART,
   HomeGreeting,
-  HomeLessonRow,
   HomeRow,
   HomeRowsList,
   HomeSection,
-  LessonsList,
   NextLessonCard,
   PausedCard,
   HomeSmallCard,
   CreditsPrimaryCard,
   BookPrimaryCard,
   FlatRow,
-  PathRows,
 } from './allievoHome/HomeSections';
 import { lessonDetailStore } from '../stores/lessonDetailStore';
 import { groupLessonStudentStore } from '../stores/groupLessonStudentStore';
-import { allLessonsStore } from '../stores/allLessonsStore';
 import { examDetailStore } from '../stores/examDetailStore';
 import { bookingFlowStore } from '../stores/bookingFlowStore';
 
@@ -211,7 +207,6 @@ export const AllievoHomeScreen = () => {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
-  const [swapOffersCount, setSwapOffersCount] = useState<number | null>(null);
   // Open group-lesson invites available to this student (for the home CTA badge).
   const [groupInvitesCount, setGroupInvitesCount] = useState<number | null>(null);
   // Elenco (solo data/posti, countOnly) per la riga «Posti liberi» della home.
@@ -755,25 +750,6 @@ export const AllievoHomeScreen = () => {
     };
   }, []);
 
-  // Open swap-offers count for the home "Scambi" slot (background, non-blocking).
-  useEffect(() => {
-    if (!swapEnabled || !selectedStudentId) {
-      setSwapOffersCount(null);
-      return;
-    }
-    let cancelled = false;
-    regloApi
-      .getSwapOffers(selectedStudentId, 20)
-      .then((list) => {
-        if (!cancelled) setSwapOffersCount(Array.isArray(list) ? list.length : 0);
-      })
-      .catch(() => {
-        if (!cancelled) setSwapOffersCount(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [swapEnabled, selectedStudentId]);
 
   // Initial / dependency-driven fetch of the group-lesson count.
   useEffect(() => {
@@ -1539,18 +1515,6 @@ export const AllievoHomeScreen = () => {
     return 'Buonasera';
   }, []);
 
-  const pastLessons = useMemo(() => {
-    const now = Date.now();
-    return appointments
-      .filter((a) => {
-        const status = (a.status ?? '').trim().toLowerCase();
-        const type = (a.type ?? '').trim().toLowerCase();
-        if (status === 'cancelled' || type === 'esame') return false;
-        const end = a.endsAt ? new Date(a.endsAt).getTime() : new Date(a.startsAt).getTime() + 3600000;
-        return end < now;
-      })
-      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
-  }, [appointments]);
 
   const lessonsThisWeek = useMemo(() => {
     const now = new Date();
@@ -1602,74 +1566,17 @@ export const AllievoHomeScreen = () => {
   };
 
   // ── Righe e sezioni ──
-  const lessonRows = useMemo<HomeLessonRow[]>(() => {
-    const list = allUpcoming.slice(1, 4);
-    return list.map((l) => {
-      const d = new Date(l.startsAt);
-      const isGroup = !!l.groupLessonId;
-      const wd = d.toLocaleDateString('it-IT', { weekday: 'long' });
-      const who = isGroup ? 'Guida di gruppo' : l.instructor?.name ?? 'Istruttore da assegnare';
-      const extra = mySwapByAppointment.has(l.id)
-        ? 'sostituzione richiesta'
-        : l.types?.length
-          ? formatLessonType(l.types[0]).toLowerCase()
-          : l.endsAt
-            ? `${Math.round((new Date(l.endsAt).getTime() - d.getTime()) / 60000)} min`
-            : null;
-      return {
-        key: l.id,
-        dayNum: String(d.getDate()),
-        month: d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', ''),
-        title: `${wd.charAt(0).toUpperCase() + wd.slice(1)} · ${timeRange(l)}`,
-        subtitle: extra ? `${who} · ${extra}` : who,
-        onPress: () => (isGroup ? openGroupLessonDetail(l) : openLessonDetail(l)),
-      };
-    });
-  }, [allUpcoming, mySwapByAppointment, openGroupLessonDetail, openLessonDetail]);
-
-  const pastRows = useMemo<HomeLessonRow[]>(
-    () =>
-      pastLessons.slice(0, 3).map((l) => {
-        const d = new Date(l.startsAt);
-        const wd = d.toLocaleDateString('it-IT', { weekday: 'long' });
-        return {
-          key: l.id,
-          dayNum: String(d.getDate()),
-          month: d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', ''),
-          title: `${wd.charAt(0).toUpperCase() + wd.slice(1)} · ${timeRange(l)}`,
-          subtitle: l.instructor?.name ?? 'Guida',
-          onPress: () => openLessonDetail(l),
-        };
-      }),
-    [pastLessons, openLessonDetail],
-  );
-
   const openAnyLessonDetail = useCallback(
     (lesson: AutoscuolaAppointmentWithRelations) =>
       lesson.groupLessonId ? openGroupLessonDetail(lesson) : openLessonDetail(lesson),
     [openGroupLessonDetail, openLessonDetail],
   );
 
-  const openAllLessons = useCallback(() => {
-    allLessonsStore.set({ lessons: allUpcoming, studentId: selectedStudentId, onOpenDetail: openAnyLessonDetail });
-    router.push('/(tabs)/home/all-lessons');
-  }, [allUpcoming, selectedStudentId, openAnyLessonDetail, router]);
-
   const openExam = useCallback(() => {
     if (!nextExam || !examCountdown) return;
     examDetailStore.set({ exam: nextExam, countdown: examCountdown });
     router.push('/(tabs)/home/exam-detail');
   }, [nextExam, examCountdown, router]);
-
-  // «Il tuo percorso»: guide fatte e la data dell'ultima (righe, livello 3).
-  const lastLessonLabel = useMemo(() => {
-    const last = pastLessons[0];
-    if (!last) return null;
-    const d = new Date(last.startsAt);
-    const wd = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
-    const mon = d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
-    return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${d.getDate()} ${mon}`;
-  }, [pastLessons]);
 
   const bookingCases = useMemo<BookingCaseItem[]>(() => {
     if (!bookingPolicy) return [];
@@ -1726,20 +1633,7 @@ export const AllievoHomeScreen = () => {
 
   const moreRows = useMemo<HomeRow[]>(() => {
     const rows: HomeRow[] = [];
-    if (swapEnabled && !policyHold) {
-      rows.push({
-        key: 'swaps',
-        icon: HOME_ART.scambio,
-        title: 'Scambi',
-        subtitle:
-          swapOffersCount == null
-            ? 'Guide lasciate da altri allievi'
-            : swapOffersCount > 0
-              ? `${swapOffersCount} ${swapOffersCount === 1 ? 'guida disponibile' : 'guide disponibili'} da altri allievi`
-              : 'Nessuna guida da prendere al momento',
-        onPress: () => router.push('/(tabs)/home/swaps'),
-      });
-    }
+    // REG-786: gli Scambi hanno la loro tab.
     if (canTakeGroupSeats && policyMode === 'open') {
       rows.push({
         key: 'groups',
@@ -1764,7 +1658,7 @@ export const AllievoHomeScreen = () => {
       });
     }
     return rows;
-  }, [swapEnabled, policyHold, swapOffersCount, canTakeGroupSeats, policyMode, groupInvitesCount, isLockedToInstructor, assignedInstructorName, weeklyAbsenceEnabled, weeklyAbsenceDeclared, weeklyAbsenceLoading, handleDeclareAbsence, router]);
+  }, [canTakeGroupSeats, policyMode, groupInvitesCount, isLockedToInstructor, assignedInstructorName, weeklyAbsenceEnabled, weeklyAbsenceDeclared, weeklyAbsenceLoading, handleDeclareAbsence, router]);
 
   // ── Home con l'esame: numero grande, una riga, la linea Oggi→Esame ──
   const examHome = useMemo(() => {
@@ -1821,24 +1715,6 @@ export const AllievoHomeScreen = () => {
   const dataReady = studentsLoaded && studentDataReady && (!!bookingOptions || bookingOptionsQuery.isError);
   const canFreelyBook = !!bookingPolicy?.canBookFreely && policyMode === 'open';
 
-  const nextLessonCard = nextLesson ? (
-    <NextLessonCard
-      when={`Prossima guida${nextLessonCountdown ? ` · ${nextLessonCountdown.toLowerCase()}` : ''}`}
-      day={longDay(nextLesson.startsAt)}
-      time={`${timeRange(nextLesson)}${nextLesson.location ? ` · ${nextLesson.location.name}` : ''}`}
-      who={
-        nextLessonIsGroup
-          ? 'Guida di gruppo'
-          : mySwapByAppointment.has(nextLesson.id)
-            ? 'Sostituzione richiesta'
-            : [nextLesson.instructor?.name ?? 'Istruttore da assegnare', nextLesson.vehicle?.name]
-                .filter(Boolean)
-                .join(' · ')
-      }
-      initials={nextLessonIsGroup || mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
-      onPress={() => openAnyLessonDetail(nextLesson)}
-    />
-  ) : null;
 
   const emptyCard = !nextLesson ? (
     policyMode === 'closed' || policyHold ? (
@@ -1895,6 +1771,29 @@ export const AllievoHomeScreen = () => {
       }
     />
   );
+
+  const nextLessonCard = nextLesson ? (
+    <NextLessonCard
+      when={`Prossima guida${nextLessonCountdown ? ` · ${nextLessonCountdown.toLowerCase()}` : ''}`}
+      day={longDay(nextLesson.startsAt)}
+      time={`${timeRange(nextLesson)}${nextLesson.location ? ` · ${nextLesson.location.name}` : ''}`}
+      who={
+        nextLessonIsGroup
+          ? 'Guida di gruppo'
+          : mySwapByAppointment.has(nextLesson.id)
+            ? 'Sostituzione richiesta'
+            : [nextLesson.instructor?.name ?? 'Istruttore da assegnare', nextLesson.vehicle?.name]
+                .filter(Boolean)
+                .join(' · ')
+      }
+      initials={nextLessonIsGroup || mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
+      onPress={() => openAnyLessonDetail(nextLesson)}
+      // REG-786: «Prenota guida» dentro la card grande (mai sotto l'esame: lì
+      // la card grande è l'esame e la prossima guida scende a livello 2).
+      onBook={canFreelyBook && !isPaused && !creditsHold ? openBookingFlow : undefined}
+      bookNote={creditsLeft ? `Hai ${creditsLeft}` : null}
+    />
+  ) : null;
 
   let primaryCard: React.ReactNode;
   if (examHome) {
@@ -1971,7 +1870,8 @@ export const AllievoHomeScreen = () => {
       smallCard = (
         <HomeSmallCard testID="home-credits-card" thumb={pigThumb} titleFirst title={creditsTitle} kicker={creditsLine} onPress={openCreditsSheet} />
       );
-    } else if (canFreelyBook) {
+    } else if (canFreelyBook && (examHome || !nextLesson)) {
+      // Sotto l'esame la prenotazione resta una riga (non si accoppia alla card dell'esame).
       bookRowLabel = nextLesson ? "Prenota un'altra guida" : 'Prenota una guida';
     }
   } else if (offerIsPrimary && canFreelyBook) {
@@ -2061,22 +1961,6 @@ export const AllievoHomeScreen = () => {
                 <HomeRowsList rows={freeRows} />
               </HomeSection>
             ) : null}
-
-            {lessonRows.length ? (
-              <HomeSection title="Le tue guide" right={allUpcoming.length > 1 ? 'Tutte' : null} onRightPress={openAllLessons}>
-                <LessonsList rows={lessonRows} />
-              </HomeSection>
-            ) : !nextLesson && pastRows.length && policyMode !== 'open' ? (
-              <HomeSection title="Ultime guide">
-                <LessonsList rows={pastRows} />
-              </HomeSection>
-            ) : null}
-
-            <PathRows
-              done={pastLessons.length}
-              last={lastLessonLabel}
-              onLastPress={pastLessons[0] ? () => openLessonDetail(pastLessons[0]) : undefined}
-            />
 
             {moreRows.length ? (
               <HomeSection title="Altro">

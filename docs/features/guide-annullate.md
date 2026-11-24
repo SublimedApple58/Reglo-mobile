@@ -13,7 +13,7 @@ addebitata).
 - `src/components/LessonsOverview.tsx` — componente condiviso (segmentato + liste + badge). Prop: `studentId`, `seededUpcoming?`, `onOpenDetail?`.
 - `app/(tabs)/home/all-lessons.tsx` — accesso dalla **home** (sheet, `TALL_SHEET`): legge `allLessonsStore` (seed + callback), card programmate **tappabili** → `onOpenDetail`.
 - `app/(tabs)/settings/le-tue-guide.tsx` — accesso **durevole** dal Profilo allievo (tab Impostazioni): modalità **autonoma**, card programmate **non** tappabili. Registrato in `app/(tabs)/settings/_layout.tsx` (`TALL_SHEET`).
-- `src/screens/SettingsScreen.tsx` — voce **"Le tue guide"** nel `renderStudentContent` (gruppo preferenze, sopra Disponibilità), route `settings/le-tue-guide`. L'allievo non vede `MoreScreen`/"Altro".
+- `src/screens/SettingsScreen.tsx` — voce **"Le tue guide"** nel `renderStudentContent` (dal REG-786 solo FUORI dalla fase pratica: in pratica le guide stanno nella tab Guide, `student-tabs.md`) (gruppo preferenze, sopra Disponibilità), route `settings/le-tue-guide`. L'allievo non vede `MoreScreen`/"Altro".
 - `src/stores/allLessonsStore.ts` — store seed-and-callback della home; ora porta anche `studentId` (serve al segmento Annullate per il fetch storico).
 - `src/types/regloApi.ts` — `AutoscuolaAppointment` esteso con `cancelledAt`, `penaltyAmount`, `penaltyCutoffAt`, `lateCancellationAction`.
 
