@@ -42,7 +42,7 @@ import {
   type AgendaColorConfig,
 } from '../utils/agendaColors';
 import { sharedWithNames, unionCoInstructors } from '../utils/coInstructors';
-import { EXAM_LOOK as CLAY_EXAM, GROUP_LOOK as CLAY_GROUP, GROUP_MOTO_LOOK as CLAY_GROUP_MOTO, blockLabel, guideLook } from '../utils/agendaLook';
+import { EXAM_LOOK as CLAY_EXAM, GROUP_LOOK as CLAY_GROUP, GROUP_MOTO_LOOK as CLAY_GROUP_MOTO, NO_SHOW_INK, blockLabel, guideLook } from '../utils/agendaLook';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { SOFT } from '../utils/motion';
 import { ClayPressable } from './clay/ClayPressable';
@@ -1328,12 +1328,23 @@ const WeekPage = React.memo(function WeekPage({
             // Corsia stretta con più istruttori: in cima le iniziali di chi guida,
             // sotto il cognome dell'allievo se la corsia lo regge.
             const initialsFirst = showInstructor && box.narrow;
-            const line1 = initialsFirst ? instructorInitials(instrName) : box.narrow ? (appt.student?.lastName || label) : label;
-            const line2 = initialsFirst
+            const baseLine1 = initialsFirst ? instructorInitials(instrName) : box.narrow ? (appt.student?.lastName || label) : label;
+            const baseLine2 = initialsFirst
               ? (!box.tiny && showTime ? (appt.student?.lastName || label) : null)
               : showTime
                 ? (showInstructor ? instructorShortName(instrName) : `${pad(start.getHours())}:${pad(start.getMinutes())}`)
                 : null;
+            // REG-785: allievo assente scritto, non solo il blocco ingrigito.
+            // «Assente» in rosso semantico al posto dell'orario (l'ora la dice
+            // già la posizione del blocco, e in colonna stretta «10:00 ·
+            // Assente» finiva tagliato); nei blocchi senza seconda riga (30
+            // min) un glifo rosso davanti al nome. Le corsie con le iniziali
+            // dell'istruttore restano come sono (non c'è posto).
+            const noShow = (appt.status ?? '').trim().toLowerCase() === 'no_show' && !initialsFirst;
+            const line1 = noShow && !baseLine2
+              ? <><Ionicons name="person-remove-outline" size={10} color={NO_SHOW_INK} />{` ${baseLine1}`}</>
+              : baseLine1;
+            const line2 = noShow && baseLine2 ? <Text style={styles.lessonAbsent}>Assente</Text> : baseLine2;
             // Terza riga solo se c'è spazio (da ~50pt, cioè un'ora o più).
             const vehicleLabel = showVehicle && height >= 50 && !box.narrow ? agendaVehicleLabel(appt) : null;
             return (
@@ -2018,6 +2029,7 @@ const styles = StyleSheet.create({
   eventBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, borderTopLeftRadius: 10, borderBottomLeftRadius: 10, zIndex: 1 },
   lessonName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
   lessonTime: { fontSize: 9, fontWeight: '500', marginTop: 2 },
+  lessonAbsent: { color: NO_SHOW_INK, fontWeight: '600' },
   lessonVehicle: { fontSize: 9, fontWeight: '600', marginTop: 1 },
   // Card evento (esame / gruppo). Stile allineato UNO A UNO alla web app
   // (`.agenda-card` in assets/styles/globals.css + `rounded-[8px]` sui blocchi

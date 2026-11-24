@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated
 import { Ionicons } from '@expo/vector-icons';
 import { StarRating } from '../StarRating';
 import { RoadHistoryChip } from '../road/RoadLessonCard';
+import { TONE } from '../ledger/LedgerUI';
 import { CLAY } from '../../theme/clay';
 import { formatDay, formatLessonDuration, formatTime } from '../../utils/date';
 import { EXAM_TIME_TBD, examTimeIsTbd } from '../../utils/examTime';
@@ -19,6 +20,13 @@ import type { AutoscuolaAppointmentWithRelations, RoadStudentItem } from '../../
 
 const OPEN_IN = FadeIn.duration(180).reduceMotion(ReduceMotion.Never);
 const OPEN_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.Never);
+
+/**
+ * REG-785: allievo assente. La riga si attenua (data e dettagli più chiari) e
+ * sotto compare «Allievo assente» con il glifo, in rosso semantico — niente
+ * pillola. Le annullate non arrivano qui: le toglie `loadData` della scheda.
+ */
+const NO_SHOW_IN = FadeIn.duration(240).reduceMotion(ReduceMotion.Never);
 
 /** Riga data (REG-760): «gio 22 ott · 22:07 · 1 h»; la durata solo se nota. */
 function whenLabel(appt: AutoscuolaAppointmentWithRelations) {
@@ -56,6 +64,10 @@ export const LessonHistoryRow = React.memo(function LessonHistoryRow({
   onRoad: (appointmentId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const noShow = (appt.status ?? '').trim().toLowerCase() === 'no_show';
+  // Dissolvenza solo se l'assenza arriva a riga montata, non a ogni apertura
+  // della lista.
+  const [noShowAtMount] = useState(noShow);
   const typeLc = (appt.type ?? '').trim().toLowerCase();
   const isExam = typeLc === 'esame';
   const isGroup = typeLc === 'group_lesson' || !!appt.groupLessonId;
@@ -83,10 +95,22 @@ export const LessonHistoryRow = React.memo(function LessonHistoryRow({
     <View style={[s.row, divider && s.divider]}>
       <View style={s.rowBetween}>
         {/* Con la matita accanto alla data (niente note) la riga le lascia spazio. */}
-        <Text style={[s.date, !note && !oldStars && s.dateBesidePencil]}>{whenLabel(appt)}</Text>
+        <Text style={[s.date, noShow && s.dateNoShow, !note && !oldStars && s.dateBesidePencil]}>{whenLabel(appt)}</Text>
         {oldStars ? <StarRating value={appt.rating as number} readOnly size={13} tone="gold" /> : null}
       </View>
-      <Text style={s.meta} numberOfLines={2}>{meta}</Text>
+      <Text style={[s.meta, noShow && s.metaNoShow]} numberOfLines={2}>{meta}</Text>
+      {noShow ? (
+        <Animated.View
+          entering={noShowAtMount ? undefined : NO_SHOW_IN}
+          style={s.noShow}
+          testID="lesson-history-no-show"
+          accessible
+          accessibilityLabel="Allievo assente"
+        >
+          <Ionicons name="person-remove-outline" size={14} color={TONE.red.ink} />
+          <Text style={s.noShowTx}>Allievo assente</Text>
+        </Animated.View>
+      ) : null}
 
       {isExam && (outcome || recordable) ? (
         <Pressable
@@ -168,6 +192,10 @@ const s = StyleSheet.create({
   date: { flexShrink: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   dateBesidePencil: { paddingRight: 26 },
   meta: { fontSize: 14, color: CLAY.ink3, marginTop: 3 },
+  dateNoShow: { color: CLAY.ink3 },
+  metaNoShow: { color: CLAY.ink4 },
+  noShow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6 },
+  noShowTx: { fontSize: 14, fontWeight: '500', color: TONE.red.ink },
   inlineAction: { alignSelf: 'flex-start', marginTop: 8 },
   inlineActionTx: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
   evalRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8 },

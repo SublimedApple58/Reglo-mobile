@@ -16,7 +16,7 @@ import {
  * - `glow`: ombra morbida in tinta.
  * - testo sempre nero (`text`), secondario grigio (`sub`).
  * - `ring`: bordo delle guide col cambio automatico (REG-622).
- * - `muted`: annullata / assente → tutto più tenue.
+ * - `muted`: annullata → tutto più tenue. L'assente ha un grigio suo, leggibile.
  *
  * Priorità: annullata/assente > esame il giorno dopo (rosso) > criterio
  * colore (durata|patente + eccezioni). Interruttore barretta/fondo pieno:
@@ -43,10 +43,18 @@ const SUB = 'rgba(17,17,17,0.58)';
 
 const MUTED_LOOK: AgendaLook = { bar: '#CFCFCF', wash: '#F3F3F3', text: '#8E8E8E', sub: '#A6A6A6', ring: null, muted: true, glow: 'rgba(17,17,17,0.10)' };
 const RED = '#C13515';
+/**
+ * Allievo assente (REG-785): grigio tenue come le annullate ma a piena
+ * opacità, così il nome si legge; «Assente» lo scrive il blocco in `absent`.
+ */
+const NO_SHOW_LOOK: AgendaLook = { bar: '#D4D4D4', wash: '#F4F4F4', text: '#5E5E5E', sub: '#8A8A8A', ring: null, muted: false, glow: 'rgba(17,17,17,0.08)' };
+/** Rosso semantico di «Assente» nel blocco (lo stesso dello storico allievo). */
+export const NO_SHOW_INK = '#B42318';
 
 export function guideLook(appt: AutoscuolaAppointmentWithRelations, config: AgendaColorConfig): AgendaLook {
   const status = (appt.status ?? '').trim().toLowerCase();
-  if (status === 'cancelled' || status === 'no_show') return MUTED_LOOK;
+  if (status === 'no_show') return NO_SHOW_LOOK;
+  if (status === 'cancelled') return MUTED_LOOK;
   const durationMin = appt.endsAt
     ? (new Date(appt.endsAt).getTime() - new Date(appt.startsAt).getTime()) / 60000
     : 60;
