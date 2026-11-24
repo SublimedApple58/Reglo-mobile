@@ -34,6 +34,7 @@ import { AutoscuolaSwapOfferWithDetails, AutoscuolaStudent } from '../types/regl
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { formatDay, formatTime } from '../utils/date';
+import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
 
 const COMPACT_H = 44;
 const SCROLL_RANGE = 70;
@@ -164,9 +165,15 @@ export const SwapOffersScreen = () => {
       }
       await loadOffers(studentId);
     } catch (err) {
+      // REG-784: crediti non bastano → il foglio dei crediti.
+      const credits = lessonCreditsSheetParams(err);
+      if (credits) {
+        router.push({ pathname: '/(tabs)/home/credits-needed', params: credits });
+        return;
+      }
       setToast({ text: err instanceof Error ? err.message : 'Errore', tone: 'danger' });
     }
-  }, [studentId, loadOffers]);
+  }, [studentId, loadOffers, router]);
 
   const handleRevoke = useCallback(async (offerId: string) => {
     if (!studentId) return;

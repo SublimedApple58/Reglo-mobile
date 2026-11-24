@@ -17,6 +17,8 @@ const normalizeStatus = (value: string | null | undefined) =>
 const DONE_STATUSES = ['completed', 'checked_in'];
 /** Guide saltate: contano solo se l'autoscuola ha deciso di addebitare la penale. */
 const MISSED_STATUSES = ['cancelled', 'no_show'];
+/** Tipi che non usano mai crediti: posti in guida di gruppo ed esami. */
+const NO_CREDIT_TYPES = ['group_lesson', 'esame'];
 
 /**
  * L'autoscuola incassa a mano quando NON usa i pagamenti automatici Stripe e
@@ -53,7 +55,7 @@ export function isLessonUnpaid(
     | 'creditApplied'
     | 'lateCancellationAction'
     | 'cancellationKind'
-  >,
+  > & { type?: string | null },
   manualMode: boolean,
 ): boolean {
   if (lesson.cancellationKind === RECORD_CLEANUP_KIND) return false;
@@ -62,6 +64,13 @@ export function isLessonUnpaid(
   const s = normalizeStatus(lesson.status);
   return (
     (DONE_STATUSES.includes(s) && manualMode) ||
+    // REG-784: coi crediti obbligatori una guida singola prenotata dallo staff
+    // senza credito nasce «da pagare» e conta nel debito quando è fatta.
+    (DONE_STATUSES.includes(s) &&
+      !manualMode &&
+      lesson.manualPaymentStatus === 'unpaid' &&
+      lesson.type != null &&
+      !NO_CREDIT_TYPES.includes(lesson.type)) ||
     (MISSED_STATUSES.includes(s) &&
       lesson.lateCancellationAction === 'charged' &&
       lesson.manualPaymentStatus === 'unpaid')

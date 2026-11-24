@@ -80,6 +80,8 @@ import { slotLocationParam } from '../utils/slotLocation';
 import { transmissionLabel } from '../utils/license';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CreditsCard } from '../components/credits/CreditsHero';
+import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
 
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
 const DEFAULT_BOOKING_LESSON_TYPES = [
@@ -467,6 +469,16 @@ export const AllievoHomeScreen = () => {
           await invalidateAllData();
           closeWithError('Slot non più disponibile. Riprova.');
         }).catch((err) => {
+          // REG-784: crediti non bastano → si chiude la pila e si apre il
+          // foglio dei crediti (salvadanaio), non un toast.
+          const credits = lessonCreditsSheetParams(err);
+          if (credits) {
+            router.dismissTo('/(tabs)/home');
+            bookingFlowStore.clear();
+            setTimeout(() => router.push({ pathname: '/(tabs)/home/credits-needed', params: credits }), 350);
+            void invalidateAllData();
+            return;
+          }
           // Surface the server message (e.g. the weekly-limit rejection
           // "Hai raggiunto il limite massimo di N guide settimanali…").
           closeWithError(err instanceof Error ? err.message : 'Errore nella prenotazione');
@@ -1443,6 +1455,12 @@ export const AllievoHomeScreen = () => {
   const bookingPolicy = useMemo(() => resolveStudentBookingPolicy(bookingOptions), [bookingOptions]);
   const policyMode = bookingPolicy?.mode ?? null;
   const policyHold = bookingPolicy?.hold ?? null;
+  // REG-784: «Servono crediti per prenotare» e i crediti non coprono nemmeno
+  // la guida più corta → card con la moneta al posto di «Prenota una guida».
+  const creditsHold =
+    !policyHold && policyMode === 'open' && bookingOptions?.lessonCredits?.insufficient === true
+      ? bookingOptions.lessonCredits
+      : null;
 
   // Offerte «slot liberato» attive (il server restituisce solo quelle che
   // questo allievo può prendere). Ricaricate al focus e a ogni evento push.
@@ -1549,6 +1567,7 @@ export const AllievoHomeScreen = () => {
     // Con la card esame la frase sotto il nome sparisce (anteprima 1i/1j).
     if (nextExam && examCountdown) return null;
     if (policyHold === 'blocked') return 'Le guide che hai già fissato restano valide.';
+    if (creditsHold) return allUpcoming.length ? 'Le guide già fissate restano.' : 'Prima una ricarica, poi si guida.';
     if (featuredOffer) return 'Si è liberato un posto: prendilo prima degli altri.';
     if (policyMode === 'exceptions') return 'Le guide le fissa la tua autoscuola.';
     if (policyMode === 'closed') return 'La tua autoscuola organizza le guide per te.';
@@ -1556,7 +1575,7 @@ export const AllievoHomeScreen = () => {
     if (lessonsThisWeek === 1) return 'Questa settimana hai una guida. Buona strada!';
     if (allUpcoming.length) return 'La prossima guida ti aspetta.';
     return 'Prenota la tua prossima guida quando vuoi.';
-  }, [policyHold, featuredOffer, policyMode, lessonsThisWeek, allUpcoming.length, nextExam, examCountdown]);
+  }, [policyHold, creditsHold, featuredOffer, policyMode, lessonsThisWeek, allUpcoming.length, nextExam, examCountdown]);
 
   const instructorInitials = (name: string | null | undefined) => {
     if (!name) return null;
@@ -1935,6 +1954,16 @@ export const AllievoHomeScreen = () => {
               />
             ) : null}
 
+            {/* ── Crediti finiti (REG-784) ── */}
+            {creditsHold ? (
+              <Animated.View entering={FadeIn.duration(220)}>
+                <CreditsCard
+                  title={creditsHold.title ?? 'Crediti finiti'}
+                  line="Ricarica in segreteria e prenoti."
+                />
+              </Animated.View>
+            ) : null}
+
             {/* ── Posto liberato in evidenza ── */}
             {!policyHold && featuredOffer ? (
               <LiveOfferCard
@@ -1972,7 +2001,7 @@ export const AllievoHomeScreen = () => {
 
             {examHome ? null : <StatTiles tiles={tiles} />}
 
-            {canFreelyBook ? <ClayButton title="Prenota una guida" onPress={openBookingFlow} style={styles.cta} testID="home-book" /> : null}
+            {canFreelyBook && !creditsHold ? <ClayButton title="Prenota una guida" onPress={openBookingFlow} style={styles.cta} testID="home-book" /> : null}
 
             {lessonRows.length ? (
               <HomeSection title="Le tue guide" right={allUpcoming.length > 1 ? 'Tutte' : null} onRightPress={openAllLessons}>

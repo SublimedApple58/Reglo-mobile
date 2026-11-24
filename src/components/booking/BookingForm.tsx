@@ -37,7 +37,7 @@ import { MOTO_LESSON_TYPES, MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, typ
 type Entry = { id: string; date: Date; startTime: Date; duration: number };
 
 /** Conferme già date dall'utente, che viaggiano con la richiesta. */
-type BookingConfirmFlags = { skipWeeklyLimit?: boolean; confirmNoBuffer?: boolean };
+type BookingConfirmFlags = { skipWeeklyLimit?: boolean; confirmNoBuffer?: boolean; confirmLessonCredits?: boolean };
 
 /**
  * Risposte del backend che **non sono errori**: sono domande a cui l'utente può
@@ -70,6 +70,15 @@ const CONFIRMABLE_CODES: Array<{
     confirmLabel: 'Prenota comunque',
     fallback: 'Non avrai tempo per una pausa. Vuoi procedere comunque?',
     flag: { confirmNoBuffer: true },
+  },
+  {
+    // REG-784: allievo senza crediti sufficienti. Il titolo arriva dal server
+    // («Vittoria non ha crediti», «Mancano 30 minuti»), il messaggio è una riga.
+    code: 'LESSON_CREDITS_CONFIRM',
+    title: "L'allievo non ha crediti",
+    confirmLabel: 'Prenota comunque',
+    fallback: 'La guida resterà da pagare.',
+    flag: { confirmLessonCredits: true },
   },
 ];
 
@@ -589,7 +598,8 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
         const confirmable = CONFIRMABLE_CODES.find((c) => c.code === payload?.code);
         if (confirmable) {
           const msg = typeof payload?.message === 'string' ? payload.message : confirmable.fallback;
-          Alert.alert(confirmable.title, msg, [
+          const title = typeof payload?.title === 'string' ? payload.title : confirmable.title;
+          Alert.alert(title, msg, [
             { text: 'Annulla', style: 'cancel', onPress: () => setPending(false) },
             {
               text: confirmable.confirmLabel,
@@ -682,6 +692,7 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
         locationId, ...typesPayload,
         ...(flags.skipWeeklyLimit ? { skipWeeklyLimitCheck: true } : {}),
         ...(flags.confirmNoBuffer ? { confirmNoBuffer: true } : {}),
+        ...(flags.confirmLessonCredits ? { confirmLessonCredits: true } : {}),
         ...(allowPast ? { allowPast: true } : {}),
       }), () => 'Guida prenotata.', { skipWeeklyLimit });
       if (confirmWeeklyLimitIfNeeded(inCurrentWeek, () => book(true))) return;
@@ -712,6 +723,7 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
         motoLessonType: effectiveMotoLessonType,
         ...typesPayload,
         ...(flags.skipWeeklyLimit ? { skipWeeklyLimitCheck: true } : {}),
+        ...(flags.confirmLessonCredits ? { confirmLessonCredits: true } : {}),
         ...(opts.allowPast ? { allowPast: true } : {}), entries: slots,
       }),
       (result) => `${(result as { created: number }).created} guide prenotate.`,
