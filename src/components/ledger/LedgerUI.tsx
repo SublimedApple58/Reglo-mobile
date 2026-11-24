@@ -189,14 +189,3 @@ export const ledger = StyleSheet.create({
   rowValue: { fontSize: 13, fontWeight: '400', textAlign: 'right' },
 });
 
-/**
- * Importo in euro, tollerante al tipo — e non è pignoleria: `penaltyAmount` e
- * `priceAmount` sono `Decimal` di Prisma e arrivano via JSON come **stringa**.
- * Una copia di questo helper che prendeva solo `number` ha fatto crashare
- * Pagamenti (REG-511). Sta qui perché ne esista **una sola**.
- */
-export function formatEuro(value: number | string): string {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return '—';
-  return Number.isInteger(n) ? `€${n}` : `€${n.toFixed(2)}`;
-}

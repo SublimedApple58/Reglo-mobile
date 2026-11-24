@@ -44,7 +44,6 @@ import {
   isPenaltyCharged,
   isPenaltyPaid,
 } from '../utils/lessonPayments';
-import { formatEuro } from '../components/ledger/LedgerUI';
 import type { AutoscuolaAppointmentWithRelations, PaymentHistoryEvent } from '../types/regloApi';
 
 /**
@@ -477,8 +476,9 @@ export const StudentPaymentsScreen = () => {
         : missed && isLate(lesson)
           ? 'Annullata tardi'
           : types.join(' · ') || 'Guida';
-      // La penale è un importo, non uno stato: sta nel sottotitolo.
-      const penalty = penaltyCharged && lesson.penaltyAmount != null ? `Penale ${formatEuro(lesson.penaltyAmount)}` : null;
+      // REG-780: niente importi. Chi annulla tardi paga la guida intera: lo
+      // dice il sottotitolo, lo stato (da pagare / pagata) sta a destra.
+      const penalty = penaltyCharged ? 'Addebitata' : null;
       const subtitle = [what, penalty, lesson.instructor?.name ?? null].filter(Boolean).join(' · ');
 
       return {

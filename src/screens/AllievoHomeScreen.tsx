@@ -1345,17 +1345,17 @@ export const AllievoHomeScreen = () => {
 
   const handleCancel = (appointmentId: string) => {
     const appointment = appointments.find((a) => a.id === appointmentId);
+    // REG-780: Stripe è dismesso. Chi annulla oltre il preavviso paga comunque
+    // la guida (credito usato o guida da pagare), se l'autoscuola non la condona.
     const cutoffHours = settings?.penaltyCutoffHoursPreset ?? 0;
-    const autoPayments = settings?.autoPaymentsEnabled ?? false;
-    const creditFlow = settings?.lessonCreditFlowEnabled ?? false;
 
-    if (appointment && cutoffHours > 0 && (autoPayments || creditFlow)) {
+    if (appointment && cutoffHours > 0) {
       const startsAt = new Date(appointment.startsAt).getTime();
       const cutoffTime = startsAt - cutoffHours * 60 * 60 * 1000;
       if (Date.now() >= cutoffTime) {
         Alert.alert(
           'Annullare la guida?',
-          `Mancano meno di ${cutoffHours} ore alla guida. Annullando, la lezione verrà comunque addebitata.`,
+          `Mancano meno di ${cutoffHours} ${cutoffHours === 1 ? 'ora' : 'ore'} alla guida. Se annulli adesso, la guida potrebbe esserti comunque addebitata.`,
           [
             { text: 'Indietro', style: 'cancel' },
             {
@@ -1426,7 +1426,6 @@ export const AllievoHomeScreen = () => {
     groupLessonStudentStore.set({
       groupLessonId: appt.groupLessonId,
       cutoffHours: settings?.penaltyCutoffHoursPreset ?? 0,
-      penaltyEnabled: !!(settings?.autoPaymentsEnabled || settings?.lessonCreditFlowEnabled),
       onChanged: invalidateAllData,
     });
     router.push('/(tabs)/home/group-lesson-detail');

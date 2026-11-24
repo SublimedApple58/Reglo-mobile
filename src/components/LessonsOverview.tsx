@@ -9,7 +9,6 @@ import {
   LedgerFilterBar,
   StateGlyph,
   TONE,
-  formatEuro,
   ledger,
   type FilterDef,
   type RowIcon,
@@ -392,7 +391,7 @@ function LessonRow({
       const cutoff = lesson.penaltyCutoffAt ? new Date(lesson.penaltyCutoffAt) : null;
       const late = !!cancelledAt && !!cutoff && cancelledAt.getTime() > cutoff.getTime();
       if (late && lesson.lateCancellationAction === 'charged') {
-        return `Annullata tardi · Addebitata${lesson.penaltyAmount != null ? ` ${formatEuro(lesson.penaltyAmount)}` : ''}`;
+        return 'Annullata tardi · Addebitata';
       }
       if (late && lesson.lateCancellationAction === 'dismissed') return 'Annullata tardi · Non addebitata';
       if (late) return 'Annullata tardi';

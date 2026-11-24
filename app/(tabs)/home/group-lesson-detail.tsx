@@ -144,7 +144,7 @@ export default function GroupLessonDetailScreen() {
     Alert.alert(
       'Ritirarti dalla guida di gruppo?',
       isLate
-        ? `Mancano meno di ${seed.cutoffHours} ore alla guida. Ritirandoti, la guida potrebbe esserti comunque addebitata.`
+        ? `Mancano meno di ${seed.cutoffHours} ${seed.cutoffHours === 1 ? 'ora' : 'ore'} alla guida. Se ti ritiri adesso, la guida potrebbe esserti comunque addebitata.`
         : 'Il tuo posto verrà liberato e offerto agli altri allievi.',
       [
         { text: 'Indietro', style: 'cancel' },

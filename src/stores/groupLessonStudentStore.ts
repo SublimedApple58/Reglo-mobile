@@ -12,8 +12,6 @@ export type GroupLessonStudentData = {
   groupLessonId: string;
   /** Company penalty cutoff (hours). 0 = no late-withdrawal warning. */
   cutoffHours: number;
-  /** Whether late cancellations can be charged (autoPayments || creditFlow). */
-  penaltyEnabled: boolean;
   /** Called after a successful withdrawal (refresh the home). */
   onChanged: () => void;
   /** Called when the route is dismissed (popped). */

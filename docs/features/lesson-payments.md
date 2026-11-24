@@ -141,7 +141,7 @@ tondi colorati, pallino «Pagata · data · persona» e chip «⏱ 2 ›».
 | Zona | Contenuto |
 |---|---|
 | Titolo | `Mer 17 · 15:00` (grigio se annullata senza penale) |
-| Sottotitolo | tipo guida (o "Guida di gruppo" / "Annullata tardi") · `Penale €X` se addebitata · istruttore |
+| Sottotitolo | tipo guida (o "Guida di gruppo" / "Annullata tardi") · `Addebitata` se la cancellazione tardiva è stata trattenuta (REG-780: niente importo) · istruttore |
 | Destra | **UN solo segnale**: la casella se la guida si può segnare, altrimenti lo stato a parole |
 
 **La casella** (guide con `canToggleLessonPayment` e `canManagePayments`):

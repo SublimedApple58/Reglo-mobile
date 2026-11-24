@@ -63,10 +63,11 @@ Dal 23/09 la vista usa il **linguaggio del registro**, condiviso con
   REG-760) con `formatLessonDuration` di `src/utils/date.ts`; senza `endsAt`
   la durata non compare.
 - Stato come **testo colorato a destra**, una parola sola. Il dettaglio della
-  penale ("Annullata tardi · Addebitata €20") va nella riga sotto.
-- `formatEuro` — **una sola definizione**, qui. Due copie divergenti sono state
-  la causa del crash REG-511: `penaltyAmount` è un `Decimal` che via JSON arriva
-  come stringa, e la copia non indurita chiamava `.toFixed` su una stringa.
+  penale ("Annullata tardi · Addebitata") va nella riga sotto.
+- REG-780 (2026-11-24): **niente importi in euro** nell'app. `formatEuro` è stato
+  tolto. Era nato per il crash REG-511: `penaltyAmount` è un `Decimal` che via
+  JSON arriva come stringa; se un importo dovesse tornare, va riscritto
+  tenendone conto.
 
 > Chi aggiunge una terza lista di questo tipo parte da `LedgerUI`, non copia.
 
@@ -91,7 +92,7 @@ dividono lo spazio: una voce fuori schermo è una voce che nessuno trova.
 | `status === 'no_show'` | **"Non presentato"** (rosso) |
 | futura e programmata | **"In programma"** (blu) |
 | `cancelledAt > penaltyCutoffAt` | **"Annullamento tardivo"** (ambra) |
-| tardiva **e** `lateCancellationAction === 'charged'` | **"Addebitata €X"** (scuro, `penaltyAmount`) |
+| tardiva **e** `lateCancellationAction === 'charged'` | **"Addebitata"** (scuro; da REG-780 senza importo) |
 | tardiva **e** `lateCancellationAction === 'dismissed'` | **"Non addebitata"** (verde) |
 | non tardiva | **"Annullata"** (grigio) |
 
