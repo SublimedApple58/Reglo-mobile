@@ -45,6 +45,11 @@ The instructor/owner branch (`renderNonStudentContent`): large title, then direc
 
 ## Cluster settings (ClusterSettingsScreen — "Il mio gruppo")
 - Booking duration options, cutoff time, weekly limit, weekly absence, restricted time range, booking actor governance, student assignment to cluster.
+- **Limite settimanale a guide o a ore (REG-782, 2026-11-24)**: nel form sheet «Limiti e orari» (`app/(tabs)/notes/limits.tsx`) ci sono le righe «In guide» / «In ore — Conta la durata di ogni guida» (`SettingCheckRow`).
+  - In ore lo stepper va a mezz'ore, da 30 minuti a 50 ore (`weeklyBookingLimitMinutes`).
+  - Senza valore del gruppo vale quello dell'autoscuola (`companyDefaults.weeklyBookingLimitUnit/Minutes`).
+  - L'avviso all'istruttore in `BookingForm` usa `booking-options.weeklyBookingLimit.{unit, limitMinutes, currentMinutes}` e scrive le durate per esteso («1 ora e 30») con spazi indivisibili.
+  - Le funzioni stanno in `src/utils/weeklyLimit.ts`.
 - **Codice di invito**: card sotto il menu (solo se `autonomousMode`, da `getInstructorSettings().inviteCode`) — codice 6 char in monospace grande, tap = copia (usa `Clipboard` da `react-native` core, deprecato ma OTA-safe: `expo-clipboard` NON è nel binario; migrare alla prossima build nativa) + haptic + toast. Un allievo che si registra con quel codice (`SignupScreen` campo "Codice di invito") entra direttamente nel gruppo dell'istruttore (BE: lookup company-first, vedi `reglo/docs/features/instructor-clusters.md`).
 - **Design-system aligned**: Switch tracks are **pink** (`#EC4899`, was yellow `#FACC15`); palette `#1A1A2E` (was slate `#1E293B`); `SelectableChip` navy.
 - **Migrated off custom drawers**: the 3 `TimePickerDrawer`s → **formSheet route** `app/(tabs)/notes/time-picker.tsx` (shared `timePickerStore`); the students-management `BottomSheet` → **page-sheet route** `app/(tabs)/notes/group-students.tsx` (`groupStudentsStore`). Notes layout got `contentStyle` background + the two route registrations.

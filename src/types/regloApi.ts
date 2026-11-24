@@ -1144,8 +1144,12 @@ export type MobileBookingOptions = {
   instructorPreferenceEnabled?: boolean;
   weeklyBookingLimit?: {
     enabled: boolean;
+    /** REG-782: con `minutes` contano `limitMinutes`/`currentMinutes`; `limit`/`current` restano in guide. */
+    unit?: 'lessons' | 'minutes';
     limit?: number;
     current?: number;
+    limitMinutes?: number;
+    currentMinutes?: number;
     reached?: boolean;
     examPriority?: {
       active: boolean;
@@ -1409,6 +1413,9 @@ export type InstructorClusterSettings = {
   bookingCutoffTime?: string;
   weeklyBookingLimitEnabled?: boolean;
   weeklyBookingLimit?: number;
+  /** REG-782: limite a guide o a ore (minuti). */
+  weeklyBookingLimitUnit?: 'lessons' | 'minutes';
+  weeklyBookingLimitMinutes?: number;
   emptySlotNotificationEnabled?: boolean;
   emptySlotNotificationTarget?: 'all' | 'availability_matching';
   emptySlotNotificationTimes?: string[];
@@ -1491,6 +1498,8 @@ export type CompanyBookingDefaults = {
   bookingCutoffTime: string;
   weeklyBookingLimitEnabled: boolean;
   weeklyBookingLimit: number;
+  weeklyBookingLimitUnit?: 'lessons' | 'minutes';
+  weeklyBookingLimitMinutes?: number;
   emptySlotNotificationEnabled: boolean;
   emptySlotNotificationTarget: 'all' | 'availability_matching';
   emptySlotNotificationTimes: string[];

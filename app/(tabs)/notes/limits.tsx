@@ -3,8 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton, ClayList } from '../../../src/components/clay';
-import { SettingStepperRow, SettingToggleRow, SettingValueRow } from '../../../src/components/SettingsRows';
+import { SettingCheckRow, SettingStepperRow, SettingToggleRow, SettingValueRow } from '../../../src/components/SettingsRows';
 import { clusterSettingsStore } from '../../../src/stores/clusterSettingsStore';
+import {
+  WEEKLY_LIMIT_HALF_HOURS_MAX,
+  WEEKLY_LIMIT_HALF_HOURS_MIN,
+  WEEKLY_LIMIT_MINUTES_DEFAULT,
+  formatHalfHours,
+} from '../../../src/utils/weeklyLimit';
 
 const WEEKLY_MIN = 1;
 const WEEKLY_MAX = 14;
@@ -13,6 +19,7 @@ const WEEKLY_MAX = 14;
  * «Limiti e orari» del gruppo (REG-639, giro dopo la prova sull'iPhone):
  * form sheet clay alto quanto il contenuto, righe da Impostazioni iOS.
  * Il limite settimanale è uno stepper, gli orari aprono il time picker.
+ * REG-782: il limite si conta in guide o in ore (stepper a mezz'ore).
  */
 export default function LimitsScreen() {
   const router = useRouter();
@@ -25,6 +32,8 @@ export default function LimitsScreen() {
     bookingCutoffTime, setBookingCutoffTime,
     weeklyLimitEnabled, setWeeklyLimitEnabled,
     weeklyLimit, setWeeklyLimit,
+    weeklyLimitUnit, setWeeklyLimitUnit,
+    weeklyLimitMinutes, setWeeklyLimitMinutes,
     restrictedTimeEnabled, setRestrictedTimeEnabled,
     restrictedTimeStart, setRestrictedTimeStart,
     restrictedTimeEnd, setRestrictedTimeEnd,
@@ -33,6 +42,11 @@ export default function LimitsScreen() {
 
   const cutoffOn = bookingCutoffEnabled ?? cd.bookingCutoffEnabled;
   const limitOn = weeklyLimitEnabled ?? cd.weeklyBookingLimitEnabled;
+  const unit = weeklyLimitUnit ?? cd.weeklyBookingLimitUnit ?? 'lessons';
+  const halfHours = Math.max(
+    WEEKLY_LIMIT_HALF_HOURS_MIN,
+    Math.round((weeklyLimitMinutes ?? cd.weeklyBookingLimitMinutes ?? WEEKLY_LIMIT_MINUTES_DEFAULT) / 30),
+  );
   const rangeOn = restrictedTimeEnabled ?? cd.restrictedTimeRangeEnabled;
   const cutoff = bookingCutoffTime ?? cd.bookingCutoffTime;
   const start = restrictedTimeStart ?? cd.restrictedTimeRangeStart;
@@ -61,8 +75,31 @@ export default function LimitsScreen() {
       </ClayList>
 
       <ClayList style={s.group}>
-        <SettingToggleRow title="Limite settimanale" subtitle="Quante guide può prenotare ogni allievo" value={limitOn} onValueChange={setWeeklyLimitEnabled} testID="limits-weekly" />
+        <SettingToggleRow title="Limite settimanale" subtitle="Quanto può prenotare ogni allievo" value={limitOn} onValueChange={setWeeklyLimitEnabled} testID="limits-weekly" />
         {limitOn ? (
+          <SettingCheckRow title="In guide" checked={unit === 'lessons'} onPress={() => setWeeklyLimitUnit('lessons')} testID="limits-weekly-lessons" />
+        ) : null}
+        {limitOn ? (
+          <SettingCheckRow
+            title="In ore"
+            subtitle="Conta la durata di ogni guida"
+            checked={unit === 'minutes'}
+            onPress={() => setWeeklyLimitUnit('minutes')}
+            testID="limits-weekly-minutes"
+          />
+        ) : null}
+        {limitOn && unit === 'minutes' ? (
+          <SettingStepperRow
+            title="Ore a settimana"
+            value={halfHours}
+            min={WEEKLY_LIMIT_HALF_HOURS_MIN}
+            max={WEEKLY_LIMIT_HALF_HOURS_MAX}
+            onChange={(v) => setWeeklyLimitMinutes(v * 30)}
+            format={formatHalfHours}
+            testID="limits-weekly-hours-stepper"
+          />
+        ) : null}
+        {limitOn && unit === 'lessons' ? (
           <SettingStepperRow
             title="Guide a settimana"
             value={weeklyLimit ?? cd.weeklyBookingLimit}

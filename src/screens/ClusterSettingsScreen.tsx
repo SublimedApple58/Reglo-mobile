@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { WEEKLY_LIMIT_MINUTES_DEFAULT, formatHalfHours } from '../utils/weeklyLimit';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -79,6 +80,8 @@ export const ClusterSettingsScreen = () => {
   const [bookingCutoffTime, setBookingCutoffTime] = useState<string | undefined>(undefined);
   const [weeklyLimitEnabled, setWeeklyLimitEnabled] = useState<boolean | undefined>(undefined);
   const [weeklyLimit, setWeeklyLimit] = useState<number | undefined>(undefined);
+  const [weeklyLimitUnit, setWeeklyLimitUnit] = useState<'lessons' | 'minutes' | undefined>(undefined);
+  const [weeklyLimitMinutes, setWeeklyLimitMinutes] = useState<number | undefined>(undefined);
   const [weeklyAbsenceEnabled, setWeeklyAbsenceEnabled] = useState<boolean | undefined>(undefined);
   const [restrictedTimeEnabled, setRestrictedTimeEnabled] = useState<boolean | undefined>(undefined);
   const [restrictedTimeStart, setRestrictedTimeStart] = useState<string | undefined>(undefined);
@@ -104,6 +107,8 @@ export const ClusterSettingsScreen = () => {
       setBookingCutoffTime(res.settings.bookingCutoffTime);
       setWeeklyLimitEnabled(res.settings.weeklyBookingLimitEnabled);
       setWeeklyLimit(res.settings.weeklyBookingLimit);
+      setWeeklyLimitUnit(res.settings.weeklyBookingLimitUnit);
+      setWeeklyLimitMinutes(res.settings.weeklyBookingLimitMinutes);
       setWeeklyAbsenceEnabled(res.settings.weeklyAbsenceEnabled);
       setRestrictedTimeEnabled(res.settings.restrictedTimeRangeEnabled);
       setRestrictedTimeStart(res.settings.restrictedTimeRangeStart);
@@ -218,6 +223,8 @@ export const ClusterSettingsScreen = () => {
         bookingCutoffTime,
         weeklyBookingLimitEnabled: weeklyLimitEnabled,
         weeklyBookingLimit: weeklyLimit,
+        weeklyBookingLimitUnit: weeklyLimitUnit,
+        weeklyBookingLimitMinutes: weeklyLimitMinutes,
         weeklyAbsenceEnabled,
         restrictedTimeRangeEnabled: restrictedTimeEnabled,
         restrictedTimeRangeStart: restrictedTimeStart,
@@ -233,8 +240,8 @@ export const ClusterSettingsScreen = () => {
   }, [
     bookingSlotDurations, roundedHoursOnly, appBookingActors, appBookingActorsByPath, instructorBookingMode,
     swapEnabled, studentCancellationEnabled, bookingCutoffEnabled, bookingCutoffTime,
-    weeklyLimitEnabled, weeklyLimit, weeklyAbsenceEnabled, restrictedTimeEnabled,
-    restrictedTimeStart, restrictedTimeEnd, assignedStudentIds,
+    weeklyLimitEnabled, weeklyLimit, weeklyLimitUnit, weeklyLimitMinutes, weeklyAbsenceEnabled,
+    restrictedTimeEnabled, restrictedTimeStart, restrictedTimeEnd, assignedStudentIds,
   ]);
 
   // Publish draft + setters + save() so the formSheet sub-pages can bind to live state.
@@ -250,6 +257,8 @@ export const ClusterSettingsScreen = () => {
       bookingCutoffTime, setBookingCutoffTime,
       weeklyLimitEnabled, setWeeklyLimitEnabled,
       weeklyLimit, setWeeklyLimit,
+      weeklyLimitUnit, setWeeklyLimitUnit,
+      weeklyLimitMinutes, setWeeklyLimitMinutes,
       restrictedTimeEnabled, setRestrictedTimeEnabled,
       restrictedTimeStart, setRestrictedTimeStart,
       restrictedTimeEnd, setRestrictedTimeEnd,
@@ -286,10 +295,17 @@ export const ClusterSettingsScreen = () => {
   const limitsSummary = useMemo(() => {
     const parts: string[] = [];
     if (bookingCutoffEnabled ?? companyDefaults.bookingCutoffEnabled) parts.push(`Cutoff ${bookingCutoffTime ?? companyDefaults.bookingCutoffTime}`);
-    if (weeklyLimitEnabled ?? companyDefaults.weeklyBookingLimitEnabled) parts.push(`Max ${weeklyLimit ?? companyDefaults.weeklyBookingLimit}/sett.`);
+    if (weeklyLimitEnabled ?? companyDefaults.weeklyBookingLimitEnabled) {
+      const unit = weeklyLimitUnit ?? companyDefaults.weeklyBookingLimitUnit ?? 'lessons';
+      parts.push(
+        unit === 'minutes'
+          ? `Max ${formatHalfHours(Math.round((weeklyLimitMinutes ?? companyDefaults.weeklyBookingLimitMinutes ?? WEEKLY_LIMIT_MINUTES_DEFAULT) / 30))}/sett.`
+          : `Max ${weeklyLimit ?? companyDefaults.weeklyBookingLimit}/sett.`,
+      );
+    }
     if (restrictedTimeEnabled ?? companyDefaults.restrictedTimeRangeEnabled) parts.push(`Fascia ${restrictedTimeStart ?? companyDefaults.restrictedTimeRangeStart}–${restrictedTimeEnd ?? companyDefaults.restrictedTimeRangeEnd}`);
     return parts.length ? parts.join(' · ') : 'Nessun limite attivo';
-  }, [bookingCutoffEnabled, bookingCutoffTime, weeklyLimitEnabled, weeklyLimit, restrictedTimeEnabled, restrictedTimeStart, restrictedTimeEnd, companyDefaults]);
+  }, [bookingCutoffEnabled, bookingCutoffTime, weeklyLimitEnabled, weeklyLimit, weeklyLimitUnit, weeklyLimitMinutes, restrictedTimeEnabled, restrictedTimeStart, restrictedTimeEnd, companyDefaults]);
 
   const extrasSummary = useMemo(() => {
     const parts: string[] = [];

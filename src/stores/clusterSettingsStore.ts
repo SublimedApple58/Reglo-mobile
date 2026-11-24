@@ -14,6 +14,8 @@ export type ClusterCompanyDefaults = {
   bookingCutoffTime: string;
   weeklyBookingLimitEnabled: boolean;
   weeklyBookingLimit: number;
+  weeklyBookingLimitUnit?: 'lessons' | 'minutes';
+  weeklyBookingLimitMinutes?: number;
   weeklyAbsenceEnabled: boolean;
   restrictedTimeRangeEnabled: boolean;
   restrictedTimeRangeStart: string;
@@ -46,6 +48,11 @@ export type ClusterSettingsStoreData = {
   setWeeklyLimitEnabled: (v: boolean) => void;
   weeklyLimit: number | undefined;
   setWeeklyLimit: (v: number) => void;
+  // REG-782: limite a guide o a ore (minuti); undefined = come l'autoscuola.
+  weeklyLimitUnit: 'lessons' | 'minutes' | undefined;
+  setWeeklyLimitUnit: (v: 'lessons' | 'minutes') => void;
+  weeklyLimitMinutes: number | undefined;
+  setWeeklyLimitMinutes: (v: number) => void;
   restrictedTimeEnabled: boolean | undefined;
   setRestrictedTimeEnabled: (v: boolean) => void;
   restrictedTimeStart: string | undefined;

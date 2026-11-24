@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { formatDrivingMinutes } from '../../utils/weeklyLimit';
 import { useRouter } from 'expo-router';
 import Animated from 'react-native-reanimated';
 
@@ -612,15 +613,27 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
    * weeks return false here and rely on runOptimistic's background fallback.
    */
   const confirmWeeklyLimitIfNeeded = (
-    currentWeekAdds: number,
+    adds: { lessons: number; minutes: number },
     proceed: () => void,
   ): boolean => {
     const w = weeklyLimit;
-    if (!w?.enabled || w.examPriority?.active || currentWeekAdds <= 0) return false;
-    if ((w.current ?? 0) + currentWeekAdds <= (w.limit ?? 0)) return false;
+    if (!w?.enabled || w.examPriority?.active || adds.lessons <= 0) return false;
+    // REG-782: il limite può essere in ore; i minuti delle guide nuove contano.
+    const inHours = w.unit === 'minutes' && typeof w.limitMinutes === 'number';
+    const fits = inHours
+      ? (w.currentMinutes ?? 0) + adds.minutes <= (w.limitMinutes ?? 0)
+      : (w.current ?? 0) + adds.lessons <= (w.limit ?? 0);
+    if (fits) return false;
+    const message = inHours
+      ? `L'allievo ha già ${formatDrivingMinutes(w.currentMinutes ?? 0)} di guida questa settimana. ${
+          adds.lessons === 1
+            ? `Con questa guida da ${formatDrivingMinutes(adds.minutes)}`
+            : `Con queste ${adds.lessons} guide (${formatDrivingMinutes(adds.minutes)})`
+        } supera il limite di ${formatDrivingMinutes(w.limitMinutes ?? 0)}. Vuoi procedere comunque?`
+      : `L'allievo ha già ${w.current ?? 0} guide questa settimana. Con queste ${adds.lessons === 1 ? 'una nuova' : `${adds.lessons} nuove`} si supera il limite di ${w.limit ?? 0}. Vuoi procedere comunque?`;
     Alert.alert(
       'Limite settimanale',
-      `L'allievo ha già ${w.current ?? 0} guide questa settimana. Con queste ${currentWeekAdds === 1 ? 'una nuova' : `${currentWeekAdds} nuove`} si supera il limite di ${w.limit ?? 0}. Vuoi procedere comunque?`,
+      message,
       [
         { text: 'Annulla', style: 'cancel' },
         { text: 'Procedi', onPress: proceed },
@@ -656,7 +669,9 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
     if (needFollowCar && !followVehicleId) { Alert.alert('Auto al seguito', 'Scegli un’auto al seguito oppure "Nessuna".'); return; }
     const start = (() => { const d = new Date(date); const t = new Date(startTime); d.setHours(t.getHours(), t.getMinutes(), 0, 0); return normalizeToQuarter(d); })();
     const end = new Date(start.getTime() + duration * 60 * 1000);
-    const inCurrentWeek = isoWeekStartUTC(start) === isoWeekStartUTC(new Date()) ? 1 : 0;
+    const inCurrentWeek = isoWeekStartUTC(start) === isoWeekStartUTC(new Date())
+      ? { lessons: 1, minutes: Math.round((end.getTime() - start.getTime()) / 60000) }
+      : { lessons: 0, minutes: 0 };
     const submit = (allowPast: boolean) => {
       const book = (skipWeeklyLimit = false) => runBooking((flags) => regloApi.confirmInstructorBooking({
         studentId, startsAt: start.toISOString(), endsAt: end.toISOString(), instructorId,
@@ -782,7 +797,14 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
       return { startsAt: start.toISOString(), endsAt: end.toISOString() };
     });
     const nowWeek = isoWeekStartUTC(new Date());
-    const currentWeekAdds = payloadEntries.filter((e) => isoWeekStartUTC(new Date(e.startsAt)) === nowWeek).length;
+    const currentWeekEntries = payloadEntries.filter((e) => isoWeekStartUTC(new Date(e.startsAt)) === nowWeek);
+    const currentWeekAdds = {
+      lessons: currentWeekEntries.length,
+      minutes: currentWeekEntries.reduce(
+        (sum, e) => sum + Math.round((new Date(e.endsAt).getTime() - new Date(e.startsAt).getTime()) / 60000),
+        0,
+      ),
+    };
     const submit = (allowPast: boolean) => {
       // Il limite settimanale si chiede PRIMA della prova a vuoto: la prova
       // non lo controlla (è una conferma, non un conflitto di agenda).
