@@ -1334,16 +1334,17 @@ const WeekPage = React.memo(function WeekPage({
               : showTime
                 ? (showInstructor ? instructorShortName(instrName) : `${pad(start.getHours())}:${pad(start.getMinutes())}`)
                 : null;
-            // REG-785: allievo assente scritto, non solo il blocco ingrigito. Nel
-            // sottotitolo; nei blocchi senza seconda riga (30 min) davanti al
-            // nome, così l'ellissi non lo taglia; in corsia stretta al posto
-            // dell'orario. Le corsie con le iniziali dell'istruttore restano
-            // come sono (non c'è posto).
-            // «Assente» in rosso semantico, il resto del blocco in grigio leggibile.
+            // REG-785: allievo assente scritto, non solo il blocco ingrigito.
+            // «Assente» in rosso semantico al posto dell'orario (l'ora la dice
+            // già la posizione del blocco, e in colonna stretta «10:00 ·
+            // Assente» finiva tagliato); nei blocchi senza seconda riga (30
+            // min) un glifo rosso davanti al nome. Le corsie con le iniziali
+            // dell'istruttore restano come sono (non c'è posto).
             const noShow = (appt.status ?? '').trim().toLowerCase() === 'no_show' && !initialsFirst;
-            const absent = <Text style={styles.lessonAbsent}>Assente</Text>;
-            const line1 = noShow && !baseLine2 ? <>{absent}{` · ${baseLine1}`}</> : baseLine1;
-            const line2 = noShow && baseLine2 ? (box.narrow ? absent : <>{`${baseLine2} · `}{absent}</>) : baseLine2;
+            const line1 = noShow && !baseLine2
+              ? <><Ionicons name="person-remove-outline" size={10} color={NO_SHOW_INK} />{` ${baseLine1}`}</>
+              : baseLine1;
+            const line2 = noShow && baseLine2 ? <Text style={styles.lessonAbsent}>Assente</Text> : baseLine2;
             // Terza riga solo se c'è spazio (da ~50pt, cioè un'ora o più).
             const vehicleLabel = showVehicle && height >= 50 && !box.narrow ? agendaVehicleLabel(appt) : null;
             return (
