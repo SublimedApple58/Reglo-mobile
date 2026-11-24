@@ -1066,7 +1066,7 @@ export type AutoscuolaSettings = {
   lessonCreditsRequired?: boolean;
   lessonPrice30?: number;
   lessonPrice60?: number;
-  penaltyCutoffHoursPreset?: 1 | 2 | 4 | 6 | 12 | 24 | 48;
+  penaltyCutoffHoursPreset?: 1 | 2 | 4 | 6 | 12 | 24 | 48 | 50 | 72;
   penaltyPercentPreset?: 25 | 50 | 75 | 100;
   paymentNotificationChannels?: Array<'push' | 'email'>;
   ficVatTypeId?: string | null;
