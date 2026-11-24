@@ -141,3 +141,5 @@ IstruttoreHomeScreen
 - [availability-editor.md](availability-editor.md) — fonte della tinta di
   disponibilità; si apre dall'orologio.
 - [notifications.md](notifications.md) — campanella in testata.
+
+- **Allievo assente scritto** (REG-785, 24/11/2026): il blocco `no_show` resta ingrigito (`agendaLook`) e in più dice «Assente» — nel sottotitolo («14:00 · Assente»; in corsia stretta al posto dell'orario), nei blocchi senza seconda riga (30 min) davanti al nome («Assente · Rossi»). Corsie con le iniziali dell'istruttore invariate (niente posto). In `WeeklyAgendaView`, blocchi guida.

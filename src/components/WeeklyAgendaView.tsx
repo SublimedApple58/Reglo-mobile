@@ -1328,12 +1328,20 @@ const WeekPage = React.memo(function WeekPage({
             // Corsia stretta con più istruttori: in cima le iniziali di chi guida,
             // sotto il cognome dell'allievo se la corsia lo regge.
             const initialsFirst = showInstructor && box.narrow;
-            const line1 = initialsFirst ? instructorInitials(instrName) : box.narrow ? (appt.student?.lastName || label) : label;
-            const line2 = initialsFirst
+            const baseLine1 = initialsFirst ? instructorInitials(instrName) : box.narrow ? (appt.student?.lastName || label) : label;
+            const baseLine2 = initialsFirst
               ? (!box.tiny && showTime ? (appt.student?.lastName || label) : null)
               : showTime
                 ? (showInstructor ? instructorShortName(instrName) : `${pad(start.getHours())}:${pad(start.getMinutes())}`)
                 : null;
+            // REG-785: allievo assente scritto, non solo il blocco ingrigito. Nel
+            // sottotitolo; nei blocchi senza seconda riga (30 min) davanti al
+            // nome, così l'ellissi non lo taglia; in corsia stretta al posto
+            // dell'orario. Le corsie con le iniziali dell'istruttore restano
+            // come sono (non c'è posto).
+            const noShow = (appt.status ?? '').trim().toLowerCase() === 'no_show' && !initialsFirst;
+            const line1 = noShow && !baseLine2 ? `Assente · ${baseLine1}` : baseLine1;
+            const line2 = noShow && baseLine2 ? (box.narrow ? 'Assente' : `${baseLine2} · Assente`) : baseLine2;
             // Terza riga solo se c'è spazio (da ~50pt, cioè un'ora o più).
             const vehicleLabel = showVehicle && height >= 50 && !box.narrow ? agendaVehicleLabel(appt) : null;
             return (

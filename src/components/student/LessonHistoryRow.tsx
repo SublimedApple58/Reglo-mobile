@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated
 import { Ionicons } from '@expo/vector-icons';
 import { StarRating } from '../StarRating';
 import { RoadHistoryChip } from '../road/RoadLessonCard';
+import { TONE } from '../ledger/LedgerUI';
 import { CLAY } from '../../theme/clay';
 import { formatDay, formatLessonDuration, formatTime } from '../../utils/date';
 import { EXAM_TIME_TBD, examTimeIsTbd } from '../../utils/examTime';
@@ -19,6 +20,15 @@ import type { AutoscuolaAppointmentWithRelations, RoadStudentItem } from '../../
 
 const OPEN_IN = FadeIn.duration(180).reduceMotion(ReduceMotion.Never);
 const OPEN_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.Never);
+
+/**
+ * REG-785: stato della guida sotto istruttore · veicolo, testo semplice (niente
+ * pillola). Solo assente e annullata: le altre si leggono già dalla data.
+ */
+const STATUS_LINE: Record<string, { label: string; color: string }> = {
+  no_show: { label: 'Assente', color: TONE.red.ink },
+  cancelled: { label: 'Annullata', color: CLAY.ink3 },
+};
 
 /** Riga data (REG-760): «gio 22 ott · 22:07 · 1 h»; la durata solo se nota. */
 function whenLabel(appt: AutoscuolaAppointmentWithRelations) {
@@ -56,6 +66,11 @@ export const LessonHistoryRow = React.memo(function LessonHistoryRow({
   onRoad: (appointmentId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const statusKey = (appt.status ?? '').trim().toLowerCase();
+  const statusLine = STATUS_LINE[statusKey] ?? null;
+  // Dissolvenza solo se lo stato cambia a riga montata (esito salvato), non
+  // a ogni apertura della lista.
+  const [statusAtMount] = useState(statusKey);
   const typeLc = (appt.type ?? '').trim().toLowerCase();
   const isExam = typeLc === 'esame';
   const isGroup = typeLc === 'group_lesson' || !!appt.groupLessonId;
@@ -87,6 +102,16 @@ export const LessonHistoryRow = React.memo(function LessonHistoryRow({
         {oldStars ? <StarRating value={appt.rating as number} readOnly size={13} tone="gold" /> : null}
       </View>
       <Text style={s.meta} numberOfLines={2}>{meta}</Text>
+      {statusLine ? (
+        <Animated.Text
+          key={statusKey}
+          entering={statusKey !== statusAtMount ? OPEN_IN : undefined}
+          style={[s.status, { color: statusLine.color }]}
+          testID="lesson-history-status"
+        >
+          {statusLine.label}
+        </Animated.Text>
+      ) : null}
 
       {isExam && (outcome || recordable) ? (
         <Pressable
@@ -168,6 +193,7 @@ const s = StyleSheet.create({
   date: { flexShrink: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   dateBesidePencil: { paddingRight: 26 },
   meta: { fontSize: 14, color: CLAY.ink3, marginTop: 3 },
+  status: { fontSize: 14, fontWeight: '500', marginTop: 3 },
   inlineAction: { alignSelf: 'flex-start', marginTop: 8 },
   inlineActionTx: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
   evalRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8 },
