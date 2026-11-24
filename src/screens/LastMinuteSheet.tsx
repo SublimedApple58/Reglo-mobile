@@ -47,6 +47,7 @@ import {
   useInvalidateAfterBooking,
   type SuccessInfo,
 } from './bookingExceptionParts';
+import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
 
 type Day = { key: string; label: string; slots: AvailableSlot[] };
 type Phase = 'loading' | 'list' | 'empty' | 'error' | 'success';
@@ -237,12 +238,18 @@ export default function LastMinuteSheet() {
       setSuccess(info);
       setPhase('success');
     } catch (err) {
+      // REG-784: crediti non bastano → il foglio dei crediti al posto di questo.
+      const credits = lessonCreditsSheetParams(err);
+      if (credits) {
+        router.replace({ pathname: '/(tabs)/home/credits-needed', params: credits });
+        return;
+      }
       const msg = err instanceof Error ? err.message : '';
       setNotice(msg && msg !== 'Request failed' ? msg : 'Non è andata. Controlla la connessione e riprova.');
     } finally {
       setBooking(false);
     }
-  }, [studentId, selected, booking, activeDuration, load, student, user?.name, invalidateAfterBooking]);
+  }, [studentId, selected, booking, activeDuration, load, student, user?.name, invalidateAfterBooking, router]);
 
   const locationMode = useMemo(() => slotLocationMode(days.flatMap((d) => d.slots)), [days]);
   const onSelect = useCallback((slot: AvailableSlot) => {

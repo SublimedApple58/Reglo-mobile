@@ -81,3 +81,12 @@ Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, Bookin
 ## Intestazione della home (11/11/2026)
 
 In alto a destra solo la campanella (`home-bell`). Tolto il volto dell'allievo: apriva la tab «Altro» (`/(tabs)/more`), nascosta all'allievo, e lasciava la barra senza voce selezionata. Profilo, impostazioni ed «Esci» restano nella tab Profilo (`SettingsScreen`).
+
+## Crediti per prenotare (REG-784, 24/11/2026)
+
+Con «Servono crediti per prenotare» acceso il server blocca l'allievo che non ha crediti per la guida (`LESSON_CREDITS_REQUIRED`, con `lessonCreditsData.title` «Crediti finiti» / «Mancano 30 minuti»).
+
+- **Home allievo** (gerarchia a tre livelli, `student-booking-exceptions.md`): se `bookingOptions.lessonCredits.insufficient` niente prenotazione; senza guide i crediti sono la card grande (`CreditsPrimaryCard`), con la prossima guida scendono a card piccola (`HomeSmallCard`), sotto l'esame a riga dentro la card della guida. Salvadanaio ambra `PiggyCoin` (`src/components/credits/CreditsHero.tsx`): la moneta cade nella fessura all'ingresso (260 + 320 ms, senza rimbalzo, mai spenta da «Riduci movimento»). Con crediti ok «Prenota» mostra il saldo («Hai 4 guide di credito»).
+- **Foglio `home/credits-needed`**: si apre dagli errori `LESSON_CREDITS_REQUIRED` di prenotazione (home), posti liberati e ultimo minuto (`router.replace`) e scambi (`push`). Parametri da `lessonCreditsSheetParams` (`src/utils/lessonCreditsError.ts`).
+- **Staff** (`BookingForm`): `LESSON_CREDITS_CONFIRM` è un codice confermabile (`confirmLessonCredits`), avviso nativo col titolo del server («Vittoria non ha crediti») e «La guida resterà da pagare.».
+- Asset: `assets/vita/salvadanaio-ambra*.png`, `moneta*.png` (`VITA_ART`).

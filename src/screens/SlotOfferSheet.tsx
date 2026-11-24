@@ -70,6 +70,7 @@ import {
   type KvItem,
   type SuccessInfo,
 } from './bookingExceptionParts';
+import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
 
 type Hint = { startsAt?: string; endsAt?: string; expiresAt?: string };
 type Alternative = { key: string; title: string; subtitle: string; art: ImageSourcePropType; open: () => void };
@@ -329,6 +330,12 @@ export default function SlotOfferSheet() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
       setState({ kind: 'success', info });
     } catch (err) {
+      // REG-784: crediti non bastano → il foglio dei crediti al posto di questo.
+      const credits = lessonCreditsSheetParams(err);
+      if (credits) {
+        router.replace({ pathname: '/(tabs)/home/credits-needed', params: credits });
+        return;
+      }
       const msg = err instanceof Error ? err.message : '';
       if (/già una guida/i.test(msg)) {
         const lessons = await studentLessonsAround(studentId, offer.slot.startsAt).catch(() => []);
@@ -349,7 +356,7 @@ export default function SlotOfferSheet() {
     } finally {
       setAccepting(false);
     }
-  }, [state, studentId, accepting, declining, showTaken, successFrom, studentLessonsAround, invalidateAfterBooking]);
+  }, [state, studentId, accepting, declining, showTaken, successFrom, studentLessonsAround, invalidateAfterBooking, router]);
 
   // ── No, grazie ──
   const decline = useCallback(async () => {

@@ -33,6 +33,12 @@ export const VITA_ART = {
    */
   salvadanaio: require('../../assets/vita/salvadanaio.png') as ImageSourcePropType,
   salvadanaioPieno: require('../../assets/vita/salvadanaio-pieno.png') as ImageSourcePropType,
+  /**
+   * REG-784 (Gemini, 24/11): salvadanaio ambra + moneta che ci cade dentro =
+   * «crediti finiti / mancano 30 minuti» dell'allievo (`CreditsHero`).
+   */
+  salvadanaioAmbra: require('../../assets/vita/salvadanaio-ambra.png') as ImageSourcePropType,
+  moneta: require('../../assets/vita/moneta.png') as ImageSourcePropType,
   /** Foto realistica di una sede (Gemini, approvata 28/10): copertina di Disponibilità senza foto vera. */
   sedeFoto: require('../../assets/vita/sede-foto.jpg') as ImageSourcePropType,
 };

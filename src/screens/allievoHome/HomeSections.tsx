@@ -9,8 +9,10 @@
  * (nessuna molla).
  */
 import React, { memo } from 'react';
-import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
-import { ClayButton, ClayList, ClayListRow, ClayPressable, ClaySurface, Icon3D } from '../../components/clay';
+import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { CLAY_ROW_PRESSED, ClayButton, ClayPressable, ClaySurface, Icon3D } from '../../components/clay';
+import { PiggyCoin } from '../../components/credits/CreditsHero';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
 
@@ -120,41 +122,190 @@ export const EmptyLessonCard = memo(function EmptyLessonCard({
   );
 });
 
-// ── Due numeri (guide fatte, esame) ───────────────────────────────────────────
+// ── Livello 2: card piccola (v6, Tiziano 24/11) ──────────────────────────────
+// Gerarchia a tre livelli: card grande = la cosa n.1; card piccola = la cosa
+// subito dopo (al massimo UNA); tutto il resto righe piatte. La card piccola
+// può avere sotto un filo una riga d'azione («Prenota un'altra guida»,
+// «Crediti finiti»), così due cose di livello 2 non diventano due card.
 
-export type HomeTile = {
-  key: string;
-  icon: ImageSourcePropType;
-  value: string;
-  label: string;
+export type SmallCardFooter = { title: string; value?: string | null; onPress?: () => void; testID?: string };
+
+export const HomeSmallCard = memo(function HomeSmallCard({
+  thumb,
+  kicker,
+  title,
+  titleFirst,
+  onPress,
+  footer,
+  testID,
+}: {
+  /** `car` = ritaglio dell'immagine della guida; altrimenti un nodo (salvadanaio…). */
+  thumb: 'car' | React.ReactNode;
+  kicker: string;
+  title: string;
+  /** Titolo forte sopra e riga grigia sotto (crediti, pausa). */
+  titleFirst?: boolean;
   onPress?: () => void;
-};
-
-export const StatTiles = memo(function StatTiles({ tiles }: { tiles: HomeTile[] }) {
-  if (!tiles.length) return null;
+  footer?: SmallCardFooter | null;
+  testID?: string;
+}) {
+  const top = (
+    <Text style={[s.smallKicker, titleFirst && s.smallKickerBelow]} numberOfLines={1}>
+      {kicker}
+    </Text>
+  );
   return (
-    <View style={s.tiles}>
-      {tiles.map((t) => (
-        <ClaySurface
-          key={t.key}
-          padded={false}
-          radius={CLAY_RADIUS.tile}
-          onPress={t.onPress}
-          style={s.tile}
-          accessibilityLabel={`${t.value} ${t.label}`}
-        >
-          <Icon3D source={t.icon} size={46} />
-          <View style={s.tileText}>
-            <Text style={s.tn} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-              {t.value}
-            </Text>
-            <Text style={s.tl} numberOfLines={1}>
-              {t.label}
-            </Text>
+    <ClaySurface padded={false} style={s.small} testID={testID}>
+      <Pressable
+        onPress={onPress}
+        disabled={!onPress}
+        style={({ pressed }) => [s.smallMain, pressed && s.pressedSoft]}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={`${title}, ${kicker}`}
+      >
+        {thumb === 'car' ? (
+          <View style={s.thumb}>
+            <Image source={HOME_ART.hero} style={s.thumbImg} resizeMode="cover" accessibilityIgnoresInvertColors />
           </View>
-        </ClaySurface>
-      ))}
-    </View>
+        ) : (
+          <View style={[s.thumb, s.thumbPlain]}>{thumb}</View>
+        )}
+        <View style={s.smallText}>
+          {titleFirst ? null : top}
+          <Text style={[s.smallTitle, titleFirst && s.smallTitleFirst]} numberOfLines={1}>
+            {title}
+          </Text>
+          {titleFirst ? top : null}
+        </View>
+        {onPress ? <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} /> : null}
+      </Pressable>
+      {footer ? (
+        <Pressable
+          onPress={footer.onPress}
+          disabled={!footer.onPress}
+          style={({ pressed }) => [s.smallFoot, pressed && s.pressedSoft]}
+          accessibilityRole={footer.onPress ? 'button' : undefined}
+          testID={footer.testID}
+        >
+          <View style={s.smallFootInner}>
+            <Text style={s.footTitle} numberOfLines={1}>
+              {footer.title}
+            </Text>
+            {footer.value ? (
+              <Text style={s.footValue} numberOfLines={1}>
+                {footer.value}
+              </Text>
+            ) : null}
+            {footer.onPress ? <Ionicons name="chevron-forward" size={15} color={CLAY.chevron} /> : null}
+          </View>
+        </Pressable>
+      ) : null}
+    </ClaySurface>
+  );
+});
+
+// ── Livello 1: crediti finiti senza guide (salvadanaio su bianco) ─────────────
+
+export const CreditsPrimaryCard = memo(function CreditsPrimaryCard({ title, line }: { title: string; line: string }) {
+  return (
+    <ClaySurface padded={false} style={s.big} testID="home-credits-card">
+      <View style={[s.cover, s.coverPlain]}>
+        <PiggyCoin size={86} top={28} />
+      </View>
+      <View style={s.bb}>
+        <Text style={s.when}>Nessuna guida in programma</Text>
+        <Text style={s.day} accessibilityRole="header">
+          {title}
+        </Text>
+        <Text style={s.time}>{line}</Text>
+      </View>
+    </ClaySurface>
+  );
+});
+
+// ── Livello 1: nessuna guida, si può prenotare (bottone dentro la card) ───────
+
+export const BookPrimaryCard = memo(function BookPrimaryCard({ line, onBook }: { line: string; onBook: () => void }) {
+  return (
+    <ClaySurface padded={false} style={s.big}>
+      <Cover />
+      <View style={s.bb}>
+        <Text style={s.when}>Nessuna guida in programma</Text>
+        <Text style={s.day}>Prenota la prossima</Text>
+        <Text style={s.time}>{line}</Text>
+        <ClayButton title="Prenota una guida" onPress={onBook} style={s.cardCta} testID="home-book" />
+      </View>
+    </ClaySurface>
+  );
+});
+
+// ── Livello 3: righe piatte (niente card) ─────────────────────────────────────
+
+/** Una riga piatta: icona/data a sinistra, testo, valore, chevron; filo sottile sopra se non è la prima. */
+export const FlatRow = memo(function FlatRow({
+  leading,
+  title,
+  subtitle,
+  value,
+  onPress,
+  first,
+  strong,
+  dimmed,
+  testID,
+}: {
+  leading?: React.ReactNode;
+  title: string;
+  subtitle?: string | null;
+  value?: string | null;
+  onPress?: () => void;
+  first?: boolean;
+  strong?: boolean;
+  dimmed?: boolean;
+  testID?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [s.row, pressed && CLAY_ROW_PRESSED]}
+      accessibilityRole={onPress ? 'button' : undefined}
+      testID={testID}
+    >
+      {leading ? <View style={s.lead}>{leading}</View> : null}
+      <View style={[s.rowBody, !first && s.rowDivider, dimmed && s.dimmed]}>
+        <View style={s.rowText}>
+          <Text style={[s.rt, strong && s.rtStrong]} numberOfLines={1}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={s.rs} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        {value ? <Text style={s.rv}>{value}</Text> : null}
+        {onPress ? <Ionicons name="chevron-forward" size={17} color={CLAY.ink3} /> : null}
+      </View>
+    </Pressable>
+  );
+});
+
+/** «Il tuo percorso»: guide fatte e ultima guida, solo testo. */
+export const PathRows = memo(function PathRows({
+  done,
+  last,
+  onLastPress,
+}: {
+  done: number;
+  last: string | null;
+  onLastPress?: () => void;
+}) {
+  if (!done) return null;
+  return (
+    <HomeSection title="Il tuo percorso">
+      <FlatRow first title="Guide fatte" value={String(done)} />
+      {last ? <FlatRow title="Ultima guida" value={last} onPress={onLastPress} /> : null}
+    </HomeSection>
   );
 });
 
@@ -199,17 +350,11 @@ export type BookingCaseItem = { key: string; icon: ImageSourcePropType; title: s
 
 export const BookingCasesCard = memo(function BookingCasesCard({ cases }: { cases: BookingCaseItem[] }) {
   return (
-    <ClaySurface padded={false} style={s.casesCard}>
+    <View>
       {cases.map((c, i) => (
-        <View key={c.key} style={[s.case, i > 0 && s.caseDivider]}>
-          <Icon3D source={c.icon} size={44} />
-          <View style={s.caseText}>
-            <Text style={s.ct}>{c.title}</Text>
-            <Text style={s.cs}>{c.detail}</Text>
-          </View>
-        </View>
+        <FlatRow key={c.key} first={i === 0} leading={<Icon3D source={c.icon} size={34} />} title={c.title} subtitle={c.detail} />
       ))}
-    </ClaySurface>
+    </View>
   );
 });
 
@@ -268,18 +413,19 @@ export type HomeRow = {
 
 export const HomeRowsList = memo(function HomeRowsList({ rows }: { rows: HomeRow[] }) {
   return (
-    <ClayList>
-      {rows.map((r) => (
-        <ClayListRow
+    <View>
+      {rows.map((r, i) => (
+        <FlatRow
           key={r.key}
-          leading={r.icon ? <Icon3D source={r.icon} size={42} /> : undefined}
+          first={i === 0}
+          leading={r.icon ? <Icon3D source={r.icon} size={34} /> : undefined}
           title={r.title}
-          subtitle={r.subtitle ?? undefined}
+          subtitle={r.subtitle}
           onPress={r.onPress}
           dimmed={r.dimmed}
         />
       ))}
-    </ClayList>
+    </View>
   );
 });
 
@@ -289,10 +435,11 @@ export type HomeLessonRow = { key: string; dayNum: string; month: string; title:
 
 export const LessonsList = memo(function LessonsList({ rows }: { rows: HomeLessonRow[] }) {
   return (
-    <ClayList>
-      {rows.map((r) => (
-        <ClayListRow
+    <View>
+      {rows.map((r, i) => (
+        <FlatRow
           key={r.key}
+          first={i === 0}
           leading={
             <View style={s.dt}>
               <Text style={s.dtNum}>{r.dayNum}</Text>
@@ -304,7 +451,7 @@ export const LessonsList = memo(function LessonsList({ rows }: { rows: HomeLesso
           onPress={r.onPress}
         />
       ))}
-    </ClayList>
+    </View>
   );
 });
 
@@ -400,24 +547,50 @@ const s = StyleSheet.create({
   avSmText: { fontSize: 12, fontWeight: '600', color: CLAY.ink },
   whoText: { flex: 1, fontSize: 15, color: CLAY.ink2 },
 
-  tiles: { flexDirection: 'row', gap: 12, marginTop: 14 },
-  tile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 14 },
-  tileText: { flex: 1, minWidth: 0 },
-  tn: { fontSize: 23, lineHeight: 27, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.7 },
-  tl: { fontSize: 13, lineHeight: 16, color: CLAY.ink3 },
+  coverPlain: { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 2 },
+  cardCta: { marginTop: 16 },
 
-  sec: { marginTop: 26 },
-  sech: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, paddingHorizontal: 2 },
+  small: { marginTop: 14 },
+  smallMain: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 18 },
+  thumb: { width: 80, height: 58, borderRadius: 16, overflow: 'hidden', backgroundColor: CLAY.surface },
+  thumbPlain: { alignItems: 'center', justifyContent: 'flex-end', overflow: 'visible' },
+  // Ritaglio dell'immagine della home centrato sull'auto (come la card compatta sotto l'esame).
+  thumbImg: { position: 'absolute', width: 330, height: 110, left: -125, top: -29 },
+  smallText: { flex: 1, minWidth: 0 },
+  smallKicker: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3 },
+  smallKickerBelow: { marginTop: 2 },
+  smallTitle: { fontSize: 16.5, lineHeight: 21, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, marginTop: 2 },
+  smallTitleFirst: { marginTop: 0 },
+  smallFoot: { paddingHorizontal: 18 },
+  smallFootInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 13,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(17,17,17,0.12)',
+  },
+  footTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2 },
+  footValue: { fontSize: 14, color: CLAY.ink3, flexShrink: 1 },
+
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: 54 },
+  lead: { width: 44, marginRight: 12, alignItems: 'center' },
+  rowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', paddingVertical: 12, paddingLeft: 2 },
+  rowDivider: { borderTopWidth: 0.5, borderTopColor: 'rgba(17,17,17,0.12)' },
+  dimmed: { opacity: 0.5 },
+  pressedSoft: { opacity: 0.6 },
+  rowText: { flex: 1, minWidth: 0 },
+  rt: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  rtStrong: { fontWeight: '600' },
+  rs: { fontSize: 14, lineHeight: 19, color: CLAY.ink3, marginTop: 1 },
+  rv: { fontSize: 16, color: CLAY.ink2 },
+
+  sec: { marginTop: 28 },
+  sech: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4, paddingHorizontal: 2 },
   sect: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3 },
   secl: { fontSize: 15, fontWeight: '500', color: CLAY.ink3 },
   foot: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 10, paddingHorizontal: 4 },
 
-  casesCard: { paddingVertical: 6, paddingHorizontal: 18 },
-  case: { flexDirection: 'row', gap: 14, alignItems: 'center', paddingVertical: 12 },
-  caseDivider: { borderTopWidth: 0.5, borderTopColor: 'rgba(17,17,17,0.12)' },
-  caseText: { flex: 1, minWidth: 0 },
-  ct: { fontSize: 16, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
-  cs: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3, marginTop: 2 },
 
   feat: { padding: 18 },
   fh: { flexDirection: 'row', gap: 14, alignItems: 'center' },
@@ -429,7 +602,7 @@ const s = StyleSheet.create({
   barFill: { height: '100%', backgroundColor: CLAY.ink, borderRadius: 2 },
   featCta: { marginTop: 16 },
 
-  dt: { width: 44, alignItems: 'center' },
+  dt: { alignItems: 'center' },
   dtNum: { fontSize: 22, lineHeight: 24, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
   dtMonth: { fontSize: 12.5, color: CLAY.ink3 },
 

@@ -209,3 +209,6 @@ crediti). Guide segnate prima di REG-637: storico vuoto → nessuna riga.
 Etichette, colori e `lastEventMatchesState` in `src/utils/paymentHistory.ts`:
 copia gemella di `reglo/components/pages/Autoscuole/LessonPaymentTrail.tsx`,
 cambiarle insieme.
+
+
+**REG-784 (24/11/2026):** `isLessonUnpaid` conta anche, fuori dal pagamento manuale, le guide singole fatte con `manualPaymentStatus: "unpaid"` (prenotate dallo staff senza crediti coi crediti obbligatori). Gruppi ed esami esclusi. Gemello di `reglo/lib/autoscuole/lesson-unpaid.ts`.

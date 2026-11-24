@@ -110,8 +110,17 @@ e `requestRefresh()` (come `invalidateAllData` della home).
 - `booking-flow.md` — stessa `createBookingRequest`, stessi `slotLocation*`.
 - Guide di gruppo — «Per un soffio!» rimanda a `group-lesson-invites`.
 
+## Home allievo a tre livelli (REG-784 v6, approvata da Tiziano il 24/11/2026)
+Regola di Tiziano: «priorità n.1 card grande; le cose un po' meno importanti card più piccole; le cose molto meno importanti niente card». Anteprime `/tmp/hiro-anteprime/reg-784/v6/`.
+- **Livello 1 — UNA card grande**, la prima che vale in quest'ordine: esame prenotato (`ExamHeroCard`, viola, invariata) > prossima guida (`NextLessonCard`) > prenotazioni in pausa (`PausedCard`) > crediti finiti (`CreditsPrimaryCard`, salvadanaio su bianco) > posto liberato (`LiveOfferCard`) > prenota (`BookPrimaryCard`, bottone `home-book` dentro la card) > stato vuoto (`EmptyLessonCard`).
+- **Livello 2 — al massimo UNA card piccola** (`HomeSmallCard`, ritaglio/icona a sinistra + due righe):
+  - sotto l'esame: la prossima guida; la cosa dopo ancora entra come riga in fondo alla stessa card («Prenotazioni in pausa», «Crediti finiti · Ricarica in segreteria», «Prenota un'altra guida · 4 guide di credito»);
+  - sotto la prossima guida: pausa o crediti finiti (salvadanaio piccolo `PiggyCoin`, tocco → foglio `credits-needed`).
+- **Livello 3 — righe piatte** (`FlatRow`, filo sottile, niente card): «Prenota un'altra guida» quando si può prenotare e non serve una card piccola, Posti liberi (il posto liberato quando non è la card grande), Quando puoi prenotare tu, Le tue guide, Ultime guide, Il tuo percorso (`PathRows`: guide fatte + ultima guida, solo testo), Altro.
+- Stessa distanza (18 pt) tra intestazione e card grande in tutti gli stati, esame compreso.
+- Skeleton con la stessa forma: blocco della card grande + righe.
+
 ## Home con l'esame (approvata da Tiziano il 10/11/2026, anteprime 1i/1j)
 - Con un esame prenotato la card protagonista è SEMPRE l'esame (`ExamHeroCard` in `src/screens/allievoHome/ExamHomeCards.tsx`): numero grande, una riga «4 dic · 9:30 · sede» (puntini se lunga), linea Oggi→Esame con un pallino per ogni guida fissata prima dell'esame.
-- La prossima guida scende in `CompactLessonCard` (ritaglio dell'immagine + due righe; «Ultima guida» se è l'unica prima dell'esame). Niente frase sotto il nome e niente riquadri «guide fatte».
-- Senza esame: card grande della prossima guida come prima.
+- La prossima guida scende nella card piccola (vedi «tre livelli» sopra). Frase sotto il nome: «Manca poco all'esame.».
 - Misure: inset 20 pt per entrambe le card; side-bearing delle cifre compensato con `DIGIT_BEARING` (misurato a 64 pt peso 600, font di sistema).

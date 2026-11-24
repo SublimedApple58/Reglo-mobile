@@ -1142,6 +1142,20 @@ export type MobileBookingOptions = {
     'manovre' | 'urbano' | 'extraurbano' | 'notturna' | 'autostrada' | 'parcheggio' | 'altro'
   >;
   instructorPreferenceEnabled?: boolean;
+  /**
+   * REG-784: crediti per prenotare. `insufficient` = con «Servono crediti per
+   * prenotare» non ci sta nemmeno la guida più corta: la home mostra la card
+   * con la moneta (`title`, «Crediti finiti» o «Mancano 30 minuti»).
+   */
+  lessonCredits?: {
+    required: boolean;
+    unit: 'lessons' | 'minutes';
+    available: number;
+    availableLabel: string;
+    insufficient: boolean;
+    missingLabel: string;
+    title: string | null;
+  };
   weeklyBookingLimit?: {
     enabled: boolean;
     /** REG-782: con `minutes` contano `limitMinutes`/`currentMinutes`; `limit`/`current` restano in guide. */
@@ -1240,6 +1254,8 @@ export type ConfirmInstructorBookingInput = {
   allowPast?: boolean;
   // REG-484: l'utente ha confermato di rinunciare alla pausa dopo la guida.
   confirmNoBuffer?: boolean;
+  // REG-784: l'utente ha confermato di prenotare per un allievo senza crediti.
+  confirmLessonCredits?: boolean;
 };
 
 export type ConfirmInstructorBookingBatchInput = {
@@ -1256,6 +1272,8 @@ export type ConfirmInstructorBookingBatchInput = {
   skipWeeklyLimitCheck?: boolean;
   // Vedi ConfirmInstructorBookingInput.allowPast.
   allowPast?: boolean;
+  // REG-784: vedi ConfirmInstructorBookingInput.confirmLessonCredits.
+  confirmLessonCredits?: boolean;
   entries: Array<{
     startsAt: IsoDate;
     endsAt: IsoDate;
