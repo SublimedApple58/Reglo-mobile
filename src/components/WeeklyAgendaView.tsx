@@ -42,7 +42,7 @@ import {
   type AgendaColorConfig,
 } from '../utils/agendaColors';
 import { sharedWithNames, unionCoInstructors } from '../utils/coInstructors';
-import { EXAM_LOOK as CLAY_EXAM, GROUP_LOOK as CLAY_GROUP, GROUP_MOTO_LOOK as CLAY_GROUP_MOTO, blockLabel, guideLook } from '../utils/agendaLook';
+import { EXAM_LOOK as CLAY_EXAM, GROUP_LOOK as CLAY_GROUP, GROUP_MOTO_LOOK as CLAY_GROUP_MOTO, NO_SHOW_INK, blockLabel, guideLook } from '../utils/agendaLook';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { SOFT } from '../utils/motion';
 import { ClayPressable } from './clay/ClayPressable';
@@ -1339,9 +1339,11 @@ const WeekPage = React.memo(function WeekPage({
             // nome, così l'ellissi non lo taglia; in corsia stretta al posto
             // dell'orario. Le corsie con le iniziali dell'istruttore restano
             // come sono (non c'è posto).
+            // «Assente» in rosso semantico, il resto del blocco in grigio leggibile.
             const noShow = (appt.status ?? '').trim().toLowerCase() === 'no_show' && !initialsFirst;
-            const line1 = noShow && !baseLine2 ? `Assente · ${baseLine1}` : baseLine1;
-            const line2 = noShow && baseLine2 ? (box.narrow ? 'Assente' : `${baseLine2} · Assente`) : baseLine2;
+            const absent = <Text style={styles.lessonAbsent}>Assente</Text>;
+            const line1 = noShow && !baseLine2 ? <>{absent}{` · ${baseLine1}`}</> : baseLine1;
+            const line2 = noShow && baseLine2 ? (box.narrow ? absent : <>{`${baseLine2} · `}{absent}</>) : baseLine2;
             // Terza riga solo se c'è spazio (da ~50pt, cioè un'ora o più).
             const vehicleLabel = showVehicle && height >= 50 && !box.narrow ? agendaVehicleLabel(appt) : null;
             return (
@@ -2026,6 +2028,7 @@ const styles = StyleSheet.create({
   eventBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, borderTopLeftRadius: 10, borderBottomLeftRadius: 10, zIndex: 1 },
   lessonName: { fontSize: 11, fontWeight: '600', lineHeight: 14 },
   lessonTime: { fontSize: 9, fontWeight: '500', marginTop: 2 },
+  lessonAbsent: { color: NO_SHOW_INK, fontWeight: '600' },
   lessonVehicle: { fontSize: 9, fontWeight: '600', marginTop: 1 },
   // Card evento (esame / gruppo). Stile allineato UNO A UNO alla web app
   // (`.agenda-card` in assets/styles/globals.css + `rounded-[8px]` sui blocchi

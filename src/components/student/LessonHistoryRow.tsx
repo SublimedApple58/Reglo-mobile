@@ -22,13 +22,11 @@ const OPEN_IN = FadeIn.duration(180).reduceMotion(ReduceMotion.Never);
 const OPEN_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.Never);
 
 /**
- * REG-785: stato della guida sotto istruttore · veicolo, testo semplice (niente
- * pillola). Solo assente e annullata: le altre si leggono già dalla data.
+ * REG-785: allievo assente. La riga si attenua (data e dettagli più chiari) e
+ * sotto compare «Allievo assente» con il glifo, in rosso semantico — niente
+ * pillola. Le annullate non arrivano qui: le toglie `loadData` della scheda.
  */
-const STATUS_LINE: Record<string, { label: string; color: string }> = {
-  no_show: { label: 'Assente', color: TONE.red.ink },
-  cancelled: { label: 'Annullata', color: CLAY.ink3 },
-};
+const NO_SHOW_IN = FadeIn.duration(240).reduceMotion(ReduceMotion.Never);
 
 /** Riga data (REG-760): «gio 22 ott · 22:07 · 1 h»; la durata solo se nota. */
 function whenLabel(appt: AutoscuolaAppointmentWithRelations) {
@@ -66,11 +64,10 @@ export const LessonHistoryRow = React.memo(function LessonHistoryRow({
   onRoad: (appointmentId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const statusKey = (appt.status ?? '').trim().toLowerCase();
-  const statusLine = STATUS_LINE[statusKey] ?? null;
-  // Dissolvenza solo se lo stato cambia a riga montata (esito salvato), non
-  // a ogni apertura della lista.
-  const [statusAtMount] = useState(statusKey);
+  const noShow = (appt.status ?? '').trim().toLowerCase() === 'no_show';
+  // Dissolvenza solo se l'assenza arriva a riga montata, non a ogni apertura
+  // della lista.
+  const [noShowAtMount] = useState(noShow);
   const typeLc = (appt.type ?? '').trim().toLowerCase();
   const isExam = typeLc === 'esame';
   const isGroup = typeLc === 'group_lesson' || !!appt.groupLessonId;
@@ -98,19 +95,21 @@ export const LessonHistoryRow = React.memo(function LessonHistoryRow({
     <View style={[s.row, divider && s.divider]}>
       <View style={s.rowBetween}>
         {/* Con la matita accanto alla data (niente note) la riga le lascia spazio. */}
-        <Text style={[s.date, !note && !oldStars && s.dateBesidePencil]}>{whenLabel(appt)}</Text>
+        <Text style={[s.date, noShow && s.dateNoShow, !note && !oldStars && s.dateBesidePencil]}>{whenLabel(appt)}</Text>
         {oldStars ? <StarRating value={appt.rating as number} readOnly size={13} tone="gold" /> : null}
       </View>
-      <Text style={s.meta} numberOfLines={2}>{meta}</Text>
-      {statusLine ? (
-        <Animated.Text
-          key={statusKey}
-          entering={statusKey !== statusAtMount ? OPEN_IN : undefined}
-          style={[s.status, { color: statusLine.color }]}
-          testID="lesson-history-status"
+      <Text style={[s.meta, noShow && s.metaNoShow]} numberOfLines={2}>{meta}</Text>
+      {noShow ? (
+        <Animated.View
+          entering={noShowAtMount ? undefined : NO_SHOW_IN}
+          style={s.noShow}
+          testID="lesson-history-no-show"
+          accessible
+          accessibilityLabel="Allievo assente"
         >
-          {statusLine.label}
-        </Animated.Text>
+          <Ionicons name="person-remove-outline" size={14} color={TONE.red.ink} />
+          <Text style={s.noShowTx}>Allievo assente</Text>
+        </Animated.View>
       ) : null}
 
       {isExam && (outcome || recordable) ? (
@@ -193,7 +192,10 @@ const s = StyleSheet.create({
   date: { flexShrink: 1, fontSize: 16.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.25 },
   dateBesidePencil: { paddingRight: 26 },
   meta: { fontSize: 14, color: CLAY.ink3, marginTop: 3 },
-  status: { fontSize: 14, fontWeight: '500', marginTop: 3 },
+  dateNoShow: { color: CLAY.ink3 },
+  metaNoShow: { color: CLAY.ink4 },
+  noShow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6 },
+  noShowTx: { fontSize: 14, fontWeight: '500', color: TONE.red.ink },
   inlineAction: { alignSelf: 'flex-start', marginTop: 8 },
   inlineActionTx: { fontSize: 14.5, fontWeight: '600', color: CLAY.ink, textDecorationLine: 'underline' },
   evalRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8 },
