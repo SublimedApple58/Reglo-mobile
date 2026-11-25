@@ -169,12 +169,17 @@ si anima, si anima solo la scala di `ClayPressable`.
   `overflow: 'hidden'` (foto, mappa) su un figlio, mai lì.
 - L'ombra **interna** si disegna sotto i figli: su una foto va in un velo
   assoluto sopra il contenuto (vedi `Avatar`).
-- **Ombre tagliate, le tre cause**: (1) un antenato con `overflow: 'hidden'` →
+- **Ombre tagliate, le quattro cause**: (1) un antenato con `overflow: 'hidden'` →
   margine interno compensato da uno negativo (`paddingBottom: 28,
   marginBottom: -28`); (2) un fratello bianco disegnato sopra → l'alone resta
   entro lo spazio fra i blocchi (~20 pt; dentro `FormSheet` il centro ha 4 pt
   sopra, 22 di lato, ~18–22 sotto); (3) le vecchie `shadow*` iOS → portarle a
-  `boxShadow` (eccezione: ombra che segue un PNG, es. auto sulla mappa).
+  `boxShadow` (eccezione: ombra che segue un PNG, es. auto sulla mappa);
+  (4) in una `FlatList` la cella dopo (o la prima dopo `ListHeaderComponent`)
+  con sfondo pieno si disegna sopra l'ombra dell'ultima card della cella
+  prima, e `zIndex` sull'intestazione non basta → lo spazio per l'alone
+  (~20 pt) sta DENTRO la cella con la card e si toglie alla cella dopo (Guide:
+  `SHADOW_ROOM` nel pannello, tolto alla prima intestazione del mese, REG-791).
 
 ### 0.5 Schermate intere — testata nativa che collassa scorrendo
 
