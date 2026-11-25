@@ -27,11 +27,15 @@ Una pagina sola: `ClayNavBar` a titolo grande, `Animated.FlatList` con righe `me
 - **In arrivo**: guide future (esami esclusi, hanno la loro card in home); tocco → `guide/lesson-detail` (stesso foglio della home) con «Cerca sostituto»/«Annulla» via `useStudentLessonActions`; posto di gruppo → `guide/group-lesson-detail`.
 - **Fatte**: per mese, le prime 8 e poi «Tutte». Svolte, assenze e annullate dall'allievo (`isPastLesson` in `src/utils/studentLessons.ts`). A destra una parola: «Da pagare» (nero 600, regola `isLessonUnpaid` gemella del backend) > «Assente» (rosso di REG-785) / «Annullata» (grigio) (`LESSON_STATUS_LINE`) > «Pagata» (solo con credito o segnata pagata). Niente importi in euro (REG-780).
 
-## Foglio della guida fatta (`guide/lesson`, `StudentDoneLessonSheet`)
-`FORM_SHEET` ad altezza adattiva, seed in `doneLessonStore`.
-- Percorso Road (mappa, km, minuti, «da rivedere», «Lungo il percorso» con le segnalazioni non «fatte bene» numerate) **solo** se `GET /road/appointments/:id` risponde: il server applica già Road acceso + «Mostra note e percorsi nell'app allievi» (`studentNotesEnabled`). Le tracce delle ultime 6 guide fatte si prendono in anticipo dalla tab (`prefetchQuery`), così il foglio si apre con la mappa. Tocco sulla mappa → `guide/road-map`.
-- Pagamento: «Da pagare · Saldala in segreteria» oppure «Pagata · Con 1 guida di credito / Saldata in segreteria».
-- Valutazione: le voci in parole (`scoreWord`: Bene ≥ 75%, Da rifinire ≥ 50%, Da rivedere) con «Le vedi perché la tua autoscuola le condivide.».
+## Fogli della guida (REG-789, direzione B «protagonista»)
+`FORM_SHEET` ad altezza adattiva, `<FormSheet>` con data come titolo. Niente copertine a tutto sfondo dentro i fogli (regola di Tiziano: solo nelle sezioni), niente pillole di stato. Pezzi condivisi in `src/components/studentLesson/LessonSheetParts.tsx` (`LessonHero`, `LessonPlaceCard` con UNA MapView ferma del ritrovo, `InstructorRow` con chiamata, `VehicleRow` con l'auto 3D nel colore del veicolo, `MarkerRows`, `EvaluationRows`, `evaluationHeadline`).
+- **Guida in programma** (`home/lesson-detail`, anche da `guide/`): ora grande, «Urbano · 1 ora con …», card del luogo (mappa se coordinate precise, «Mappe»), istruttore e auto a righe. CTA «Cerca sostituto» / «Revoca richiesta», «Annulla guida» testuale rosso. Riga «Puoi annullarla senza penale fino a …» solo da `penaltyCutoffAt` (lo stesso dato del server; null = autoscuola senza pagamenti né crediti → niente riga). Con una richiesta di scambio aperta: «Se nessun compagno la prende entro <inizio − 1 h>, resta tua.» Una guida già passata (aperta dalle note) usa il foglio della guida fatta.
+- **Guida fatta** (`guide/lesson`, `StudentDoneLessonSheet` → `DoneLessonSheetView`, seed in `doneLessonStore`). Il protagonista cambia:
+  - con Road (`GET /road/appointments/:id` risponde solo con Road acceso + percorsi condivisi): mappa in card + km/min/«da ripassare» (scheletro finché arriva), poi «Da ripassare» (con l'ora, tocco → mappa) e «Fatto bene» con le icone 3D delle segnalazioni, «Il pagellino di <nome>»; «Da pagare» subito sotto la mappa, «Pagata» in fondo;
+  - senza Road e da pagare: salvadanaio 3D grande «Da pagare · Saldala in segreteria.»;
+  - senza Road con il pagellino: stella + «Bene in 3 voci su 4» e le voci in card;
+  - altrimenti l'auto 3D con tipo e durata.
+  Le voci del pagellino in parole (`scoreWord`): «Bene» grigio, «Da rifinire»/«Da rivedere» nero 600.
 
 ## Scambi (`src/screens/StudentSwapsScreen.tsx`)
 - Dati in cache con `useStudentSwaps` (`['swap-offers']`, `['swap-my-offers']`, aggiornati da push di scambio, `notificationEvents.emitDataChanged` e ogni 30 s mentre la tab è aperta).
