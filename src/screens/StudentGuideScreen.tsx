@@ -568,6 +568,10 @@ export function StudentGuideScreen() {
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
         ListHeaderComponent={header}
+        // L'ombra della card «In programma» scende sotto il pannello: la prima
+        // intestazione del mese (sfondo pieno) è disegnata dopo e la tagliava.
+        // L'intestazione della lista sta sopra le celle, così l'ombra resta intera.
+        ListHeaderComponentStyle={s.headerCell}
         ListFooterComponent={<View style={[s.foot, { height: FOOT_H + barOverlap }]} />}
         onScroll={stretch.onScroll}
         scrollEventThrottle={16}
@@ -588,6 +592,7 @@ const FOOT_H = 28;
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   coverImg: { width: '100%', height: '100%' },
+  headerCell: { zIndex: 1 },
   panel: { paddingTop: 26, paddingHorizontal: 20, paddingBottom: 4 },
   title: {
     fontSize: 32,
