@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
 import {
   Alert,
+  Image,
   LayoutChangeEvent,
   Linking,
   RefreshControl,
@@ -41,7 +42,10 @@ import {
   AutoscuolaWaitlistOfferWithSlot,
   GroupLessonInvite,
 } from '../types/regloApi';
-import { ClayNavBar, useLargeTitleScroll } from '../components/ClayLargeTitle';
+import { ClayNavBar, NAV_BAR_H } from '../components/ClayLargeTitle';
+import { COVER_OVERLAP, StretchyCover, StretchySpacer, stretchyPanel, useStretchyCover } from '../components/clay/StretchyCover';
+import { useTabBarOverlap } from '../components/tabBarSpace';
+import { car34Art } from '../road/markerArt';
 import { ClayIconButton, Icon3D } from '../components/clay';
 import { CLAY } from '../theme/clay';
 import {
@@ -96,6 +100,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PiggyCoin } from '../components/credits/CreditsHero';
 import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
+
+/** REG-793: copertina della home, il quartiere con la sede (Gemini, 25/11). */
+const HOME_COVER = require('../../assets/vita/home-quartiere.jpg');
 
 const upcomingConfirmedStatuses = new Set(['scheduled', 'confirmed', 'checked_in', 'pending_review']);
 const DEFAULT_BOOKING_LESSON_TYPES = [
@@ -1719,7 +1726,14 @@ export const AllievoHomeScreen = () => {
   }, [assignedInstructorPhone]);
   const instructorFirstName = assignedInstructorName?.trim().split(/\s+/)[0] ?? null;
 
-  const { scrollY, onScroll } = useLargeTitleScroll();
+  // REG-793: copertina elastica come Guide e Scambi (quartiere con la sede).
+  const barOverlap = useTabBarOverlap();
+  const [viewH, setViewH] = useState(0);
+  const stretch = useStretchyCover({
+    base: Math.round(windowHeight * 0.3),
+    viewportHeight: viewH || windowHeight,
+    bottomInset: barOverlap,
+  });
   const canFreelyBook = !!bookingPolicy?.canBookFreely && policyMode === 'open';
 
 
@@ -1794,6 +1808,7 @@ export const AllievoHomeScreen = () => {
                 .join(' · ')
       }
       initials={nextLessonIsGroup || mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
+      carColor={nextLesson.vehicle?.color}
       onPress={() => openAnyLessonDetail(nextLesson)}
       contentKey={nextLesson.id}
       animate={motionArmed}
@@ -1870,7 +1885,7 @@ export const AllievoHomeScreen = () => {
         testID="home-next-lesson-compact"
         contentKey={nextLesson.id}
         animate={motionArmed}
-        thumb="car"
+        thumb={<Icon3D source={car34Art(nextLesson.vehicle?.color ?? 'rosso')} size={46} width={58} />}
         kicker={examHome.compact.kicker}
         title={examHome.compact.title}
         onPress={() => openAnyLessonDetail(nextLesson)}
@@ -1928,30 +1943,24 @@ export const AllievoHomeScreen = () => {
   const cardCenterInSection = () => nextSlot.current.y + nextSlot.current.h / 2 - (restY.current + SECTION_TOP);
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onLayout={(e) => setViewH(Math.round(e.nativeEvent.layout.height))}>
       <StatusBar style="dark" />
-      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-
-      <ClayNavBar
-        title={firstName}
-        scrollY={scrollY}
-        actions={
-          <ClayIconButton
-            icon={<Ionicons name="notifications-outline" size={21} color={CLAY.ink} />}
-            onPress={() => router.push('/(tabs)/home/notifications')}
-            accessibilityLabel={unreadNotifCount > 0 ? `Notifiche, ${unreadNotifCount} da leggere` : 'Notifiche'}
-            testID="home-bell"
-          />
-        }
-      />
+      <StretchyCover style={stretch.coverStyle} testID="home-cover">
+        <Image source={HOME_COVER} style={styles.coverImg} resizeMode="cover" accessibilityIgnoresInvertColors />
+        {/* Velo bianco leggero in alto: ora e icone della barra di stato restano leggibili. */}
+        <View pointerEvents="none" style={[styles.coverVeil, { height: insets.top + 56 }]} />
+      </StretchyCover>
 
       <Animated.ScrollView
-        onScroll={onScroll}
+        style={StyleSheet.absoluteFill}
+        onScroll={stretch.onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={CLAY.ink3} />}
+        testID="home-screen"
       >
+        <StretchySpacer style={stretch.spacerStyle} />
+        <View style={[stretchyPanel, styles.panel]} onLayout={stretch.onPanelLayout}>
         <HomeGreeting greeting={greeting} name={firstName} mood={dataReady ? mood : null} />
 
         {!dataReady ? (
@@ -2076,7 +2085,26 @@ export const AllievoHomeScreen = () => {
             </Animated.View>
           </Animated.View>
         )}
+        </View>
+        {/* Sotto la tab bar a vetro: bianco, fuori dalla misura del foglio. */}
+        <View style={[styles.panelFoot, { height: barOverlap }]} />
       </Animated.ScrollView>
+
+      {/* Barra trasparente sulla copertina, bianca col nome quando il foglio ci passa sotto; campanella sempre lì. */}
+      <ClayNavBar
+        title={firstName}
+        scrollY={stretch.scrollY}
+        overlay={stretch.coverHeight - COVER_OVERLAP - (insets.top + NAV_BAR_H) + 30}
+        actions={
+          <ClayIconButton
+            icon={<Ionicons name="notifications-outline" size={21} color={CLAY.ink} />}
+            onPress={() => router.push('/(tabs)/home/notifications')}
+            accessibilityLabel={unreadNotifCount > 0 ? `Notifiche, ${unreadNotifCount} da leggere` : 'Notifiche'}
+            testID="home-bell"
+          />
+        }
+      />
+      <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
     </View>
   );
 };
@@ -2113,7 +2141,16 @@ const SECTION_TOP = 28;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
-  scroll: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 },
+  coverImg: { width: '100%', height: '100%' },
+  coverVeil: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    experimental_backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 100%)',
+  },
+  panel: { paddingTop: 26, paddingHorizontal: 20, paddingBottom: 28 },
+  panelFoot: { backgroundColor: '#FFFFFF' },
   skeleton: { marginTop: 18, gap: 14 },
   skeletonRows: { marginTop: 14, gap: 14 },
   underRows: { marginTop: 10 },
