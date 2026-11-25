@@ -492,14 +492,14 @@ export function StudentGuideScreen() {
   const { setPanelHeight } = stretch;
   useEffect(() => {
     if (!headerH) return;
-    const rows = ready ? doneItems.reduce((h, i) => h + (i.kind === 'month' ? MONTH_H : ROW_H), 0) : 0;
+    const rows = ready ? doneItems.reduce((h, i) => h + (i.kind === 'month' ? MONTH_H : ROW_H), -SHADOW_ROOM) : 0;
     setPanelHeight(headerH + rows + FOOT_H);
   }, [headerH, doneItems, ready, setPanelHeight]);
 
   const renderItem = useCallback(
-    ({ item }: { item: DoneItem }) =>
+    ({ item, index }: { item: DoneItem; index: number }) =>
       item.kind === 'month' ? (
-        <View style={s.monthHead}>
+        <View style={[s.monthHead, index === 0 && s.monthHeadFirst]}>
           <Text style={s.sect}>{item.title}</Text>
           {item.showAll ? (
             <Text style={s.secl} onPress={() => setShowAllDone(true)} suppressHighlighting testID="guide-done-all">
@@ -584,11 +584,15 @@ export function StudentGuideScreen() {
 }
 
 const FOOT_H = 28;
+/** Spazio sotto il pannello per l'ombra della card, tolto alla prima intestazione del mese. */
+const SHADOW_ROOM = 20;
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   coverImg: { width: '100%', height: '100%' },
-  panel: { paddingTop: 26, paddingHorizontal: 20, paddingBottom: 4 },
+  // L'ombra dell'ultima card («In programma») scende ~20 pt sotto: deve stare
+  // DENTRO il pannello, perché la cella dopo (sfondo pieno) la coprirebbe.
+  panel: { paddingTop: 26, paddingHorizontal: 20, paddingBottom: 4 + SHADOW_ROOM },
   title: {
     fontSize: 32,
     fontWeight: '600',
@@ -720,6 +724,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 22,
     backgroundColor: CLAY.bg,
   },
+  monthHeadFirst: { paddingTop: 28 - SHADOW_ROOM },
   sect: {
     fontSize: 17,
     fontWeight: '600',

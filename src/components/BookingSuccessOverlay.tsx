@@ -26,8 +26,8 @@ const STOP_OK_POSTER = require('../../assets/conferma/stop-ok-primo.png');
 
 const CARD = 220;
 const ART = 168;
-const IN_MS = 220;
-const OUT_MS = 260;
+const IN_MS = 200;
+const OUT_MS = 200;
 /** Dopo la fine del video la spunta resta ferma un attimo prima di sparire. */
 const HOLD_MS = 380;
 /** Rete di sicurezza se il video non parte o non segnala la fine. */
@@ -148,7 +148,8 @@ function SuccessCard({ label, onDone }: { label: string | null; onDone: () => vo
 }
 
 const s = StyleSheet.create({
-  veil: { backgroundColor: 'rgba(17,17,17,0.14)' },
+  // Velo scuro leggero dietro il quadratino (Tiziano 25/11: «così è brutto»).
+  veil: { backgroundColor: 'rgba(0,0,0,0.22)' },
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   card: {
     width: CARD,
@@ -158,7 +159,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    boxShadow: '0 0 0 1px rgba(17,17,17,0.05), 0 24px 48px -16px rgba(0,0,0,0.28), inset 0 -3px 5px rgba(0,0,0,0.04)',
+    // Ombra clay morbida e diffusa: alone largo + contatto vicino + luce interna in basso.
+    boxShadow:
+      '0 0 0 1px rgba(17,17,17,0.05), 0 32px 64px -14px rgba(0,0,0,0.34), 0 10px 22px -8px rgba(0,0,0,0.16), inset 0 -3px 5px rgba(0,0,0,0.04)',
   },
   art: { width: ART, height: ART, backgroundColor: '#FFFFFF' },
   label: { fontSize: 19, lineHeight: 24, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.4, marginTop: 2 },
