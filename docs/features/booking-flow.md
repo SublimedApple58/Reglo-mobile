@@ -1,17 +1,26 @@
 # Booking Flow
 
 ## What it does
-Student lesson booking: select type/duration → pick date → view available slots → confirm → celebration animation.
+Student lesson booking: select type/duration → pick date → view available slots → confirm → momento di conferma (REG-790) nel foglio «Orari».
 
 ## Key files
 - `src/screens/AllievoHomeScreen.tsx` (119KB) — main booking UI
-- `src/components/BookingCelebration.tsx` — confetti animation on success
+- `src/components/BookingConfirmed.tsx` — REG-790: conferma (video STOP → OK, «Prenotata!», riepilogo, «Fatto» / «Vedi la guida»)
+- `src/stores/bookingConfirmedStore.ts` — la guida appena presa (variant `booked` | `swap`)
+- `assets/conferma/stop-ok.mp4` + `stop-ok-primo.png` — video (2,4 s, 396 px, 78 KB) e poster
 
 ## Flow
 1. `getBookingOptions()` → lesson types, durations per cluster
 2. `getAvailableSlots(date, duration)` → available time slots
 3. `createBookingRequest(slot)` → book lesson
-4. `BookingCelebration` plays (variant: 'booking')
+4. On `matched: true`: `loadConfirmedLesson` (guida con istruttore/auto/sede) + `invalidateAllData()`, haptic success, `bookingConfirmedStore.set({ variant: 'booked' })`: il foglio `booking-slots` NON si chiude, diventa la conferma (dissolvenza `contentKey`). «Fatto», X o gesto → `dismissTo('/(tabs)/home')`; «Vedi la guida» → chiude e apre `lesson-detail` (`openLessonDetailRef`).
+
+## Conferma (REG-790, Tiziano 25/11/2026)
+- Protagonista: cartello STOP 3D che gira sul palo e si ferma sulla faccia verde con la spunta (video Veo, `expo-av` `Video`: una riproduzione, muto, fermo sull'ultimo fotogramma, primo fotogramma come poster; sfondo bianco puro = Y 235 in limited range, si fonde col foglio). `expo-av` e non `expo-video` perché è già nella build nativa → si rilascia in OTA.
+- «Prenotata!» (o «La guida è tua!» da Scambi), giorno · orario, righe istruttore · auto (se veicoli attivi) · sede, nota piccola (promemoria; soglia senza penale solo se la guida ha `penaltyCutoffAt`).
+- Non esiste una prenotazione allievo «in attesa dell'autoscuola»: il server crea la guida `scheduled` subito (`autoscuole-availability.actions.ts`), `matched: false` = orario preso → errore. Niente variante «in attesa».
+- Scambi: `StudentSwapsScreen` (e la vecchia `SwapOffersScreen`) dopo `respondSwapOffer` accettato aprono il foglio `swaps/booking-confirmed` (`home/booking-confirmed`); «Vedi la guida» → tab Guide via `openLessonRequestStore`.
+- Tolto `BookingCelebration` (overlay con scintille + toast «La guida è tua!»).
 
 ## Optimistic update (no flicker)
 The just-booked lesson is held in an **optimistic overlay** (`optimisticAppts` state in
@@ -71,7 +80,7 @@ compatto non c'è più il tag «Pratica». «Le tue guide» (`LessonsOverview`):
 `getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
 
 ## Components used
-Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, BookingCelebration
+Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, BookingConfirmed
 
 ## Connected features
 - **Notifications** — booking success can trigger proposal/confirmation

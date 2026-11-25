@@ -1195,20 +1195,9 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ---
 
-### 6.17 BookingCelebration
+### 6.17 BookingConfirmed (REG-790, sostituisce BookingCelebration)
 
-**File:** `BookingCelebration.tsx`
-**Scopo:** Overlay animato per conferma prenotazione.
-
-| Prop | Tipo | Default | Note |
-|---|---|---|---|
-| `visible` | `boolean` | — | Attiva animazione |
-| `onHidden` | `() => void?` | — | Callback fine animazione |
-
-**Durata totale:** ~1550ms (1450ms animazione + 100ms hold).
-**Elementi:** backdrop fade, ring espansione (`navy[200]`), 5 sparkle burst (`colors.primary`), card centrale con checkmark.
-**Card:** `minWidth: 248`, `borderRadius: 22`, `bg: #FFFFFF`. Icona: `checkmark-circle` 46px `colors.positive` in cerchio 66px con `bg: rgba(34,197,94,0.12)`, `border: rgba(34,197,94,0.35)`.
-**Testo:** "Prenotazione confermata", `typography.subtitle`.
+**File:** `src/components/BookingConfirmed.tsx`. Momento di conferma di una guida: video 132 pt del cartello STOP che gira e si ferma su «OK» verde (`assets/conferma/stop-ok.mp4`, `expo-av`, una volta, poster = primo fotogramma, bianco puro), titolo 30/600 «Prenotata!» / «La guida è tua!», giorno · orario, righe `FlatRow` istruttore · auto · sede, nota 13 grigia, CTA nera «Fatto» + «Vedi la guida» come testo. Testi in dissolvenza 200 ms in cascata (`ReduceMotion.Never`). Dettagli in `docs/features/booking-flow.md`.
 
 ---
 

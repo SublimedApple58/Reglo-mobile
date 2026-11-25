@@ -15,7 +15,8 @@ import { spacing } from '../theme';
 
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { BookingCelebration } from '../components/BookingCelebration';
+import * as Haptics from 'expo-haptics';
+import { loadConfirmedLesson } from '../components/BookingConfirmed';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -70,6 +71,7 @@ import { lessonDetailStore } from '../stores/lessonDetailStore';
 import { groupLessonStudentStore } from '../stores/groupLessonStudentStore';
 import { examDetailStore } from '../stores/examDetailStore';
 import { bookingFlowStore } from '../stores/bookingFlowStore';
+import { bookingConfirmedStore } from '../stores/bookingConfirmedStore';
 
 
 
@@ -204,7 +206,6 @@ export const AllievoHomeScreen = () => {
   const [freeChoiceBooking, setFreeChoiceBooking] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
   const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
-  const [bookingCelebrationVisible, setBookingCelebrationVisible] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
@@ -292,12 +293,6 @@ export const AllievoHomeScreen = () => {
   const bookSlotMutation = useBookSlot();
   const cancelMutation = useCancelAppointment();
 
-  const triggerBookingCelebration = useCallback(() => {
-    setBookingCelebrationVisible(false);
-    setTimeout(() => {
-      setBookingCelebrationVisible(true);
-    }, 0);
-  }, []);
 
   const ITALIAN_MONTHS_BK = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -458,11 +453,20 @@ export const AllievoHomeScreen = () => {
           ...slotLocationParam(slot),
         }).then(async (response) => {
           if (response.matched) {
-            await invalidateAllData();
-            // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
-          router.dismissTo('/(tabs)/home');
-            bookingFlowStore.clear();
-            triggerBookingCelebration();
+            // REG-790: il foglio «Orari» resta aperto e diventa la conferma
+            // (cartello STOP → OK), a guida letta dal server con istruttore,
+            // auto e sede. Lo chiude l'allievo con «Fatto».
+            const [lesson] = await Promise.all([
+              loadConfirmedLesson(selectedStudentId, response.appointment),
+              invalidateAllData(),
+            ]);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+            bookingConfirmedStore.set({
+              variant: 'booked',
+              lesson,
+              vehiclesEnabled: settings?.vehiclesEnabled !== false,
+              onOpenLesson: (l) => openLessonDetailRef.current(l),
+            });
             return;
           }
           await invalidateAllData();
@@ -532,7 +536,6 @@ export const AllievoHomeScreen = () => {
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
       });
       setBookingOpen(false);
-      triggerBookingCelebration();
     } catch { setToast({ text: 'Errore nella prenotazione', tone: 'danger' }); }
     finally { setBookingLoading(false); }
   };
@@ -1259,8 +1262,7 @@ export const AllievoHomeScreen = () => {
         setBookingOpen(false);
         setBookingSelectedSlot(null);
         setBookingSlots([]);
-        triggerBookingCelebration();
-        return;
+          return;
       }
       setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
       await invalidateAllData();
@@ -1412,6 +1414,9 @@ export const AllievoHomeScreen = () => {
     });
     router.push('/(tabs)/home/lesson-detail');
   }, [bookingOptions, settings, canCancelAppointments, mySwapByAppointment, handleCreateSwap, handleCancel, handleRevokeSwap, router]);
+  // REG-790: «Vedi la guida» dalla conferma apre il foglio con le azioni di adesso.
+  const openLessonDetailRef = useRef(openLessonDetail);
+  openLessonDetailRef.current = openLessonDetail;
 
   const openGroupLessonDetail = useCallback((appt: AutoscuolaAppointmentWithRelations) => {
     if (!appt.groupLessonId) return;
@@ -1900,7 +1905,6 @@ export const AllievoHomeScreen = () => {
     <View style={styles.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <BookingCelebration visible={bookingCelebrationVisible} onHidden={() => setBookingCelebrationVisible(false)} />
 
       <ClayNavBar
         title={firstName}

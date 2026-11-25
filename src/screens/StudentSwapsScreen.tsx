@@ -6,13 +6,17 @@ import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ClayNavBar, ClayLargeTitle, useLargeTitleScroll } from '../components/ClayLargeTitle';
 import { ClayButton, ClaySurface } from '../components/clay';
-import { BookingCelebration } from '../components/BookingCelebration';
+import { loadConfirmedLesson } from '../components/BookingConfirmed';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { notificationEvents } from '../services/notificationEvents';
 import { useStudentSwaps } from '../hooks/useStudentSwaps';
 import { swapDetailStore } from '../stores/swapDetailStore';
+import { bookingConfirmedStore } from '../stores/bookingConfirmedStore';
+import { openLessonRequestStore } from '../stores/openLessonRequestStore';
+import { useAutoscuolaSettings } from '../hooks/queries/useAutoscuolaSettings';
+import * as Haptics from 'expo-haptics';
 import { CLAY } from '../theme/clay';
 import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
 import { durationWords, lessonMinutes, longDay, monthShort, timeRangeWords, weekdayWord } from '../utils/studentLessons';
@@ -60,7 +64,7 @@ export function StudentSwapsScreen() {
   const { scrollY, onScroll } = useLargeTitleScroll();
   const { studentId, offers, myOffers, loading, refetch } = useStudentSwaps({ enabled: true, poll: true });
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
-  const [celebration, setCelebration] = useState(false);
+  const vehiclesEnabled = useAutoscuolaSettings().data?.vehiclesEnabled !== false;
   const [taking, setTaking] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -72,11 +76,24 @@ export function StudentSwapsScreen() {
       try {
         const res = await regloApi.respondSwapOffer(offerId, { studentId, response: 'accept' });
         if (res.accepted) {
-          setCelebration(false);
-          setTimeout(() => setCelebration(true), 0);
-          setToast({ text: 'La guida è tua!', tone: 'success' });
-          await queryClient.invalidateQueries({ queryKey: ['appointments'] });
+          // REG-790: il momento di conferma (cartello STOP → OK) al posto del
+          // toast, a guida letta dal server con istruttore, auto e sede.
+          const [lesson] = await Promise.all([
+            loadConfirmedLesson(studentId, res.appointment),
+            queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+          ]);
           notificationEvents.emitDataChanged();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+          bookingConfirmedStore.set({
+            variant: 'swap',
+            lesson,
+            vehiclesEnabled,
+            onOpenLesson: (l) => {
+              openLessonRequestStore.set(l.id);
+              router.navigate('/(tabs)/guide');
+            },
+          });
+          router.push('/(tabs)/swaps/booking-confirmed');
         } else {
           setToast({ text: 'Qualcuno l’ha presa prima di te', tone: 'info' });
         }
@@ -93,7 +110,7 @@ export function StudentSwapsScreen() {
         setTaking(null);
       }
     },
-    [studentId, queryClient, refetch, router],
+    [studentId, queryClient, refetch, router, vehiclesEnabled],
   );
 
   const confirmTake = useCallback(
@@ -152,7 +169,6 @@ export function StudentSwapsScreen() {
     <View style={s.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <BookingCelebration visible={celebration} variant="swap" onHidden={() => setCelebration(false)} />
       <ClayNavBar title="Scambi" scrollY={scrollY} />
       <Animated.ScrollView
         onScroll={onScroll}

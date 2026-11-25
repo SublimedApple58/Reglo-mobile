@@ -14,6 +14,7 @@ export default function HomeLayout() {
       <Stack.Screen name="availability-exception" options={FORM_SHEET} />
       <Stack.Screen name="publish-day" options={FORM_SHEET} />
       <Stack.Screen name="credits-needed" options={FORM_SHEET} />
+      <Stack.Screen name="booking-confirmed" options={FORM_SHEET} />
       <Stack.Screen name="add-action" options={FORM_SHEET} />
       <Stack.Screen name="select-date" options={FORM_SHEET} />
       {/* REG-671: dall'agenda (fantasma → tipo): «Con chi guidi?» → riepilogo; blocco/teoria. */}

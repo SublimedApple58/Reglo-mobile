@@ -38,7 +38,7 @@ posto delle pillole; via anche i badge «Aperta» / «In attesa». In `swap-deta
 una riga «Luogo» prima dell'istruttore.
 
 ## Components used
-BookingCelebration, ToastNotice (+ native Modal page sheet, BlurView header).
+BookingConfirmed (foglio `booking-confirmed`, REG-790), ToastNotice (+ native Modal page sheet, BlurView header).
 No longer uses Screen / BottomSheet / Button.
 
 ## Connected features

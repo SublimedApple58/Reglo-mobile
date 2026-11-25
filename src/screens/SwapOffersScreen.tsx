@@ -22,7 +22,8 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookingCelebration } from '../components/BookingCelebration';
+import { loadConfirmedLesson } from '../components/BookingConfirmed';
+import { bookingConfirmedStore } from '../stores/bookingConfirmedStore';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { useSession } from '../context/SessionContext';
@@ -93,7 +94,6 @@ export const SwapOffersScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
-  const [celebrationVisible, setCelebrationVisible] = useState(false);
 
   const selectedStudent = useMemo(() => findLinkedStudent(students, user), [students, user]);
   const studentId = selectedStudent?.id ?? null;
@@ -156,10 +156,11 @@ export const SwapOffersScreen = () => {
         response: 'accept',
       });
       if (res.accepted) {
-        setToast({ text: 'Scambio confermato!', tone: 'success' });
-        setCelebrationVisible(false);
-        setTimeout(() => setCelebrationVisible(true), 0);
+        // REG-790: il momento di conferma al posto del toast.
+        const lesson = await loadConfirmedLesson(studentId, res.appointment);
         notificationEvents.emitDataChanged(); // sync home agenda + swap markers
+        bookingConfirmedStore.set({ variant: 'swap', lesson, vehiclesEnabled: true });
+        router.push('/(tabs)/home/booking-confirmed');
       } else {
         setToast({ text: 'Offerta non più disponibile', tone: 'info' });
       }
@@ -297,11 +298,6 @@ export const SwapOffersScreen = () => {
   return (
     <View style={st.root}>
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <BookingCelebration
-        visible={celebrationVisible}
-        variant="swap"
-        onHidden={() => setCelebrationVisible(false)}
-      />
 
       {/* ── Sticky blur header ── */}
       <View style={[st.headerWrap, { height: headerH, paddingTop: insets.top }]}>
