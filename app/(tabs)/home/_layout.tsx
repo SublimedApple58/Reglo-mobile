@@ -72,7 +72,7 @@ export default function HomeLayout() {
       <Stack.Screen name="manage-lesson-vehicles" options={FORM_SHEET} />
       <Stack.Screen name="manage-lesson-location" options={FORM_SHEET} />
       <Stack.Screen name="manage-lesson-location-form" options={FORM_SHEET} />
-      <Stack.Screen name="lesson-detail" options={TALL_SHEET} />
+      <Stack.Screen name="lesson-detail" options={FORM_SHEET} />
       {/* Prenotazione «solo eccezioni»: posto liberato (offerta) e posti liberi a breve. */}
       <Stack.Screen name="slot-offer" options={FORM_SHEET} />
       <Stack.Screen name="last-minute" options={FORM_SHEET} />

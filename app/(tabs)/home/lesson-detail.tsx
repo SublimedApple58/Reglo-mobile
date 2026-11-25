@@ -1,354 +1,172 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { lessonDetailStore } from '../../../src/stores/lessonDetailStore';
-import { MOTO_LESSON_TYPE_LABELS, MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_ICON } from '../../../src/utils/motoLessonType';
-import { formatDay, formatTime } from '../../../src/utils/date';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { GradientCTA, primaryCtaShadow } from '../../../src/components/GradientCTA';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
-import { RoadRouteMap } from '../../../src/components/road/RoadMiniMap';
-import { RoadMarkerList } from '../../../src/components/road/RoadMarkerList';
-import { countSentiments, SentimentCounts } from '../../../src/components/road/RoadSentiment';
-import { regloApi } from '../../../src/services/regloApi';
-import { roadRouteMapStore } from '../../../src/road/routeMapStore';
-import { formatKm, formatMinutes } from '../../../src/road/format';
-import type { RoadDetail } from '../../../src/types/regloApi';
+import { MOTO_LESSON_TYPE_HINTS, MOTO_LESSON_TYPE_LABELS } from '../../../src/utils/motoLessonType';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton, ClayPressable } from '../../../src/components/clay';
+import { InstructorRow, LessonPlaceCard, VehicleRow } from '../../../src/components/studentLesson/LessonSheetParts';
+import { DoneLessonSheetView } from '../../../src/screens/StudentDoneLessonSheet';
+import { FlatRow } from '../../../src/screens/allievoHome/HomeSections';
+import { CLAY } from '../../../src/theme/clay';
+import { CLAY_DANGER } from '../../../src/components/ClayAccountParts';
+import { durationWords, lessonMinutes, lessonTypeWord, longDay } from '../../../src/utils/studentLessons';
 
-const statusLabel = (status: string | null | undefined) => {
-  const s = (status ?? '').trim().toLowerCase();
-  if (s === 'scheduled' || s === 'confirmed') return 'Programmata';
-  if (s === 'checked_in') return 'Check-in';
-  if (s === 'completed') return 'Completata';
-  if (s === 'cancelled') return 'Annullata';
-  if (s === 'pending_review') return 'Da confermare';
-  return 'Programmata';
+const hm = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+const dayDiff = (d: Date) => {
+  const a = new Date(d);
+  a.setHours(0, 0, 0, 0);
+  const b = new Date();
+  b.setHours(0, 0, 0, 0);
+  return Math.round((a.getTime() - b.getTime()) / 86400000);
 };
 
-const lessonDurationMinutes = (startsAt: string, endsAt?: string | null) => {
-  const s = new Date(startsAt).getTime();
-  const e = endsAt ? new Date(endsAt).getTime() : s + 30 * 60 * 1000;
-  return Math.max(30, Math.round((e - s) / 60000));
+/** «Oggi», «Domani», «Tra 3 giorni». */
+const whenWords = (iso: string) => {
+  const diff = dayDiff(new Date(iso));
+  if (diff <= 0) return 'Oggi';
+  if (diff === 1) return 'Domani';
+  return `Tra ${diff} giorni`;
 };
 
-const formatLessonType = (value: string | null | undefined) => {
-  const map: Record<string, string> = {
-    manovre: 'Manovre', urbano: 'Urbano', extraurbano: 'Extraurbano',
-    notturna: 'Notturna', autostrada: 'Autostrada', guida: 'Guida',
-  };
-  return map[(value ?? '').trim().toLowerCase()] ?? value ?? 'Guida';
+/** «oggi alle 14:30», «domani alle 9:00», «mercoledì alle 14:30». */
+const atWords = (d: Date) => {
+  const diff = dayDiff(d);
+  const day = diff <= 0 ? 'oggi' : diff === 1 ? 'domani' : d.toLocaleDateString('it-IT', { weekday: 'long' });
+  return `${day} alle ${hm(d)}`;
 };
 
+/**
+ * REG-789 — foglio della guida in programma dell'allievo, direzione B
+ * «protagonista» (Tiziano, 25/11/2026; anteprima B1): l'ORA grande, il luogo
+ * con la mappa del ritrovo in una card, istruttore e auto a righe, «Cerca
+ * sostituto» come CTA e «Annulla guida» come testo. Niente pillola di stato.
+ * Una guida già passata (aperta dalle note) usa il foglio delle guide fatte.
+ */
 export default function LessonDetailScreen() {
-  const router = useRouter();
   // REG-786: il foglio vive anche nello stack della tab Guide: la mappa si apre lì.
   const segments = useSegments() as string[];
   const stack = segments[1] === 'guide' ? 'guide' : 'home';
-  const data = useSyncExternalStore(lessonDetailStore.subscribe, lessonDetailStore.get);
+  const live = useSyncExternalStore(lessonDetailStore.subscribe, lessonDetailStore.get);
+  // Il seed vale per tutta la vita del foglio.
+  const [data] = useState(() => live);
 
   useEffect(() => {
     return () => { lessonDetailStore.clear(); };
   }, []);
 
-  // REG-638 Reglo Road: percorso della guida, solo a guida completata. Il
-  // server applica già setting dell'autoscuola e permessi (null = niente).
-  const lessonId = data?.lesson.id;
-  const isCompleted = (data?.lesson.status ?? '').trim().toLowerCase() === 'completed';
-  const [road, setRoad] = useState<RoadDetail | null>(null);
-  useEffect(() => {
-    if (!lessonId || !isCompleted) return;
-    let alive = true;
-    regloApi
-      .getRoadForAppointment(lessonId)
-      .then((d) => { if (alive) setRoad(d && d.track ? d : null); })
-      .catch(() => undefined);
-    return () => { alive = false; };
-  }, [lessonId, isCompleted]);
+  if (!data) return <FormSheet />;
 
-  if (!data) {
-    return <View style={s.root} />;
-  }
-
-  const { lesson, canSwap, canCancel, vehiclesEnabled, activeSwapOfferId, onSwap, onCancel, onRevokeSwap } = data;
+  const { lesson } = data;
   const isFuture = new Date(lesson.startsAt).getTime() > Date.now();
+  if (!isFuture) {
+    return <DoneLessonSheetView data={{ lesson, manualMode: false, roadVisible: true }} stack={stack} />;
+  }
+  return <UpcomingLessonSheet data={data} />;
+}
+
+function UpcomingLessonSheet({ data }: { data: NonNullable<ReturnType<typeof lessonDetailStore.get>> }) {
+  const router = useRouter();
+  const { lesson, canSwap, canCancel, vehiclesEnabled, activeSwapOfferId, onSwap, onCancel, onRevokeSwap } = data;
   const hasActiveSwap = !!activeSwapOfferId;
+  const start = new Date(lesson.startsAt);
+  const end = lesson.endsAt ? new Date(lesson.endsAt) : null;
+  const minutes = lessonMinutes(lesson);
+  const instructorName = lesson.instructor?.name;
+  const meta = [lessonTypeWord(lesson), durationWords(minutes)].filter(Boolean).join(' · ');
+
+  // Le azioni chiudono prima il foglio: l'alert/il toast compaiono sulla schermata sotto.
+  const after = (fn: () => void) => {
+    router.back();
+    setTimeout(fn, 350);
+  };
+
+  // Annullo: la soglia vera è quella salvata sulla guida (`penaltyCutoffAt`,
+  // la stessa che usa il server). Senza (autoscuola senza pagamenti/crediti)
+  // non si dice niente.
+  const cutoff = lesson.penaltyCutoffAt ? new Date(lesson.penaltyCutoffAt) : null;
+  const cancelNote =
+    canCancel && cutoff && Number.isFinite(cutoff.getTime())
+      ? cutoff.getTime() > Date.now()
+        ? `Puoi annullarla senza penale fino a ${atWords(cutoff)}.`
+        : 'Se la annulli adesso, potrebbe esserti addebitata lo stesso.'
+      : null;
+  // Scambio: l'offerta resta aperta fino a un'ora prima della guida, poi la guida resta tua.
+  const swapNote = hasActiveSwap
+    ? `Hai chiesto un sostituto. Se nessun compagno la prende entro ${atWords(new Date(start.getTime() - 3600000))}, resta tua.`
+    : null;
+
+  const showCta = hasActiveSwap || canSwap || canCancel;
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 14, paddingTop: 4 }}
-        footer={
-          isFuture && (canSwap || canCancel || hasActiveSwap) ? (
-            <View style={{ paddingHorizontal: spacing.xl, paddingBottom: 14, gap: 8, marginTop: 18 }}>
-              {hasActiveSwap ? (
-                <Pressable
-                  style={({ pressed }) => [s.revokeBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                  onPress={() => { router.back(); setTimeout(() => onRevokeSwap?.(activeSwapOfferId!), 350); }}
-                >
-                  <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                  <Text style={s.revokeText}>Revoca richiesta sostituzione</Text>
-                </Pressable>
-              ) : canSwap ? (
-                <Pressable
-                  style={({ pressed }) => [s.swapShadow, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                  onPress={() => { router.back(); setTimeout(() => onSwap(lesson.id), 350); }}
-                >
-                  <GradientCTA style={s.swapBtn}>
-                    <Ionicons name="swap-horizontal-outline" size={16} color={colors.surface} />
-                    <Text style={s.swapText}>Cerca sostituto</Text>
-                  </GradientCTA>
-                </Pressable>
-              ) : null}
-              {canCancel && (
-                <Pressable
-                  style={({ pressed }) => [s.cancelBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                  onPress={() => { router.back(); setTimeout(() => onCancel(lesson.id), 350); }}
-                >
-                  <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                  <Text style={s.cancelText}>Annulla guida</Text>
-                </Pressable>
-              )}
-            </View>
-          ) : null
-        }
-      >
-        {/* Header (flat) */}
-        <View style={s.header}>
-          <View style={s.headerTopRow}>
-            <Text style={s.heroDate}>{formatDay(lesson.startsAt)}</Text>
-            <View style={[s.statusBadge, isCompleted && s.statusBadgeDone]}>
-              <Text style={[s.statusText, isCompleted && s.statusTextDone]}>
-                {isCompleted ? 'COMPLETATA' : statusLabel(lesson.status)}
-              </Text>
-            </View>
-          </View>
-          <Text style={s.heroTime}>
-            {formatTime(lesson.startsAt)}{lesson.endsAt ? ` \u2013 ${formatTime(lesson.endsAt)}` : ''}
-          </Text>
-          <Text style={s.heroDuration}>
-            {lessonDurationMinutes(lesson.startsAt, lesson.endsAt)} min
-          </Text>
-          {hasActiveSwap && (
-            <View style={s.swapBanner}>
-              <Ionicons name="swap-horizontal" size={14} color="#0A0A0A" />
-              <Text style={s.swapBannerText}>Sostituzione richiesta · in attesa di un compagno</Text>
-            </View>
-          )}
-        </View>
-
-        {/* REG-638: «Il tuo percorso» (mappa + segnalazioni) */}
-        {road ? (
-          <View style={s.roadBlock}>
-            <Pressable
-              onPress={() => {
-                roadRouteMapStore.set(road);
-                router.push(`/(tabs)/${stack}/road-map`);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Apri la mappa del percorso"
-              testID="lesson-road-map"
-            >
-              <RoadRouteMap track={road.track} markers={road.markers} stops={road.stops} style={s.roadMini} />
-              <View style={s.roadExpand}>
-                <BlurView intensity={70} tint="systemChromeMaterialLight" style={StyleSheet.absoluteFill} />
-                <View style={s.roadExpandTint} />
-                <Ionicons name="expand-outline" size={15} color="#111111" />
-                <Text style={s.roadExpandTx}>Mappa</Text>
-              </View>
-            </Pressable>
-            <View style={s.roadHd}>
-              <Text style={s.roadHdTitle}>Il tuo percorso</Text>
-              <Text style={s.roadHdMeta}>
-                {formatKm(road.distanceMeters)} km · {formatMinutes(road.durationSec)} min
-              </Text>
-            </View>
-            <SentimentCounts {...countSentiments(road.markers)} style={{ paddingHorizontal: 8, marginTop: 4, marginBottom: 2 }} />
-            <View style={{ paddingHorizontal: 8 }}>
-              <RoadMarkerList
-                items={road.markers.map((m) => ({
-                  key: m.id,
-                  kind: m.kind,
-                  label: m.label,
-                  street: m.street,
-                  note: m.note,
-                  sentiment: m.sentiment ?? null,
-                  recordedAt: m.recordedAt,
-                }))}
+    <FormSheet
+      testID="lesson-detail-sheet"
+      title={longDay(lesson.startsAt)}
+      subtitle={whenWords(lesson.startsAt)}
+      cta={
+        showCta ? (
+          <View>
+            {hasActiveSwap ? (
+              <ClayButton
+                variant="secondary"
+                title="Revoca richiesta"
+                onPress={() => after(() => onRevokeSwap?.(activeSwapOfferId!))}
+                testID="lesson-revoke-swap"
               />
-            </View>
+            ) : canSwap ? (
+              <ClayButton title="Cerca sostituto" onPress={() => after(() => onSwap(lesson.id))} testID="lesson-swap" />
+            ) : null}
+            {canCancel ? (
+              <ClayPressable
+                kind="small"
+                onPress={() => after(() => onCancel(lesson.id))}
+                accessibilityRole="button"
+                style={[s.cancel, !(hasActiveSwap || canSwap) && s.cancelAlone]}
+                testID="lesson-cancel"
+              >
+                <Text style={s.cancelTx}>Annulla guida</Text>
+              </ClayPressable>
+            ) : null}
           </View>
+        ) : undefined
+      }
+    >
+      <Text style={s.time} accessibilityRole="header">
+        {hm(start)}
+        {end ? ` – ${hm(end)}` : ''}
+      </Text>
+      <Text style={s.meta}>
+        {meta}
+        {instructorName ? ` con ${instructorName}` : ''}
+      </Text>
+      {swapNote ? <Text style={s.swapNote}>{swapNote}</Text> : null}
+
+      <LessonPlaceCard location={lesson.location} />
+
+      <View style={s.rows}>
+        <InstructorRow first instructor={lesson.instructor} subtitle="Il tuo istruttore" />
+        {vehiclesEnabled && lesson.vehicle ? <VehicleRow vehicle={lesson.vehicle} /> : null}
+        {lesson.motoLessonType ? (
+          <FlatRow
+            title={MOTO_LESSON_TYPE_LABELS[lesson.motoLessonType]}
+            subtitle={MOTO_LESSON_TYPE_HINTS[lesson.motoLessonType]}
+          />
         ) : null}
+      </View>
 
-        {/* Details (flat rows) */}
-        <View style={[s.groupCard, road && { marginTop: 14 }]}>
-          {/* Instructor */}
-          <View style={s.row}>
-            <View style={[s.iconChip, { backgroundColor: '#F2F2F0' }]}>
-              <Ionicons name="person" size={18} color="#111111" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.rowValue}>{lesson.instructor?.name ?? 'Da assegnare'}</Text>
-              {lesson.instructor?.phone ? (
-                <Pressable onPress={() => Linking.openURL(`tel:${lesson.instructor!.phone}`)}>
-                  <Text style={s.rowLink}>{lesson.instructor.phone}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Vehicle */}
-          {vehiclesEnabled && (
-            <>
-              <View style={s.divider} />
-              <View style={s.row}>
-                <View style={[s.iconChip, { backgroundColor: '#F1F1F1' }]}>
-                  <Ionicons name="car" size={18} color="#7C3AED" />
-                </View>
-                <Text style={s.rowValue}>{lesson.vehicle?.name ?? 'Da assegnare'}</Text>
-              </View>
-            </>
-          )}
-
-          {/* Location */}
-          <View style={s.divider} />
-          {(() => {
-            const loc = lesson.location;
-            const lat = typeof loc?.latitude === 'number' ? loc.latitude : loc?.latitude ? Number(loc.latitude) : null;
-            const lng = typeof loc?.longitude === 'number' ? loc.longitude : loc?.longitude ? Number(loc.longitude) : null;
-            const isTappable = loc?.isPrecise && lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
-            const display = loc?.name ?? "Sede dell'autoscuola";
-            const handleOpenMaps = () => {
-              if (!isTappable) return;
-              const placeIdParam = loc!.placeId ? `&query_place_id=${loc!.placeId}` : '';
-              Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}${placeIdParam}`).catch(() => null);
-            };
-            return (
-              <Pressable onPress={isTappable ? handleOpenMaps : undefined} disabled={!isTappable} style={s.row}>
-                <View style={[s.iconChip, { backgroundColor: '#CCFBF1' }]}>
-                  <Ionicons name="location" size={18} color="#0D9488" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.rowValue} numberOfLines={1}>{display}</Text>
-                  {loc?.isPrecise && loc.address ? <Text style={s.rowSub} numberOfLines={1}>{loc.address}</Text> : null}
-                </View>
-                {isTappable ? <Ionicons name="open-outline" size={16} color="#16A34A" /> : null}
-              </Pressable>
-            );
-          })()}
-
-          {/* Lesson type */}
-          {lesson.types && lesson.types.length > 0 && (
-            <>
-              <View style={s.divider} />
-              <View style={s.row}>
-                <View style={[s.iconChip, { backgroundColor: '#EBEBEB' }]}>
-                  <Ionicons name="flag" size={18} color="#111111" />
-                </View>
-                <Text style={s.rowValue}>{lesson.types.map(formatLessonType).join(', ')}</Text>
-              </View>
-            </>
-          )}
-
-          {/* Tipo guida moto (birilli/strada, REG-399): l'allievo lo vede sul
-              dettaglio della sua guida moto individuale. */}
-          {lesson.motoLessonType && (
-            <>
-              <View style={s.divider} />
-              <View style={s.row}>
-                <View style={[s.iconChip, { backgroundColor: '#FFE3CC' }]}>
-                  <MaterialCommunityIcons name={MOTO_LESSON_TYPE_ICON[lesson.motoLessonType]} size={18} color="#C2410C" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.rowValue}>{MOTO_LESSON_TYPE_LABELS[lesson.motoLessonType]}</Text>
-                  <Text style={s.rowSub}>{MOTO_LESSON_TYPE_HINTS[lesson.motoLessonType]}</Text>
-                </View>
-              </View>
-            </>
-          )}
-        </View>
-      </SheetScaffold>
-    </View>
+      {cancelNote ? <Text style={s.note}>{cancelNote}</Text> : null}
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.xl, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-  header: { gap: 4, paddingTop: 10 },
-  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroDate: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
-  heroTime: { fontSize: 36, fontWeight: '600', color: '#111111', letterSpacing: -0.8, marginTop: 6 },
-  statusBadge: {
-    backgroundColor: '#F3F4F6', borderRadius: 999,
-    paddingHorizontal: 12, paddingVertical: 5,
-  },
-  statusText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B', letterSpacing: 0.2 },
-  statusBadgeDone: { backgroundColor: '#E6F6EC' },
-  statusTextDone: { color: '#067647' },
-  heroDuration: { fontSize: 14, fontWeight: '500', color: colors.textMuted, marginTop: 4 },
-  groupCard: { marginTop: 30 },
-  iconChip: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  rowValue: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-  rowSub: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 1 },
-  rowLink: { fontSize: 14, fontWeight: '600', color: '#111111', marginTop: 2 },
-  swapShadow: {
-    borderRadius: 27,
-    ...primaryCtaShadow,
-  },
-  swapBtn: {
-    flexDirection: 'row', gap: 8,
-    height: 54, borderRadius: 27,
-  },
-  swapText: { fontSize: 16, fontWeight: '700', color: colors.surface, letterSpacing: -0.2 },
-  swapBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
-    marginTop: 12, paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 999, backgroundColor: '#EBEBEB',
-  },
-  swapBannerText: { fontSize: 12, fontWeight: '700', color: '#0A0A0A', letterSpacing: -0.1 },
-  revokeBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 54, borderRadius: 27,
-    backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
-  },
-  revokeText: { fontSize: 16, fontWeight: '700', color: '#DC2626', letterSpacing: -0.2 },
-  cancelBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 48, borderRadius: 26,
-    backgroundColor: 'transparent',
-  },
-  cancelText: { fontSize: 15, fontWeight: '600', color: '#DC2626' },
-  roadBlock: {
-    marginTop: 18, borderRadius: 26, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EFEFF2',
-    paddingTop: 8, paddingHorizontal: 8, paddingBottom: 4,
-    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
-  },
-  roadMini: { height: 168, borderRadius: 20 },
-  roadExpand: {
-    position: 'absolute', right: 10, top: 10, height: 32, paddingHorizontal: 12, borderRadius: 16,
-    overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.7)',
-  },
-  roadExpandTint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.6)' },
-  roadExpandTx: { fontSize: 13, fontWeight: '600', color: '#111111' },
-  roadHd: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 12, paddingHorizontal: 8, paddingBottom: 2,
-  },
-  roadHdTitle: { fontSize: 16, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  roadHdMeta: { fontSize: 13.5, fontWeight: '400', color: '#6A6A6A' },
+  time: { fontSize: 46, lineHeight: 52, fontWeight: '600', color: CLAY.ink, letterSpacing: -1.5, marginTop: 4, fontVariant: ['tabular-nums'] },
+  meta: { fontSize: 16, lineHeight: 21, color: CLAY.ink2, marginTop: 4 },
+  swapNote: { fontSize: 15, lineHeight: 20, color: CLAY.ink, fontWeight: '500', marginTop: 12 },
+  rows: { marginTop: 12 },
+  note: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, marginTop: 12 },
+  cancel: { alignItems: 'center', justifyContent: 'center', height: 48, marginTop: 4 },
+  cancelAlone: { marginTop: 0 },
+  cancelTx: { fontSize: 16, fontWeight: '600', color: CLAY_DANGER },
 });

@@ -11,7 +11,7 @@ export default function GuideLayout() {
       {/* Guida fatta (D1/D2): form sheet alto quanto il contenuto, senza grabber. */}
       <Stack.Screen name="lesson" options={FORM_SHEET} />
       {/* Guida in arrivo e posto di gruppo: gli stessi fogli della home. */}
-      <Stack.Screen name="lesson-detail" options={TALL_SHEET} />
+      <Stack.Screen name="lesson-detail" options={FORM_SHEET} />
       <Stack.Screen name="group-lesson-detail" options={TALL_SHEET} />
       <Stack.Screen name="notes" />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
