@@ -26,8 +26,12 @@ const STOP_OK_POSTER = require('../../assets/conferma/stop-ok-primo.png');
 
 const CARD = 220;
 const ART = 168;
-const IN_MS = 200;
+/** REG-792 (Tiziano): entrata morbida — velo 200 ms, card 240 ms da 0,92 a 1. */
+const VEIL_IN_MS = 200;
+const IN_MS = 240;
 const OUT_MS = 200;
+/** Il cartello parte quando la card è quasi entrata. */
+const PLAY_AT_MS = 180;
 /** Dopo la fine del video la spunta resta ferma un attimo prima di sparire. */
 const HOLD_MS = 380;
 /** Rete di sicurezza se il video non parte o non segnala la fine. */
@@ -83,6 +87,13 @@ export async function closeAndCelebrate(close: () => void, label: string | null 
   await shown;
 }
 
+const isActive = () => _req !== null;
+
+/** True finché il quadratino è a schermo (REG-792: la home aspetta che sparisca). */
+export function useBookingSuccessActive() {
+  return useSyncExternalStore(store.subscribe, isActive);
+}
+
 /** Montato una volta nel layout radice. */
 export function BookingSuccessHost() {
   const req = useSyncExternalStore(store.subscribe, store.get);
@@ -93,7 +104,9 @@ export function BookingSuccessHost() {
 
 function SuccessCard({ label, onDone }: { label: string | null; onDone: () => void }) {
   const shown = useSharedValue(0);
+  const veilShown = useSharedValue(0);
   const [leaving, setLeaving] = useState(false);
+  const [play, setPlay] = useState(false);
   const finished = useRef(false);
 
   const leave = useCallback(() => {
@@ -101,14 +114,25 @@ function SuccessCard({ label, onDone }: { label: string | null; onDone: () => vo
     finished.current = true;
     setLeaving(true);
     shown.value = withTiming(0, { duration: OUT_MS, easing: EASE, reduceMotion: N });
+    veilShown.value = withTiming(0, { duration: OUT_MS, easing: EASE, reduceMotion: N });
     setTimeout(onDone, OUT_MS + 20);
-  }, [onDone, shown]);
+  }, [onDone, shown, veilShown]);
 
   useEffect(() => {
-    shown.value = withTiming(1, { duration: IN_MS, easing: EASE, reduceMotion: N });
+    // Al fotogramma dopo il montaggio (il foglio sotto si sta chiudendo nello
+    // stesso istante): così la dissolvenza parte intera, mai di botto.
+    const raf = requestAnimationFrame(() => {
+      veilShown.value = withTiming(1, { duration: VEIL_IN_MS, easing: EASE, reduceMotion: N });
+      shown.value = withTiming(1, { duration: IN_MS, easing: EASE, reduceMotion: N });
+    });
+    const playT = setTimeout(() => setPlay(true), PLAY_AT_MS);
     const safety = setTimeout(leave, SAFETY_MS);
-    return () => clearTimeout(safety);
-  }, [leave, shown]);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(playT);
+      clearTimeout(safety);
+    };
+  }, [leave, shown, veilShown]);
 
   const onStatus = useCallback(
     (st: AVPlaybackStatus) => {
@@ -117,10 +141,10 @@ function SuccessCard({ label, onDone }: { label: string | null; onDone: () => vo
     [leave],
   );
 
-  const veil = useAnimatedStyle(() => ({ opacity: shown.value }));
+  const veil = useAnimatedStyle(() => ({ opacity: veilShown.value }));
   const cardStyle = useAnimatedStyle(() => ({
     opacity: shown.value,
-    transform: [{ scale: 0.94 + 0.06 * shown.value }],
+    transform: [{ scale: 0.92 + 0.08 * shown.value }],
   }));
 
   return (
@@ -132,7 +156,7 @@ function SuccessCard({ label, onDone }: { label: string | null; onDone: () => vo
             source={STOP_OK_VIDEO}
             style={s.art}
             resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
+            shouldPlay={play}
             isMuted
             isLooping={false}
             usePoster

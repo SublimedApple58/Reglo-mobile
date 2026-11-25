@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useIsFocused } from '@react-navigation/native';
 import {
   Alert,
+  LayoutChangeEvent,
   Linking,
   RefreshControl,
   ScrollView,
@@ -15,7 +17,7 @@ import { spacing } from '../theme';
 
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { closeAndCelebrate } from '../components/BookingSuccessOverlay';
+import { closeAndCelebrate, useBookingSuccessActive } from '../components/BookingSuccessOverlay';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -78,6 +80,16 @@ import { examTimeIsTbd } from '../utils/examTime';
 import { ExamHeroCard } from './allievoHome/ExamHomeCards';
 import { UpcomingLessonRow } from '../components/studentLesson/UpcomingLessonRow';
 import { useStudentSwaps } from '../hooks/useStudentSwaps';
+import {
+  HOME_FADE_IN,
+  HOME_FADE_OUT,
+  HOME_MOVE,
+  rowEnter,
+  rowExit,
+  rowFromCard,
+  rowToCard,
+  useHeldUpcoming,
+} from './allievoHome/homeMotion';
 import { slotLocationParam } from '../utils/slotLocation';
 import { transmissionLabel } from '../utils/license';
 import { Ionicons } from '@expo/vector-icons';
@@ -970,10 +982,28 @@ export const AllievoHomeScreen = () => {
       ),
     [upcoming, upcomingGroupLessons],
   );
-  const nextLesson = allUpcoming[0];
+  // Se booking-options fallisce la home si mostra lo stesso (senza bottoni di prenotazione).
+  // REG-791: anche le proprie richieste di scambio, così la guida lasciata
+  // compare subito con l'orologio (mai l'auto che poi cambia): fino ad allora skeleton.
+  const dataReady =
+    studentsLoaded && studentDataReady && (!!bookingOptions || bookingOptionsQuery.isError) && mySwapsReady;
+  // REG-792: card e righe mostrano una «vetrina» che si aggiorna (animata)
+  // solo con la home a schermo e il quadratino STOP → OK già sparito.
+  const celebrating = useBookingSuccessActive();
+  const homeFocused = useIsFocused();
+  const {
+    shown: shownUpcoming,
+    armed: motionArmed,
+    plan: motionPlan,
+  } = useHeldUpcoming(allUpcoming, dataReady, homeFocused && !celebrating);
+  const nextLesson = shownUpcoming[0];
   // REG-791 (anteprima H1): sotto le card, le guide dopo la prossima (che è
   // già nella card grande o piccola). Al massimo 3; le altre in «In programma».
-  const laterLessons = useMemo(() => allUpcoming.slice(1, 4), [allUpcoming]);
+  const laterLessons = useMemo(() => shownUpcoming.slice(1, 4), [shownUpcoming]);
+  // REG-792: dove sta la card della prossima guida e dove comincia la sezione
+  // delle righe (coordinate del contenuto), per le righe che scendono o salgono.
+  const nextSlot = useRef({ y: 0, h: 0 });
+  const restY = useRef(0);
   const nextLessonIsGroup = !!nextLesson?.groupLessonId;
 
   const nextLessonCountdown = useMemo(() => {
@@ -1690,11 +1720,6 @@ export const AllievoHomeScreen = () => {
   const instructorFirstName = assignedInstructorName?.trim().split(/\s+/)[0] ?? null;
 
   const { scrollY, onScroll } = useLargeTitleScroll();
-  // Se booking-options fallisce la home si mostra lo stesso (senza bottoni di prenotazione).
-  // REG-791: anche le proprie richieste di scambio, così la guida lasciata
-  // compare subito con l'orologio (mai l'auto che poi cambia): fino ad allora skeleton.
-  const dataReady =
-    studentsLoaded && studentDataReady && (!!bookingOptions || bookingOptionsQuery.isError) && mySwapsReady;
   const canFreelyBook = !!bookingPolicy?.canBookFreely && policyMode === 'open';
 
 
@@ -1770,11 +1795,15 @@ export const AllievoHomeScreen = () => {
       }
       initials={nextLessonIsGroup || mySwapByAppointment.has(nextLesson.id) ? null : instructorInitials(nextLesson.instructor?.name)}
       onPress={() => openAnyLessonDetail(nextLesson)}
+      contentKey={nextLesson.id}
+      animate={motionArmed}
     />
   ) : null;
 
   let primaryCard: React.ReactNode;
+  let primaryKind = 'empty';
   if (examHome) {
+    primaryKind = 'exam';
     primaryCard = (
       <ExamHeroCard
         big={examHome.big}
@@ -1785,12 +1814,16 @@ export const AllievoHomeScreen = () => {
       />
     );
   } else if (nextLessonCard) {
+    primaryKind = 'next';
     primaryCard = nextLessonCard;
   } else if (isPaused) {
+    primaryKind = 'paused';
     primaryCard = pausedCard;
   } else if (creditsHold) {
+    primaryKind = 'credits';
     primaryCard = <CreditsPrimaryCard title={creditsTitle} line={creditsLine} />;
   } else if (offerIsPrimary && featuredOffer) {
+    primaryKind = 'offer';
     primaryCard = (
       <LiveOfferCard
         offer={featuredOffer}
@@ -1799,6 +1832,7 @@ export const AllievoHomeScreen = () => {
       />
     );
   } else if (canFreelyBook) {
+    primaryKind = 'book';
     primaryCard = (
       <BookPrimaryCard
         line={
@@ -1821,6 +1855,7 @@ export const AllievoHomeScreen = () => {
   const pigThumb = <PiggyCoin size={46} top={14} />;
   const pauseThumb = <Icon3D source={HOME_ART.salvadanaio} size={50} />;
   let smallCard: React.ReactNode = null;
+  let smallKind = 'none';
   let bookRowLabel: string | null = null;
   // REG-786 (Tiziano 25/11): «Prenota guida» è la CTA primaria, un bottone nero
   // a tutta larghezza in un blocco a sé subito sotto la card principale (mai
@@ -1829,9 +1864,12 @@ export const AllievoHomeScreen = () => {
   let bookCtaLabel: string | null = null;
   const canBookNow = canFreelyBook && !isPaused && !creditsHold;
   if (examHome && nextLesson && examHome.compact) {
+    smallKind = 'next';
     smallCard = (
       <HomeSmallCard
         testID="home-next-lesson-compact"
+        contentKey={nextLesson.id}
+        animate={motionArmed}
         thumb="car"
         kicker={examHome.compact.kicker}
         title={examHome.compact.title}
@@ -1848,8 +1886,10 @@ export const AllievoHomeScreen = () => {
     if (canBookNow) bookCtaLabel = "Prenota un'altra guida";
   } else if (examHome || nextLesson) {
     if (isPaused) {
+      smallKind = 'paused';
       smallCard = <HomeSmallCard thumb={pauseThumb} titleFirst title="Prenotazioni in pausa" kicker={pausedLine} />;
     } else if (creditsHold) {
+      smallKind = 'credits';
       smallCard = (
         <HomeSmallCard testID="home-credits-card" thumb={pigThumb} titleFirst title={creditsTitle} kicker={creditsLine} onPress={openCreditsSheet} />
       );
@@ -1876,6 +1916,16 @@ export const AllievoHomeScreen = () => {
       />
     </View>
   ) : null;
+
+  // REG-792: posizioni per le righe che scendono dalla card o ci salgono.
+  const onNextSlotLayout = (e: LayoutChangeEvent) => {
+    nextSlot.current = { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height };
+  };
+  const onRestLayout = (e: LayoutChangeEvent) => {
+    restY.current = e.nativeEvent.layout.y;
+  };
+  // Centro della card nel sistema delle righe: la sezione ha 28 pt di margine in alto.
+  const cardCenterInSection = () => nextSlot.current.y + nextSlot.current.h / 2 - (restY.current + SECTION_TOP);
 
   return (
     <View style={styles.root}>
@@ -1919,33 +1969,80 @@ export const AllievoHomeScreen = () => {
             {/* ── Livello 1: UNA card grande, la cosa più importante (v6, Tiziano 24/11):
                 esame > prossima guida > pausa > crediti finiti > posto liberato >
                 prenota > stato vuoto. ── */}
-            {primaryCard}
+            {/* REG-792: ogni blocco è un Animated.View con chiave stabile; durante il
+                riordino (`motionArmed`, ~450 ms) i blocchi scivolano al posto nuovo e le
+                card che cambiano tipo si dissolvono. Fuori dal riordino niente animazioni. */}
+            <Animated.View
+              key={`primary-${primaryKind}`}
+              layout={motionArmed ? HOME_MOVE : undefined}
+              entering={motionArmed ? HOME_FADE_IN : undefined}
+              exiting={motionArmed ? HOME_FADE_OUT : undefined}
+              onLayout={primaryKind === 'next' ? onNextSlotLayout : undefined}
+            >
+              {primaryCard}
+            </Animated.View>
 
             {/* ── Livello 2: al massimo una card piccola ── */}
-            {smallCard}
-
-            {/* ── CTA primaria: prenota, blocco a sé sotto le card ── */}
-            {bookCta}
-
-            {/* ── REG-791: le prossime guide, a righe; tocco = foglio della guida ── */}
-            {laterLessons.length ? (
-              <HomeSection
-                title="Prossime guide"
-                right={`Tutte · ${allUpcoming.length}`}
-                onRightPress={() => router.push('/(tabs)/home/upcoming')}
+            {smallCard ? (
+              <Animated.View
+                key={`small-${smallKind}`}
+                layout={motionArmed ? HOME_MOVE : undefined}
+                entering={motionArmed ? HOME_FADE_IN : undefined}
+                exiting={motionArmed ? HOME_FADE_OUT : undefined}
+                onLayout={smallKind === 'next' ? onNextSlotLayout : undefined}
               >
-                {laterLessons.map((l, i) => (
-                  <UpcomingLessonRow
-                    key={l.id}
-                    lesson={l}
-                    swapAsked={mySwapByAppointment.has(l.id)}
-                    first={i === 0}
-                    onPress={openAnyLessonDetail}
-                  />
-                ))}
-              </HomeSection>
+                {smallCard}
+              </Animated.View>
             ) : null}
 
+            {/* ── CTA primaria: prenota, blocco a sé sotto le card ── */}
+            {bookCta ? (
+              <Animated.View
+                key="book-cta"
+                layout={motionArmed ? HOME_MOVE : undefined}
+                entering={motionArmed ? HOME_FADE_IN : undefined}
+                exiting={motionArmed ? HOME_FADE_OUT : undefined}
+              >
+                {bookCta}
+              </Animated.View>
+            ) : null}
+
+            {/* ── REG-791: le prossime guide, a righe; tocco = foglio della guida ── */}
+            <Animated.View layout={motionArmed ? HOME_MOVE : undefined} onLayout={onRestLayout}>
+              {laterLessons.length ? (
+                <Animated.View
+                  key="later"
+                  entering={motionArmed ? HOME_FADE_IN : undefined}
+                  exiting={motionArmed ? HOME_FADE_OUT : undefined}
+                >
+                  <HomeSection
+                    title="Prossime guide"
+                    right={`Tutte · ${shownUpcoming.length}`}
+                    onRightPress={() => router.push('/(tabs)/home/upcoming')}
+                  >
+                    {laterLessons.map((l, i) => (
+                      <Animated.View
+                        key={l.id}
+                        layout={motionArmed ? HOME_MOVE : undefined}
+                        entering={
+                          motionArmed ? (motionPlan.fromCardId === l.id ? rowFromCard(cardCenterInSection()) : rowEnter) : undefined
+                        }
+                        exiting={motionArmed ? (motionPlan.toCardId === l.id ? rowToCard(cardCenterInSection()) : rowExit) : undefined}
+                      >
+                        <UpcomingLessonRow
+                          lesson={l}
+                          swapAsked={mySwapByAppointment.has(l.id)}
+                          first={i === 0}
+                          onPress={openAnyLessonDetail}
+                        />
+                      </Animated.View>
+                    ))}
+                  </HomeSection>
+                </Animated.View>
+              ) : null}
+            </Animated.View>
+
+            <Animated.View layout={motionArmed ? HOME_MOVE : undefined}>
             {/* ── Livello 3: tutto il resto a righe ── */}
             {bookRow}
 
@@ -1976,6 +2073,7 @@ export const AllievoHomeScreen = () => {
             ) : null}
 
             {policyHold && policyHold !== 'blocked' ? <Text style={styles.holdNote}>{bookingHoldMessage(policyHold)}</Text> : null}
+            </Animated.View>
           </Animated.View>
         )}
       </Animated.ScrollView>
@@ -2009,6 +2107,9 @@ const LiveOfferCard = React.memo(function LiveOfferCard({
   if (leftMs <= 0) return null;
   return <FeaturedOfferCard day={day} detail={detail} minutesLeft={minutesLeft} progress={leftMs / total} onTake={onTake} />;
 });
+
+/** `marginTop` di `HomeSection` (s.sec in HomeSections). */
+const SECTION_TOP = 28;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
