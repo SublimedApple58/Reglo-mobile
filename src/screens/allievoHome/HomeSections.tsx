@@ -11,10 +11,12 @@
 import React, { memo } from 'react';
 import { Image, ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { CLAY_ROW_PRESSED, ClayButton, ClayPressable, ClaySurface, Icon3D } from '../../components/clay';
 import { PiggyCoin } from '../../components/credits/CreditsHero';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
+import { contentEnter, contentExit } from './homeMotion';
 
 export const HOME_ART = {
   hero: require('../../../assets/vita/home-hero.png') as ImageSourcePropType,
@@ -68,6 +70,8 @@ export const NextLessonCard = memo(function NextLessonCard({
   who,
   initials,
   onPress,
+  contentKey,
+  animate,
 }: {
   when: string;
   day: string;
@@ -75,11 +79,20 @@ export const NextLessonCard = memo(function NextLessonCard({
   who: string | null;
   initials: string | null;
   onPress: () => void;
+  /** REG-792: id della guida mostrata; quando cambia il testo si dissolve nel nuovo. */
+  contentKey?: string;
+  /** REG-792: solo durante il riordino animato della home. */
+  animate?: boolean;
 }) {
   return (
     <ClaySurface padded={false} onPress={onPress} style={s.big} accessibilityLabel={`${when}, ${day}, ${time}`}>
       <Cover />
-      <View style={s.bb}>
+      <Animated.View
+        key={contentKey}
+        style={s.bb}
+        entering={animate ? contentEnter : undefined}
+        exiting={animate ? contentExit : undefined}
+      >
         <Text style={s.when}>{when}</Text>
         <Text style={s.day}>{day}</Text>
         <Text style={s.time}>{time}</Text>
@@ -95,7 +108,7 @@ export const NextLessonCard = memo(function NextLessonCard({
             </Text>
           </View>
         ) : null}
-      </View>
+      </Animated.View>
     </ClaySurface>
   );
 });
@@ -138,7 +151,13 @@ export const HomeSmallCard = memo(function HomeSmallCard({
   onPress,
   footer,
   testID,
+  contentKey,
+  animate,
 }: {
+  /** REG-792: id della guida mostrata; quando cambia il testo si dissolve nel nuovo. */
+  contentKey?: string;
+  /** REG-792: solo durante il riordino animato della home. */
+  animate?: boolean;
   /** `car` = ritaglio dell'immagine della guida; altrimenti un nodo (salvadanaio…). */
   thumb: 'car' | React.ReactNode;
   kicker: string;
@@ -170,13 +189,18 @@ export const HomeSmallCard = memo(function HomeSmallCard({
         ) : (
           <View style={[s.thumb, s.thumbPlain]}>{thumb}</View>
         )}
-        <View style={s.smallText}>
+        <Animated.View
+          key={contentKey}
+          style={s.smallText}
+          entering={animate ? contentEnter : undefined}
+          exiting={animate ? contentExit : undefined}
+        >
           {titleFirst ? null : top}
           <Text style={[s.smallTitle, titleFirst && s.smallTitleFirst]} numberOfLines={1}>
             {title}
           </Text>
           {titleFirst ? top : null}
-        </View>
+        </Animated.View>
         {onPress ? <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} /> : null}
       </Pressable>
       {footer ? (

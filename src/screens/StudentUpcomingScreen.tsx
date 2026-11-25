@@ -3,6 +3,7 @@ import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { ClayNavBar, ClayLargeTitle, useLargeTitleScroll } from '../components/ClayLargeTitle';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
@@ -14,6 +15,7 @@ import { useBookingOptions } from '../hooks/queries/useBookingOptions';
 import { useStudentSwaps } from '../hooks/useStudentSwaps';
 import { useStudentLessonActions } from '../hooks/useStudentLessonActions';
 import { CLAY } from '../theme/clay';
+import { HOME_FADE_OUT, HOME_MOVE, rowExit, useHeldUpcoming } from './allievoHome/homeMotion';
 import { isExamLesson, isUpcomingLesson, mondayOf, weekTitle } from '../utils/studentLessons';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 
@@ -80,11 +82,15 @@ export function StudentUpcomingScreen({ stack }: { stack: 'guide' | 'home' }) {
         .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()),
     [all],
   );
+  // REG-792: una guida annullata dal foglio sparisce quando la pagina torna a
+  // schermo (riga in dissolvenza, le altre risalgono), non dietro il foglio.
+  const focused = useIsFocused();
+  const { shown } = useHeldUpcoming(upcoming, ready, focused);
 
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
     let week = '';
-    for (const l of upcoming) {
+    for (const l of shown) {
       const monday = mondayOf(new Date(l.startsAt));
       const wk = monday.toISOString();
       const first = wk !== week;
@@ -95,7 +101,7 @@ export function StudentUpcomingScreen({ stack }: { stack: 'guide' | 'home' }) {
       out.push({ kind: 'lesson', key: l.id, lesson: l, first });
     }
     return out;
-  }, [upcoming]);
+  }, [shown]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -109,15 +115,19 @@ export function StudentUpcomingScreen({ stack }: { stack: 'guide' | 'home' }) {
   const renderItem = useCallback(
     ({ item }: { item: Item }) =>
       item.kind === 'week' ? (
-        <Text style={s.week}>{item.title}</Text>
+        <Animated.View exiting={HOME_FADE_OUT}>
+          <Text style={s.week}>{item.title}</Text>
+        </Animated.View>
       ) : (
-        <UpcomingLessonRow
-          lesson={item.lesson}
-          swapAsked={mySwapByAppointment.has(item.lesson.id)}
-          first={item.first}
-          chevron
-          onPress={open}
-        />
+        <Animated.View exiting={rowExit}>
+          <UpcomingLessonRow
+            lesson={item.lesson}
+            swapAsked={mySwapByAppointment.has(item.lesson.id)}
+            first={item.first}
+            chevron
+            onPress={open}
+          />
+        </Animated.View>
       ),
     [mySwapByAppointment, open],
   );
@@ -152,6 +162,8 @@ export function StudentUpcomingScreen({ stack }: { stack: 'guide' | 'home' }) {
         data={ready ? items : []}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
+        // Le righe rimaste scivolano al posto nuovo (solo traslazione, 300 ms).
+        itemLayoutAnimation={HOME_MOVE}
         ListHeaderComponent={header}
         onScroll={onScroll}
         scrollEventThrottle={16}
