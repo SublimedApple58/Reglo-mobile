@@ -131,3 +131,24 @@ export const scoreWord = (score: number, scaleMax: number) => {
   if (r >= 0.5) return 'Da rifinire';
   return 'Da rivedere';
 };
+
+/**
+ * REG-789 — perché una guida in programma NON si può lasciare a un compagno
+ * (null = si può). Le stesse regole di `createSwapOffer` sul server
+ * (`autoscuole-swap.actions.ts`): niente posti di gruppo, esami, guide con
+ * auto al seguito; solo guide programmate/confermate; fino a un'ora prima;
+ * una richiesta aperta per guida.
+ */
+export const swapBlockReason = (
+  l: AutoscuolaAppointmentWithRelations,
+  hasOpenRequest: boolean,
+  now = Date.now(),
+): string | null => {
+  if (hasOpenRequest) return 'Già lasciata, in attesa di un compagno';
+  if (l.groupLessonId || norm(l.type) === 'group_lesson') return 'Guida di gruppo: non si può lasciare';
+  if (isExamLesson(l)) return 'Esame: non si può lasciare';
+  if ((l as { followVehicleId?: string | null }).followVehicleId || l.followVehicle) return "Con l'auto al seguito: non si può lasciare";
+  if (!['scheduled', 'confirmed'].includes(lessonStatus(l))) return 'Non si può lasciare';
+  if (new Date(l.startsAt).getTime() - now < 3600000) return "Manca meno di un'ora";
+  return null;
+};

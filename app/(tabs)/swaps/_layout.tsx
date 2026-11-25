@@ -10,6 +10,7 @@ export default function SwapsLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="swap-detail" options={TALL_SHEET} />
       <Stack.Screen name="credits-needed" options={FORM_SHEET} />
+      <Stack.Screen name="leave-lesson" options={FORM_SHEET} />
     </Stack>
   );
 }
