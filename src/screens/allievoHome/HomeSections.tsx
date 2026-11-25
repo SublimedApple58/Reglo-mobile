@@ -9,17 +9,17 @@
  * (nessuna molla).
  */
 import React, { memo } from 'react';
-import { Image, ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 import { CLAY_ROW_PRESSED, ClayButton, ClayPressable, ClaySurface, Icon3D } from '../../components/clay';
 import { PiggyCoin } from '../../components/credits/CreditsHero';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
 import { CLAY_RADIUS } from '../../theme/spacing';
+import { car34Art } from '../../road/markerArt';
 import { contentEnter, contentExit } from './homeMotion';
 
 export const HOME_ART = {
-  hero: require('../../../assets/vita/home-hero.png') as ImageSourcePropType,
   volante: require('../../../assets/vita/volante.png') as ImageSourcePropType,
   esame: require('../../../assets/vita/esame.png') as ImageSourcePropType,
   orologio: require('../../../assets/vita/orologio.png') as ImageSourcePropType,
@@ -53,15 +53,9 @@ export const HomeGreeting = memo(function HomeGreeting({
   );
 });
 
-// ── Card della prossima guida (con l'immagine in alto) ────────────────────────
-
-const Cover = memo(function Cover() {
-  return (
-    <View style={s.cover}>
-      <Image source={HOME_ART.hero} style={s.coverImg} resizeMode="cover" accessibilityIgnoresInvertColors />
-    </View>
-  );
-});
+// ── Card della prossima guida ─────────────────────────────────────────────────
+// REG-793: l'illustrazione è la copertina della pagina; nella card resta l'auto
+// 3D nel colore del veicolo (senza veicolo: la rossa di Reglo).
 
 export const NextLessonCard = memo(function NextLessonCard({
   when,
@@ -69,6 +63,7 @@ export const NextLessonCard = memo(function NextLessonCard({
   time,
   who,
   initials,
+  carColor,
   onPress,
   contentKey,
   animate,
@@ -78,6 +73,8 @@ export const NextLessonCard = memo(function NextLessonCard({
   time: string;
   who: string | null;
   initials: string | null;
+  /** `carColor` del veicolo; null = auto rossa. */
+  carColor?: string | null;
   onPress: () => void;
   /** REG-792: id della guida mostrata; quando cambia il testo si dissolve nel nuovo. */
   contentKey?: string;
@@ -86,16 +83,20 @@ export const NextLessonCard = memo(function NextLessonCard({
 }) {
   return (
     <ClaySurface padded={false} onPress={onPress} style={s.big} accessibilityLabel={`${when}, ${day}, ${time}`}>
-      <Cover />
       <Animated.View
         key={contentKey}
-        style={s.bb}
+        style={[s.bb, s.bbNext]}
         entering={animate ? contentEnter : undefined}
         exiting={animate ? contentExit : undefined}
       >
-        <Text style={s.when}>{when}</Text>
-        <Text style={s.day}>{day}</Text>
-        <Text style={s.time}>{time}</Text>
+        <View style={s.top}>
+          <View style={s.topText}>
+            <Text style={s.when}>{when}</Text>
+            <Text style={s.day}>{day}</Text>
+            <Text style={s.time}>{time}</Text>
+          </View>
+          <Icon3D source={car34Art(carColor ?? 'rosso')} size={52} width={64} style={s.topCar} />
+        </View>
         {who ? (
           <View style={s.who}>
             {initials ? (
@@ -113,7 +114,7 @@ export const NextLessonCard = memo(function NextLessonCard({
   );
 });
 
-/** Nessuna guida in programma: stessa card con l'immagine, testo e azione. */
+/** Nessuna guida in programma: stessa card con l'auto rossa, testo e azione. */
 export const EmptyLessonCard = memo(function EmptyLessonCard({
   title,
   text,
@@ -125,8 +126,8 @@ export const EmptyLessonCard = memo(function EmptyLessonCard({
 }) {
   return (
     <ClaySurface padded={false} style={s.big}>
-      <Cover />
       <View style={[s.bb, s.center]}>
+        <Icon3D source={car34Art('rosso')} size={60} width={74} style={s.emptyCar} />
         <Text style={[s.day, s.dayEmpty]}>{title}</Text>
         <Text style={[s.time, s.timeEmpty]}>{text}</Text>
         {action ? <View style={s.emptyAction}>{action}</View> : null}
@@ -158,8 +159,8 @@ export const HomeSmallCard = memo(function HomeSmallCard({
   contentKey?: string;
   /** REG-792: solo durante il riordino animato della home. */
   animate?: boolean;
-  /** `car` = ritaglio dell'immagine della guida; altrimenti un nodo (salvadanaio…). */
-  thumb: 'car' | React.ReactNode;
+  /** Nodo 3D a sinistra (auto, salvadanaio…). */
+  thumb: React.ReactNode;
   kicker: string;
   title: string;
   /** Titolo forte sopra e riga grigia sotto (crediti, pausa). */
@@ -182,13 +183,7 @@ export const HomeSmallCard = memo(function HomeSmallCard({
         accessibilityRole={onPress ? 'button' : undefined}
         accessibilityLabel={`${title}, ${kicker}`}
       >
-        {thumb === 'car' ? (
-          <View style={s.thumb}>
-            <Image source={HOME_ART.hero} style={s.thumbImg} resizeMode="cover" accessibilityIgnoresInvertColors />
-          </View>
-        ) : (
-          <View style={[s.thumb, s.thumbPlain]}>{thumb}</View>
-        )}
+        <View style={[s.thumb, s.thumbPlain]}>{thumb}</View>
         <Animated.View
           key={contentKey}
           style={s.smallText}
@@ -274,7 +269,9 @@ export const CreditsPrimaryCard = memo(function CreditsPrimaryCard({ title, line
 export const BookPrimaryCard = memo(function BookPrimaryCard({ line, onBook }: { line: string; onBook: () => void }) {
   return (
     <ClaySurface padded={false} style={s.big}>
-      <Cover />
+      <View style={[s.cover, s.coverPlain]}>
+        <Icon3D source={car34Art('rosso')} size={78} width={96} />
+      </View>
       <View style={s.bb}>
         <Text style={s.when}>Nessuna guida in programma</Text>
         <Text style={s.day}>Prenota la prossima</Text>
@@ -561,15 +558,20 @@ const s = StyleSheet.create({
   mood: { fontSize: 15.5, lineHeight: 21, color: CLAY.ink2, marginTop: 4 },
 
   big: { marginTop: 18 },
+  // Riquadro alto delle card senza guida (salvadanaio, auto): l'oggetto 3D in fondo.
   cover: {
     height: 118,
     borderTopLeftRadius: CLAY_RADIUS.card,
     borderTopRightRadius: CLAY_RADIUS.card,
     overflow: 'hidden',
   },
-  coverImg: { width: '100%', height: '100%' },
   bb: { paddingTop: 14, paddingHorizontal: 20, paddingBottom: 20 },
-  center: { alignItems: 'center', paddingHorizontal: 22, paddingBottom: 22 },
+  bbNext: { paddingTop: 18 },
+  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  topText: { flex: 1, minWidth: 0 },
+  topCar: { marginTop: 4 },
+  center: { alignItems: 'center', paddingTop: 20, paddingHorizontal: 22, paddingBottom: 22 },
+  emptyCar: { marginBottom: 10 },
   when: { fontSize: 13.5, color: CLAY.ink3 },
   day: { fontSize: 23, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.6, marginTop: 2 },
   dayEmpty: { fontSize: 21, textAlign: 'center' },
@@ -608,8 +610,6 @@ const s = StyleSheet.create({
   smallMain: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 18 },
   thumb: { width: 80, height: 58, borderRadius: 16, overflow: 'hidden', backgroundColor: CLAY.surface },
   thumbPlain: { alignItems: 'center', justifyContent: 'flex-end', overflow: 'visible' },
-  // Ritaglio dell'immagine della home centrato sull'auto (come la card compatta sotto l'esame).
-  thumbImg: { position: 'absolute', width: 330, height: 110, left: -125, top: -29 },
   smallText: { flex: 1, minWidth: 0 },
   smallKicker: { fontSize: 13.5, lineHeight: 18, color: CLAY.ink3 },
   smallKickerBelow: { marginTop: 2 },
