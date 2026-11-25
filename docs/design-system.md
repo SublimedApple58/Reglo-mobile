@@ -1197,7 +1197,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ### 6.17 BookingSuccessOverlay (REG-790, sostituisce BookingCelebration)
 
-**File:** `src/components/BookingSuccessOverlay.tsx`. Il «quadratino» di conferma dopo una prenotazione o uno scambio: card clay bianca 176 pt (raggio 36, ombra morbida, velo `rgba(17,17,17,0.10)`) al centro dello schermo, sopra i fogli, con il video del cartello STOP che gira e si ferma su «OK» verde e una parola sotto. Niente riepilogo dopo: sparisce e il foglio si chiude. Il riepilogo PRIMA è `LessonReview` (`booking-review`, `swap-detail`). Dettagli in `docs/features/booking-flow.md`.
+**File:** `src/components/BookingSuccessOverlay.tsx`. Il «quadratino» di conferma dopo una prenotazione o uno scambio: card clay bianca 220 pt (raggio 44, ombra morbida, velo `rgba(17,17,17,0.14)`) al centro dello schermo con il video del cartello STOP che gira veloce e rallenta morbido fino a «OK» verde (1,3 s) e una parola sotto. Il foglio si chiude subito, la card resta sul velo e poi sparisce. Niente riepilogo dopo. Il riepilogo PRIMA è `LessonReview` (`booking-review`, `swap-detail`). Dettagli in `docs/features/booking-flow.md`.
 
 ---
 

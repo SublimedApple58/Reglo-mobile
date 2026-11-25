@@ -3,7 +3,7 @@ import { StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton } from '../../../src/components/clay';
-import { celebrateThenClose } from '../../../src/components/BookingSuccessOverlay';
+import { closeAndCelebrate } from '../../../src/components/BookingSuccessOverlay';
 import { ReviewError, ReviewNote, ReviewRows, ReviewTime, atWords, whenWords } from '../../../src/components/LessonReview';
 import { swapDetailStore } from '../../../src/stores/swapDetailStore';
 import { CLAY } from '../../../src/theme/clay';
@@ -22,7 +22,7 @@ const TYPE_LABELS: Record<string, string> = {
  * Guida lasciata da un compagno: RIEPILOGO prima di prenderla (REG-790,
  * flusso Airbnb voluto da Tiziano il 25/11/2026). Orario grande, righe
  * istruttore · auto · luogo, regole in piccolo, CTA nera «Prendi la guida».
- * Al successo il quadratino STOP → OK e il foglio si chiude; se l'ha presa
+ * Al successo il foglio si chiude e resta il quadratino STOP → OK; se l'ha presa
  * prima un altro o il server dice di no, l'errore resta qui.
  * Sulla propria richiesta (`mine`) la CTA è «Ritira la richiesta».
  */
@@ -49,7 +49,7 @@ export default function SwapDetailScreen() {
     setError(null);
     const res = await onAccept(offer.id);
     if (res.status === 'taken') {
-      await celebrateThenClose(() => router.back(), 'È tua');
+      void closeAndCelebrate(() => router.back(), 'È tua');
       return;
     }
     setBusy(false);

@@ -15,7 +15,7 @@ import { spacing } from '../theme';
 
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { celebrateThenClose } from '../components/BookingSuccessOverlay';
+import { closeAndCelebrate } from '../components/BookingSuccessOverlay';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -435,8 +435,8 @@ export const AllievoHomeScreen = () => {
         if (!s?.selectedSlot || !selectedStudentId) return;
         // REG-790: si conferma dal foglio di riepilogo. Niente optimistic
         // insert: il foglio resta in caricamento finché il server risponde.
-        // Successo → quadratino STOP → OK sopra i fogli, poi si chiude tutta la
-        // pila (Prenota → Orari → Riepilogo) e la guida è già nella home.
+        // Successo → si chiude subito tutta la pila (Prenota → Orari →
+        // Riepilogo) e sulla home resta il quadratino STOP → OK.
         // Rifiuto → l'errore resta nel riepilogo, niente quadratino.
         bookingFlowStore.set({ loading: true, confirmError: null });
         const slot = s.selectedSlot;
@@ -451,12 +451,11 @@ export const AllievoHomeScreen = () => {
           ...slotLocationParam(slot),
         }).then(async (response) => {
           if (response.matched) {
-            const refresh = invalidateAllData();
-            await celebrateThenClose(() => {
+            void invalidateAllData();
+            void closeAndCelebrate(() => {
               router.dismissTo('/(tabs)/home');
               bookingFlowStore.clear();
             }, 'Prenotata');
-            await refresh;
             return;
           }
           void invalidateAllData();

@@ -3,8 +3,9 @@
  * Airbnb voluto da Tiziano il 25/11/2026): prenotazione (`booking-review`) e
  * guida lasciata da un compagno (`swap-detail`). Gerarchia a tre livelli:
  * l'orario grande, poi righe istruttore · auto · sede, poi le regole utili in
- * piccolo. La CTA nera prende la guida; al successo il quadratino
- * (`BookingSuccessOverlay`), all'errore il messaggio qui sopra la CTA.
+ * piccolo. La CTA nera prende la guida; al successo il foglio si chiude e
+ * resta il quadratino (`BookingSuccessOverlay`), all'errore il messaggio qui
+ * sopra la CTA.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
