@@ -25,7 +25,12 @@ const TICK_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.Never);
 
 type Item =
   | { kind: 'week'; key: string; title: string }
-  | { kind: 'lesson'; key: string; lesson: AutoscuolaAppointmentWithRelations; blocked: string | null };
+  | {
+      kind: 'lesson';
+      key: string;
+      lesson: AutoscuolaAppointmentWithRelations;
+      blocked: string | null;
+    };
 
 const mondayOf = (d: Date) => {
   const m = new Date(d);
@@ -73,7 +78,12 @@ export function LeaveLessonSheet() {
     const to = new Date();
     to.setDate(to.getDate() + 120);
     to.setHours(23, 59, 59, 999);
-    return { studentId, from: from.toISOString(), to: to.toISOString(), limit: 200 };
+    return {
+      studentId,
+      from: from.toISOString(),
+      to: to.toISOString(),
+      limit: 200,
+    };
   }, [studentId]);
   const query = useAppointments(params);
   const { myOffers } = useStudentSwaps({ enabled: true });
@@ -92,7 +102,12 @@ export function LeaveLessonSheet() {
         week = wk;
         out.push({ kind: 'week', key: `w-${wk}`, title: weekTitle(monday) });
       }
-      out.push({ kind: 'lesson', key: l.id, lesson: l, blocked: swapBlockReason(l, open.has(l.id)) });
+      out.push({
+        kind: 'lesson',
+        key: l.id,
+        lesson: l,
+        blocked: swapBlockReason(l, open.has(l.id)),
+      });
     }
     return out;
   }, [query.data, myOffers]);
@@ -112,7 +127,10 @@ export function LeaveLessonSheet() {
         queryClient.invalidateQueries({ queryKey: ['swap-offers'] }),
       ]);
       notificationEvents.emitDataChanged();
-      swapNoticeStore.set({ text: 'Guida lasciata: ora la vedono i compagni', tone: 'success' });
+      swapNoticeStore.set({
+        text: 'Guida lasciata: ora la vedono i compagni',
+        tone: 'success',
+      });
       setSending(false);
       router.back();
     } catch (err) {
@@ -141,13 +159,22 @@ export function LeaveLessonSheet() {
       title="Lascia una guida"
       subtitle="Quale non riesci a fare?"
       busy={sending}
-      list={{ data: items, renderItem, keyExtractor: (i: Item) => i.key, extraData: selected }}
+      list={{
+        data: items,
+        renderItem,
+        keyExtractor: (i: Item) => i.key,
+        extraData: selected,
+      }}
       cta={
         empty ? undefined : (
           <View>
             <Text style={s.foot}>Se nessuno la prende entro un'ora dall'inizio, resta tua.</Text>
             <ClayButton
-              title={chosen ? `Lascia ${weekdayWord(chosen.startsAt).toLowerCase()} ${new Date(chosen.startsAt).getDate()} alle ${hm(chosen.startsAt)}` : 'Scegli una guida'}
+              title={
+                chosen
+                  ? `Lascia ${weekdayWord(chosen.startsAt).toLowerCase()} ${new Date(chosen.startsAt).getDate()} alle ${hm(chosen.startsAt)}`
+                  : 'Scegli una guida'
+              }
               disabled={!chosen}
               loading={sending}
               onPress={send}
@@ -189,47 +216,62 @@ const LeaveOption = memo(function LeaveOption({
       disabled={!!blocked}
       accessibilityRole="radio"
       accessibilityState={{ selected, disabled: !!blocked }}
-      style={[s.opt, selected && s.optSel, blocked && s.optOff]}
+      style={[s.opt, selected && s.optSel]}
       testID={`leave-option-${lesson.id}`}
     >
-      <View style={s.tile}>
-        <Text style={s.tileDay}>{new Date(lesson.startsAt).getDate()}</Text>
-        <Text style={s.tileMonth}>{monthShort(lesson.startsAt)}</Text>
-      </View>
-      <View style={s.optText}>
-        <Text style={s.optTitle} numberOfLines={1}>
-          {weekdayWord(lesson.startsAt)} · {timeRangeWords(lesson)}
-        </Text>
-        <View style={s.optWho}>
-          {blocked ? null : <Avatar userId={lesson.instructor?.userId ?? lesson.instructor?.id} name={lesson.instructor?.name ?? '?'} size={20} />}
-          <Text style={s.optSub} numberOfLines={1}>
-            {blocked ?? (who || 'Guida')}
-          </Text>
+      {/* L'opacità della riga spenta sta qui: quella di ClayPressable la riscrive l'animazione. */}
+      <View style={[s.optInner, blocked && s.optOff]}>
+        <View style={s.tile}>
+          <Text style={s.tileDay}>{new Date(lesson.startsAt).getDate()}</Text>
+          <Text style={s.tileMonth}>{monthShort(lesson.startsAt)}</Text>
         </View>
+        <View style={s.optText}>
+          <Text style={s.optTitle} numberOfLines={1}>
+            {weekdayWord(lesson.startsAt)} · {timeRangeWords(lesson)}
+          </Text>
+          <View style={s.optWho}>
+            {blocked ? null : <Avatar userId={lesson.instructor?.userId ?? lesson.instructor?.id} name={lesson.instructor?.name ?? '?'} size={20} />}
+            <Text style={s.optSub} numberOfLines={1}>
+              {blocked ?? (who || 'Guida')}
+            </Text>
+          </View>
+        </View>
+        {!blocked && lesson.vehicle ? <Icon3D source={car34Art(lesson.vehicle.color)} size={32} width={40} /> : null}
+        {blocked ? null : selected ? (
+          <Animated.View key="on" entering={TICK_IN} exiting={TICK_OUT} style={s.tick}>
+            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+          </Animated.View>
+        ) : (
+          <Animated.View key="off" entering={TICK_IN} exiting={TICK_OUT} style={s.ring} />
+        )}
       </View>
-      {!blocked && lesson.vehicle ? <Icon3D source={car34Art(lesson.vehicle.color)} size={32} width={40} /> : null}
-      {blocked ? null : selected ? (
-        <Animated.View key="on" entering={TICK_IN} exiting={TICK_OUT} style={s.tick}>
-          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-        </Animated.View>
-      ) : (
-        <Animated.View key="off" entering={TICK_IN} exiting={TICK_OUT} style={s.ring} />
-      )}
     </ClayPressable>
   );
 });
 
 const s = StyleSheet.create({
   key: { transform: [{ rotate: '-8deg' }] },
-  week: { fontSize: 15, fontWeight: '600', color: CLAY.ink3, marginTop: 16, marginBottom: 4, marginHorizontal: 6 },
+  week: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: CLAY.ink3,
+    marginTop: 16,
+    marginBottom: 4,
+    marginHorizontal: 6,
+  },
   skeleton: { gap: 10, marginTop: 10 },
   empty: { fontSize: 16, lineHeight: 22, color: CLAY.ink3, marginTop: 12 },
-  foot: { fontSize: 13, lineHeight: 18, color: CLAY.ink3, textAlign: 'center', marginBottom: 12 },
+  foot: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: CLAY.ink3,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  optInner: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   opt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     minHeight: 76,
+    justifyContent: 'center',
     paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 22,
@@ -239,8 +281,20 @@ const s = StyleSheet.create({
   },
   optSel: {
     boxShadow: [
-      { offsetX: 0, offsetY: 0, blurRadius: 0, spreadDistance: 1.5, color: CLAY.ink },
-      { offsetX: 0, offsetY: 12, blurRadius: 24, spreadDistance: -12, color: 'rgba(0,0,0,0.28)' },
+      {
+        offsetX: 0,
+        offsetY: 0,
+        blurRadius: 0,
+        spreadDistance: 1.5,
+        color: CLAY.ink,
+      },
+      {
+        offsetX: 0,
+        offsetY: 12,
+        blurRadius: 24,
+        spreadDistance: -12,
+        color: 'rgba(0,0,0,0.28)',
+      },
     ],
   },
   optOff: { opacity: 0.42 },
@@ -253,10 +307,21 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     ...CLAY_SHADOW.raiseSm,
   },
-  tileDay: { fontSize: 20, lineHeight: 22, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
+  tileDay: {
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: CLAY.ink,
+    letterSpacing: -0.5,
+  },
   tileMonth: { fontSize: 11.5, color: CLAY.ink3 },
   optText: { flex: 1, minWidth: 0 },
-  optTitle: { fontSize: 15.5, fontWeight: '500', color: CLAY.ink, letterSpacing: -0.2 },
+  optTitle: {
+    fontSize: 15.5,
+    fontWeight: '500',
+    color: CLAY.ink,
+    letterSpacing: -0.2,
+  },
   optWho: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
   optSub: { flexShrink: 1, fontSize: 14, color: CLAY.ink3 },
   tick: {

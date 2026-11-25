@@ -12,7 +12,6 @@ import { Avatar, ClayPressable, ClaySurface, Icon3D } from '../clay';
 import { SFSymbol } from '../SFSymbol';
 import { FlatRow } from '../../screens/allievoHome/HomeSections';
 import { car34Art, markerArt } from '../../road/markerArt';
-import { formatHm } from '../../road/format';
 import { CLAY } from '../../theme/clay';
 import { VITA_ART } from '../../theme/vitaArt';
 import { scoreWord } from '../../utils/studentLessons';
@@ -140,6 +139,7 @@ export const LessonPlaceRow = memo(function LessonPlaceRow({ location, first }: 
   return (
     <FlatRow
       first={first}
+      leading={<Icon3D source={VITA_ART.edificio} size={36} />}
       title={location?.name ?? "Sede dell'autoscuola"}
       subtitle={location?.isPrecise ? location.address : null}
       onPress={coords ? () => openInMaps(location) : undefined}
@@ -220,7 +220,7 @@ export const MarkerRows = memo(function MarkerRows({
           first={i === 0}
           leading={<Icon3D source={markerArt(m.kind)} size={38} />}
           title={m.label}
-          subtitle={[m.street, withTime && m.recordedAt ? `alle ${formatHm(m.recordedAt)}` : null].filter(Boolean).join(' · ') || null}
+          subtitle={[m.street, withTime && m.recordedAt ? `alle ${hm(m.recordedAt)}` : null].filter(Boolean).join(' · ') || null}
           onPress={onPress ? () => onPress(m) : undefined}
         />
       ))}
@@ -259,6 +259,12 @@ export const evaluationHeadline = (items: EvaluationLine[]) => {
   if (good === n) return n === 1 ? 'Bene' : `Bene in tutte le ${n} voci`;
   if (good === 0) return `${voci(n)} da rifinire`;
   return `Bene in ${good} ${good === 1 ? 'voce' : 'voci'} su ${n}`;
+};
+
+/** «8:10» (senza zero davanti, come gli orari delle guide). */
+const hm = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 export const firstName = (name: string | null | undefined) => (name ?? '').trim().split(/\s+/)[0] || null;

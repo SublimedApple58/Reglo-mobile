@@ -37,10 +37,12 @@ Una pagina sola: `ClayNavBar` a titolo grande, `Animated.FlatList` con righe `me
   - altrimenti l'auto 3D con tipo e durata.
   Le voci del pagellino in parole (`scoreWord`): «Bene» grigio, «Da rifinire»/«Da rivedere» nero 600.
 
-## Scambi (`src/screens/StudentSwapsScreen.tsx`)
+## Scambi (`src/screens/StudentSwapsScreen.tsx`, REG-789 V1)
+- Sezione con **copertina elastica** (`StretchyCover`, `assets/vita/scambi-chiavi.jpg`: chiavi 3D generate su Gemini il 25/11) e foglio bianco che ci sale; altezza utile = quella della scena (misurata con `onLayout`), non della finestra: per l'allievo la tab bar ha già il suo spazio.
 - Dati in cache con `useStudentSwaps` (`['swap-offers']`, `['swap-my-offers']`, aggiornati da push di scambio, `notificationEvents.emitDataChanged` e ogni 30 s mentre la tab è aperta).
-- La prima guida dei compagni in evidenza (copertina, «Lasciata da un compagno · domani», «Prendila»), le altre a righe con «Prendi». Prendere chiede conferma (alert nativo), poi `respondSwapOffer`; crediti insufficienti → `swaps/credits-needed` (REG-784).
-- «Le tue richieste»: «In attesa», tocco → `swaps/swap-detail` per revocare.
+- **UNA card protagonista che cambia con lo stato**: la prima guida dei compagni («Lasciata da un compagno · domani», istruttore, «Prendila»); altrimenti la propria richiesta in attesa (orologio 3D, «Sabato 28 · 9:00», «Se nessuno la prende, resta tua. Si chiude alle <expiresAt>», «Ritira» con conferma nativa → `cancelSwapOffer`); altrimenti «Non puoi venire a una guida?» con la chiave 3D e «Lascia una guida».
+- Sotto, a righe: «Altre disponibili» («Prendi»), «Le tue richieste» (orologio, «Ritira»), «Lascia un'altra guida» (chiave), «Nessuna guida dei compagni, per ora» (campanella) se non ce ne sono. Prendere chiede conferma (alert nativo), poi `respondSwapOffer`; crediti insufficienti → `swaps/credits-needed` (REG-784).
+- **Foglio «Lascia una guida»** (`swaps/leave-lesson`, `src/screens/LeaveLessonSheet.tsx`, `FORM_SHEET` con `list` virtualizzata): guide in programma per settimana («Questa settimana», «Prossima settimana», «Settimana del …»), riga con data in tessera clay, avatar dell'istruttore, auto 3D; la scelta sale in clay col bordo nero e la spunta; CTA «Lascia sabato 28 alle 9:00» → `createSwapOffer` (stessa chiamata del «Cerca sostituto» del foglio guida), poi chiude e l'avviso compare in Scambi (`swapNoticeStore`). Le guide che non si possono lasciare restano spente col motivo: `swapBlockReason` in `src/utils/studentLessons.ts` = regole del server (gruppo, esame, auto al seguito, solo programmate/confermate, fino a un'ora prima, una richiesta aperta per guida).
 - `home/swaps` (vecchia `SwapOffersScreen`) resta per i link vecchi; le notifiche di scambio aprono la tab (`NotificationInboxScreen`).
 
 ## Route riusate in più stack

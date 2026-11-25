@@ -74,7 +74,9 @@ export function StudentSwapsScreen() {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const barOverlap = useTabBarOverlap();
-  const stretch = useStretchyCover({ base: Math.round(height * 0.3), viewportHeight: height, bottomInset: barOverlap });
+  // Per l'allievo la tab bar ha già il suo spazio: l'altezza utile è quella della scena, non della finestra.
+  const [viewH, setViewH] = useState(0);
+  const stretch = useStretchyCover({ base: Math.round(height * 0.3), viewportHeight: viewH || height, bottomInset: barOverlap });
   const { studentId, offers, myOffers, loading, refetch } = useStudentSwaps({ enabled: true, poll: true });
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
   const [celebration, setCelebration] = useState(false);
@@ -182,7 +184,7 @@ export function StudentSwapsScreen() {
     taking === id ? <ActivityIndicator size="small" color={CLAY.ink} style={s.takeSpin} /> : <Text style={s.take}>{label}</Text>;
 
   return (
-    <View style={s.root}>
+    <View style={s.root} onLayout={(e) => setViewH(Math.round(e.nativeEvent.layout.height))}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
       <BookingCelebration visible={celebration} variant="swap" onHidden={() => setCelebration(false)} />
