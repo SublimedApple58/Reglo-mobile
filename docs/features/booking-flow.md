@@ -1,17 +1,29 @@
 # Booking Flow
 
 ## What it does
-Student lesson booking: select type/duration → pick date → view available slots → confirm → celebration animation.
+Student lesson booking: select type/duration → pick date → view available slots → riepilogo → conferma → quadratino STOP → OK (REG-790).
 
 ## Key files
 - `src/screens/AllievoHomeScreen.tsx` (119KB) — main booking UI
-- `src/components/BookingCelebration.tsx` — confetti animation on success
+- `app/(tabs)/home/booking-review.tsx` — REG-790: foglio di riepilogo prima di prenotare
+- `src/components/LessonReview.tsx` — pezzi dei riepiloghi (orario grande, righe, regole, errore)
+- `src/components/BookingSuccessOverlay.tsx` — il quadratino con il video (`BookingSuccessHost` nel layout radice, `closeAndCelebrate`)
+- `assets/conferma/stop-ok.mp4` + `stop-ok-primo.png` — video (1,3 s, 60 fps, 504 px, 69 KB) e poster
 
 ## Flow
 1. `getBookingOptions()` → lesson types, durations per cluster
 2. `getAvailableSlots(date, duration)` → available time slots
 3. `createBookingRequest(slot)` → book lesson
-4. `BookingCelebration` plays (variant: 'booking')
+4. «Continua con le 17:30» (Orari) apre `booking-review`; «Conferma prenotazione» → `onConfirmBooking` → `createBookingRequest`.
+5. `matched: true` → `closeAndCelebrate`: `dismissTo('/(tabs)/home')` subito (niente rotellina che gira) e sulla home resta il quadratino STOP → OK sul velo, che poi sparisce; rifiuto (`matched: false` o errore del server) → `confirmError` nel riepilogo, niente quadratino; crediti insufficienti → foglio crediti.
+
+## Riepilogo e conferma (REG-790, Tiziano 25/11/2026 — flusso Airbnb)
+- **Riepilogo** (`booking-review`, form sheet adattivo): titolo il giorno, «Oggi/Domani/Tra N giorni», orario grande 46/600, tipo · durata, righe, regole in piccolo, CTA nera «Conferma prenotazione». Istruttore e auto li sceglie il server ALLA conferma (`/available-slots` non li manda): l'istruttore compare solo se scelto o assegnato all'allievo (`isLockedToInstructor`), altrimenti «Il primo istruttore libero»; l'auto non si mostra; la sede solo se l'orario ha `locationName`. Regola di annullo: «senza penale fino a …» solo se l'autoscuola addebita la guida (pagamenti automatici o crediti, come il server per `penaltyCutoffAt`), «contatta l'autoscuola» se l'allievo non può annullare dall'app.
+- **Quadratino** (`BookingSuccessOverlay`): card clay bianca 220 pt, raggio 44, ombra morbida, velo `rgba(17,17,17,0.14)`, video 168 pt (`expo-av`: una volta, muto, poster = primo fotogramma, bianco puro) e una parola 19/600 sotto («Prenotata» / «È tua»). Il foglio si chiude nello stesso istante (Tiziano: niente rotellina sotto); su iOS la card vive in una `FullWindowOverlay`. Entra 220 ms, resta ferma sulla spunta 380 ms dopo la fine del video, esce 260 ms; rete di sicurezza 3,2 s. `ReduceMotion.Never`.
+- **Video** `stop-ok.mp4`: dal Veo originale, tagliato l'avvio lento e rimappato con ffmpeg in ease-out (`minterpolate` a 120 fps, poi `setpts` con u = 1,2·(1−(1−t/1,77)^(1/1,6)), `fps=60`, 0,1 s fermo in coda): giri veloci (~2,4×) che rallentano morbidi fino al verde, 1,3 s, 504 px, 69 KB.
+- `expo-av` e non `expo-video` perché è già nella build nativa → si rilascia in OTA.
+- Non esiste una prenotazione allievo «in attesa dell'autoscuola»: il server crea la guida `scheduled` subito.
+- Tolto `BookingCelebration` (overlay con scintille + toast).
 
 ## Optimistic update (no flicker)
 The just-booked lesson is held in an **optimistic overlay** (`optimisticAppts` state in
@@ -71,7 +83,7 @@ compatto non c'è più il tag «Pratica». «Le tue guide» (`LessonsOverview`):
 `getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
 
 ## Components used
-Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, BookingCelebration
+Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, BookingSuccessOverlay
 
 ## Connected features
 - **Notifications** — booking success can trigger proposal/confirmation

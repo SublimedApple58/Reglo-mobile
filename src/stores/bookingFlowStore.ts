@@ -24,6 +24,16 @@ export type BookingFlowState = {
   // Server-side rejection of the last search (cutoff, blocco prenotazioni, …):
   // shown inline in the sheet so the search never fails silently.
   searchError: string | null;
+  /** REG-790: prenotazione respinta dal server, detta nel foglio di riepilogo. */
+  confirmError?: string | null;
+  /**
+   * REG-790: ore di preavviso senza penale (`penaltyCutoffHoursPreset`) solo se
+   * l'autoscuola addebita la guida (pagamenti automatici o crediti), come fa il
+   * server quando salva `penaltyCutoffAt`. `null` = nessuna penale da dire.
+   */
+  penaltyCutoffHours?: number | null;
+  /** L'allievo può annullare dall'app (`studentCancellationEnabled`). */
+  studentCancellationEnabled?: boolean;
   preferredDateAvailable: boolean;
   availableDurations: number[];
   availableLessonTypes: string[];

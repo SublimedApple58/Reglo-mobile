@@ -15,7 +15,7 @@ import { spacing } from '../theme';
 
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { BookingCelebration } from '../components/BookingCelebration';
+import { closeAndCelebrate } from '../components/BookingSuccessOverlay';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -204,7 +204,6 @@ export const AllievoHomeScreen = () => {
   const [freeChoiceBooking, setFreeChoiceBooking] = useState(false);
   const dayScrollRef = useRef<ScrollView | null>(null);
   const [showAllAgendaLessons, setShowAllAgendaLessons] = useState(false);
-  const [bookingCelebrationVisible, setBookingCelebrationVisible] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [weeklyAbsenceDeclared, setWeeklyAbsenceDeclared] = useState(false);
   const [weeklyAbsenceLoading, setWeeklyAbsenceLoading] = useState(false);
@@ -292,12 +291,6 @@ export const AllievoHomeScreen = () => {
   const bookSlotMutation = useBookSlot();
   const cancelMutation = useCancelAppointment();
 
-  const triggerBookingCelebration = useCallback(() => {
-    setBookingCelebrationVisible(false);
-    setTimeout(() => {
-      setBookingCelebrationVisible(true);
-    }, 0);
-  }, []);
 
   const ITALIAN_MONTHS_BK = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -392,6 +385,13 @@ export const AllievoHomeScreen = () => {
       slotsLoading: false,
       loading: false,
       searchError: null,
+      confirmError: null,
+      // REG-790: regola di annullo nel riepilogo, come la salva il server.
+      penaltyCutoffHours:
+        (settings?.autoPaymentsEnabled || settings?.lessonCreditFlowEnabled) && settings?.penaltyCutoffHoursPreset
+          ? settings.penaltyCutoffHoursPreset
+          : null,
+      studentCancellationEnabled: !!canCancelAppointments,
       preferredDateAvailable,
       availableDurations,
       availableLessonTypes,
@@ -433,21 +433,14 @@ export const AllievoHomeScreen = () => {
       onConfirmBooking: () => {
         const s = bookingFlowStore.get();
         if (!s?.selectedSlot || !selectedStudentId) return;
-        // No optimistic insert: keep the sheet in its loading state, wait for the
-        // BE + refetch, then dismiss and celebrate. The lesson appears only once
-        // the server has confirmed it.
-        bookingFlowStore.set({ loading: true });
+        // REG-790: si conferma dal foglio di riepilogo. Niente optimistic
+        // insert: il foglio resta in caricamento finché il server risponde.
+        // Successo → si chiude subito tutta la pila (Prenota → Orari →
+        // Riepilogo) e sulla home resta il quadratino STOP → OK.
+        // Rifiuto → l'errore resta nel riepilogo, niente quadratino.
+        bookingFlowStore.set({ loading: true, confirmError: null });
         const slot = s.selectedSlot;
-        // On error (weekly limit, slot taken, …) close the booking modal and show
-        // the toast on the home — otherwise the slots route keeps its own confirm
-        // spinner running (it lives in the route, not here) and the toast would be
-        // hidden behind the modal.
-        const closeWithError = (msg: string) => {
-          // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
-          router.dismissTo('/(tabs)/home');
-          bookingFlowStore.clear();
-          setToast({ text: msg, tone: 'danger' });
-        };
+        const fail = (msg: string) => bookingFlowStore.set({ loading: false, confirmError: msg });
         regloApi.createBookingRequest({
           studentId: selectedStudentId,
           preferredDate: toDateString(s.preferredDate),
@@ -458,18 +451,18 @@ export const AllievoHomeScreen = () => {
           ...slotLocationParam(slot),
         }).then(async (response) => {
           if (response.matched) {
-            await invalidateAllData();
-            // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
-          router.dismissTo('/(tabs)/home');
-            bookingFlowStore.clear();
-            triggerBookingCelebration();
+            void invalidateAllData();
+            void closeAndCelebrate(() => {
+              router.dismissTo('/(tabs)/home');
+              bookingFlowStore.clear();
+            }, 'Prenotata');
             return;
           }
-          await invalidateAllData();
-          closeWithError('Slot non più disponibile. Riprova.');
+          void invalidateAllData();
+          fail('Questo orario non è più libero. Torna indietro e scegline un altro.');
         }).catch((err) => {
           // REG-784: crediti non bastano → si chiude la pila e si apre il
-          // foglio dei crediti (salvadanaio), non un toast.
+          // foglio dei crediti (salvadanaio).
           const credits = lessonCreditsSheetParams(err);
           if (credits) {
             router.dismissTo('/(tabs)/home');
@@ -478,9 +471,10 @@ export const AllievoHomeScreen = () => {
             void invalidateAllData();
             return;
           }
-          // Surface the server message (e.g. the weekly-limit rejection
-          // "Hai raggiunto il limite massimo di N guide settimanali…").
-          closeWithError(err instanceof Error ? err.message : 'Errore nella prenotazione');
+          // Il messaggio del server (es. limite settimanale) detto nel riepilogo.
+          fail(err instanceof Error && err.message && err.message !== 'Request failed'
+            ? err.message
+            : 'Prenotazione non riuscita. Controlla la connessione e riprova.');
         });
       },
       onClose: () => { bookingFlowStore.clear(); },
@@ -532,7 +526,6 @@ export const AllievoHomeScreen = () => {
         ...(canSelectLessonType ? { lessonType: selectedLessonTypes[0] } : {}),
       });
       setBookingOpen(false);
-      triggerBookingCelebration();
     } catch { setToast({ text: 'Errore nella prenotazione', tone: 'danger' }); }
     finally { setBookingLoading(false); }
   };
@@ -1259,8 +1252,7 @@ export const AllievoHomeScreen = () => {
         setBookingOpen(false);
         setBookingSelectedSlot(null);
         setBookingSlots([]);
-        triggerBookingCelebration();
-        return;
+          return;
       }
       setToast({ text: 'Slot non più disponibile. Riprova.', tone: 'danger' });
       await invalidateAllData();
@@ -1900,7 +1892,6 @@ export const AllievoHomeScreen = () => {
     <View style={styles.root}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <BookingCelebration visible={bookingCelebrationVisible} onHidden={() => setBookingCelebrationVisible(false)} />
 
       <ClayNavBar
         title={firstName}

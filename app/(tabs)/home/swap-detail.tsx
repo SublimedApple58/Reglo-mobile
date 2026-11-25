@@ -1,197 +1,108 @@
-import React, { useEffect, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SheetScaffold } from '../../../src/components/SheetScaffold';
-import { UserPhotoCircle } from '../../../src/components/UserPhotoCircle';
-import { GradientCTABackground, primaryCtaShadow } from '../../../src/components/GradientCTA';
+import { FormSheet } from '../../../src/components/SheetScaffold';
+import { ClayButton } from '../../../src/components/clay';
+import { closeAndCelebrate } from '../../../src/components/BookingSuccessOverlay';
+import { ReviewError, ReviewNote, ReviewRows, ReviewTime, atWords, whenWords } from '../../../src/components/LessonReview';
 import { swapDetailStore } from '../../../src/stores/swapDetailStore';
-import { formatDay, formatTime } from '../../../src/utils/date';
-import { colors } from '../../../src/theme/colors';
-import { spacing } from '../../../src/theme/spacing';
-import { GlassCloseButton } from '../../../src/components/GlassCloseButton';
+import { CLAY } from '../../../src/theme/clay';
+import { durationWords, lessonMinutes, longDay } from '../../../src/utils/studentLessons';
 
-const lessonTypeLabelMap: Record<string, string> = {
-  manovre: 'Manovre', urbano: 'Urbano', extraurbano: 'Extraurbano',
-  notturna: 'Notturna', autostrada: 'Autostrada', parcheggio: 'Parcheggio',
-  altro: 'Altro', guida: 'Guida', esame: 'Esame',
+const TYPE_LABELS: Record<string, string> = {
+  manovre: 'Manovre',
+  urbano: 'Urbano',
+  extraurbano: 'Extraurbano',
+  notturna: 'Notturna',
+  autostrada: 'Autostrada',
+  parcheggio: 'Parcheggio',
 };
-const lessonTypeLabel = (type: string) => lessonTypeLabelMap[type] ?? type;
 
-const initialsOf = (name: string) =>
-  name.trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('') || '?';
-
+/**
+ * Guida lasciata da un compagno: RIEPILOGO prima di prenderla (REG-790,
+ * flusso Airbnb voluto da Tiziano il 25/11/2026). Orario grande, righe
+ * istruttore · auto · luogo, regole in piccolo, CTA nera «Prendi la guida».
+ * Al successo il foglio si chiude e resta il quadratino STOP → OK; se l'ha presa
+ * prima un altro o il server dice di no, l'errore resta qui.
+ * Sulla propria richiesta (`mine`) la CTA è «Ritira la richiesta».
+ */
 export default function SwapDetailScreen() {
   const router = useRouter();
-  const data = useSyncExternalStore(swapDetailStore.subscribe, swapDetailStore.get);
+  // Il seed vale per tutta la vita del foglio.
+  const [data] = useState(() => swapDetailStore.get());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    return () => { swapDetailStore.clear(); };
-  }, []);
+  useEffect(() => () => swapDetailStore.clear(), []);
 
-  if (!data) {
-    return <View style={s.root} />;
-  }
+  if (!data) return <FormSheet />;
 
   const { offer, mine, onAccept, onRevoke } = data;
   const { appointment } = offer;
+  const minutes = lessonMinutes(appointment);
+  const meta = [TYPE_LABELS[appointment.type] ?? 'Guida', durationWords(minutes)].filter(Boolean).join(' · ');
+  const expires = new Date(offer.expiresAt);
+
+  const take = async () => {
+    if (busy || !onAccept) return;
+    setBusy(true);
+    setError(null);
+    const res = await onAccept(offer.id);
+    if (res.status === 'taken') {
+      void closeAndCelebrate(() => router.back(), 'È tua');
+      return;
+    }
+    setBusy(false);
+    if (res.status === 'error') {
+      setError(res.message);
+      return;
+    }
+    router.back();
+    setTimeout(res.after, 350);
+  };
 
   return (
-    <View style={[s.root, Platform.OS === 'android' && { flex: 1 }]}>
-      <View style={s.topBar}>
-        <GlassCloseButton onPress={() => router.back()}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={s.closeBtn}>
-            <Ionicons name="close" size={20} color="#111111" />
-          </Pressable>
-        </GlassCloseButton>
-      </View>
-      <SheetScaffold>
-      <View style={{ paddingHorizontal: spacing.xl, paddingBottom: 14, paddingTop: 4 }}>
-        {/* Hero */}
-        <View style={s.heroRow}>
-          {mine ? (
-            <View style={[s.avatar, { backgroundColor: '#EBEBEB' }]}>
-              <Ionicons name="swap-horizontal" size={24} color="#0A0A0A" />
-            </View>
-          ) : (
-            <UserPhotoCircle userId={offer.requestingStudentId} size={54}>
-              <View style={s.avatar}>
-                <Text style={s.avatarText}>{initialsOf(offer.requestingStudentName)}</Text>
-              </View>
-            </UserPhotoCircle>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={s.name}>{mine ? 'La tua richiesta' : offer.requestingStudentName}</Text>
-            <Text style={s.hint}>
-              {mine
-                ? 'In attesa che un compagno la prenda'
-                : 'cerca un sostituto per questa guida'}
-            </Text>
-          </View>
-        </View>
-
-        {/* When (prominent) */}
-        <Text style={s.whenDate}>{formatDay(appointment.startsAt)}</Text>
-        <Text style={s.whenTime}>
-          {formatTime(appointment.startsAt)}{appointment.endsAt ? ` – ${formatTime(appointment.endsAt)}` : ''}
-        </Text>
-
-        {/* Detail rows */}
-        <View style={s.rows}>
-          <View style={s.row}>
-            <View style={[s.chip, { backgroundColor: '#CCFBF1' }]}>
-              <Ionicons name="flag" size={18} color="#0D9488" />
-            </View>
-            <Text style={s.rowText}>{lessonTypeLabel(appointment.type)}</Text>
-          </View>
-
-          {/* REG-705e: luogo della guida, solo con «Disponibilità per luogo» accesa. */}
-          {appointment.locationName ? (
-            <>
-              <View style={s.divider} />
-              <View style={s.row}>
-                <View style={[s.chip, { backgroundColor: '#F1F1F1' }]}>
-                  <Ionicons name="location" size={18} color="#111111" />
-                </View>
-                <Text style={s.rowText} numberOfLines={1}>{appointment.locationName}</Text>
-              </View>
-            </>
-          ) : null}
-
-          {appointment.instructorName ? (
-            <>
-              <View style={s.divider} />
-              <View style={s.row}>
-                <View style={[s.chip, { backgroundColor: '#F2F2F0' }]}>
-                  <Ionicons name="person" size={18} color="#111111" />
-                </View>
-                <Text style={s.rowText}>{appointment.instructorName}</Text>
-              </View>
-            </>
-          ) : null}
-
-          {appointment.vehicleName ? (
-            <>
-              <View style={s.divider} />
-              <View style={s.row}>
-                <View style={[s.chip, { backgroundColor: '#F1F1F1' }]}>
-                  <Ionicons name="car" size={18} color="#7C3AED" />
-                </View>
-                <Text style={s.rowText}>{appointment.vehicleName}</Text>
-              </View>
-            </>
-          ) : null}
-
-          <View style={s.divider} />
-          <View style={s.row}>
-            <View style={[s.chip, { backgroundColor: '#F3F4F6' }]}>
-              <Ionicons name="time" size={18} color="#6B6B6B" />
-            </View>
-            <Text style={[s.rowText, { color: colors.textSecondary }]}>
-              Rispondi entro le {formatTime(offer.expiresAt)}
-            </Text>
-          </View>
-        </View>
-
-        {/* CTA */}
-        {mine ? (
-          <Pressable
-            style={({ pressed }) => [s.revokeBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-            onPress={() => { router.back(); setTimeout(() => onRevoke?.(offer.id), 350); }}
-          >
-            <Ionicons name="close-circle-outline" size={18} color="#DC2626" />
-            <Text style={s.revokeText}>Revoca richiesta</Text>
-          </Pressable>
+    <FormSheet
+      testID="swap-detail-sheet"
+      title={longDay(appointment.startsAt)}
+      subtitle={whenWords(appointment.startsAt)}
+      busy={busy}
+      cta={
+        mine ? (
+          <ClayButton
+            variant="secondary"
+            title="Ritira la richiesta"
+            onPress={() => {
+              router.back();
+              setTimeout(() => onRevoke?.(offer.id), 350);
+            }}
+            testID="swap-detail-revoke"
+          />
         ) : (
-          <Pressable
-            style={({ pressed }) => [s.acceptBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
-            onPress={() => { router.back(); setTimeout(() => onAccept?.(offer.id), 350); }}
-          >
-            <GradientCTABackground radius={27} />
-            <Ionicons name="checkmark-circle" size={18} color={colors.surface} />
-            <Text style={s.acceptText}>Accetta sostituzione</Text>
-          </Pressable>
-        )}
-      </View>
-      </SheetScaffold>
-    </View>
+          <ClayButton title="Prendi la guida" onPress={take} loading={busy} testID="swap-detail-take" />
+        )
+      }
+    >
+      {mine ? null : <Text style={s.over}>Lasciata da un compagno</Text>}
+      <ReviewTime startsAt={appointment.startsAt} endsAt={appointment.endsAt} meta={meta} />
+      <ReviewRows
+        instructorName={appointment.instructorName}
+        instructorKnown={!!appointment.instructorName}
+        vehicleName={appointment.vehicleName}
+        locationName={appointment.locationName ?? null}
+      />
+      <ReviewNote
+        lines={
+          mine
+            ? [`Stai cercando chi la prenda. Se nessuno la prende entro ${atWords(expires)}, resta tua.`]
+            : [`Si può prendere fino a ${atWords(expires)}: la prende il primo che conferma.`]
+        }
+      />
+      <ReviewError message={error} />
+    </FormSheet>
   );
 }
 
 const s = StyleSheet.create({
-  root: { backgroundColor: colors.background, paddingTop: 20 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.xl, marginBottom: -8 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' },
-
-  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 10, marginBottom: 24 },
-  avatar: {
-    width: 54, height: 54, borderRadius: 27, backgroundColor: '#F4F3F7',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { fontSize: 19, fontWeight: '700', color: '#818181' },
-  name: { fontSize: 18, fontWeight: '600', color: '#111111', letterSpacing: -0.2 },
-  hint: { fontSize: 13, fontWeight: '400', color: colors.textMuted, marginTop: 2 },
-
-  whenDate: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
-  whenTime: { fontSize: 34, fontWeight: '600', color: '#111111', letterSpacing: -0.6, marginTop: 4 },
-
-  rows: { marginTop: 26 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  chip: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  rowText: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-
-  acceptBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 54, borderRadius: 27, marginTop: 32,
-    ...primaryCtaShadow,
-  },
-  acceptText: { fontSize: 16, fontWeight: '700', color: colors.surface, letterSpacing: -0.2 },
-
-  revokeBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 54, borderRadius: 27, marginTop: 32,
-    backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
-  },
-  revokeText: { fontSize: 16, fontWeight: '700', color: '#DC2626', letterSpacing: -0.2 },
+  over: { fontSize: 14, lineHeight: 19, color: CLAY.ink3 },
 });

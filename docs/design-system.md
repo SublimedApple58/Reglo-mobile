@@ -1195,20 +1195,9 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ---
 
-### 6.17 BookingCelebration
+### 6.17 BookingSuccessOverlay (REG-790, sostituisce BookingCelebration)
 
-**File:** `BookingCelebration.tsx`
-**Scopo:** Overlay animato per conferma prenotazione.
-
-| Prop | Tipo | Default | Note |
-|---|---|---|---|
-| `visible` | `boolean` | — | Attiva animazione |
-| `onHidden` | `() => void?` | — | Callback fine animazione |
-
-**Durata totale:** ~1550ms (1450ms animazione + 100ms hold).
-**Elementi:** backdrop fade, ring espansione (`navy[200]`), 5 sparkle burst (`colors.primary`), card centrale con checkmark.
-**Card:** `minWidth: 248`, `borderRadius: 22`, `bg: #FFFFFF`. Icona: `checkmark-circle` 46px `colors.positive` in cerchio 66px con `bg: rgba(34,197,94,0.12)`, `border: rgba(34,197,94,0.35)`.
-**Testo:** "Prenotazione confermata", `typography.subtitle`.
+**File:** `src/components/BookingSuccessOverlay.tsx`. Il «quadratino» di conferma dopo una prenotazione o uno scambio: card clay bianca 220 pt (raggio 44, ombra morbida, velo `rgba(17,17,17,0.14)`) al centro dello schermo con il video del cartello STOP che gira veloce e rallenta morbido fino a «OK» verde (1,3 s) e una parola sotto. Il foglio si chiude subito, la card resta sul velo e poi sparisce. Niente riepilogo dopo. Il riepilogo PRIMA è `LessonReview` (`booking-review`, `swap-detail`). Dettagli in `docs/features/booking-flow.md`.
 
 ---
 

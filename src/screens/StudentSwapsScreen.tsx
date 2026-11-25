@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -10,13 +10,12 @@ import { Avatar, ClayButton, ClaySurface, Icon3D } from '../components/clay';
 import { COVER_OVERLAP, StretchyCover, StretchySpacer, stretchyPanel, useStretchyCover } from '../components/clay/StretchyCover';
 import { useTabBarOverlap } from '../components/tabBarSpace';
 import { swapNoticeStore } from '../stores/swapNoticeStore';
-import { BookingCelebration } from '../components/BookingCelebration';
 import { SkeletonBlock } from '../components/Skeleton';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { regloApi } from '../services/regloApi';
 import { notificationEvents } from '../services/notificationEvents';
 import { useStudentSwaps } from '../hooks/useStudentSwaps';
-import { swapDetailStore } from '../stores/swapDetailStore';
+import { swapDetailStore, type SwapTakeResult } from '../stores/swapDetailStore';
 import { CLAY } from '../theme/clay';
 import { lessonCreditsSheetParams } from '../utils/lessonCreditsError';
 import { durationWords, lessonMinutes, longDay, monthShort, timeRangeWords, weekdayWord } from '../utils/studentLessons';
@@ -79,53 +78,31 @@ export function StudentSwapsScreen() {
   const stretch = useStretchyCover({ base: Math.round(height * 0.3), viewportHeight: viewH || height, bottomInset: barOverlap });
   const { studentId, offers, myOffers, loading, refetch } = useStudentSwaps({ enabled: true, poll: true });
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
-  const [celebration, setCelebration] = useState(false);
-  const [taking, setTaking] = useState<string | null>(null);
 
+  // REG-790: si prende dal foglio di riepilogo (`swap-detail`): l'esito torna
+  // al foglio, che si chiude e mostra il quadratino STOP → OK, o dice l'errore.
   const accept = useCallback(
-    async (offerId: string) => {
-      if (!studentId) return;
-      setTaking(offerId);
+    async (offerId: string): Promise<SwapTakeResult> => {
+      if (!studentId) return { status: 'error', message: "Sessione scaduta: riapri l'app e riprova." };
       setToast(null);
       try {
         const res = await regloApi.respondSwapOffer(offerId, { studentId, response: 'accept' });
+        void refetch();
         if (res.accepted) {
-          setCelebration(false);
-          setTimeout(() => setCelebration(true), 0);
-          setToast({ text: 'La guida è tua!', tone: 'success' });
-          await queryClient.invalidateQueries({ queryKey: ['appointments'] });
-          notificationEvents.emitDataChanged();
-        } else {
-          setToast({ text: 'Qualcuno l’ha presa prima di te', tone: 'info' });
+          void queryClient.invalidateQueries({ queryKey: ['appointments'] }).then(() => notificationEvents.emitDataChanged());
+          return { status: 'taken' };
         }
-        await refetch();
+        return { status: 'error', message: "Qualcuno l'ha presa prima di te." };
       } catch (err) {
         // REG-784: crediti non bastano → il foglio dei crediti.
         const credits = lessonCreditsSheetParams(err);
         if (credits) {
-          router.push({ pathname: '/(tabs)/swaps/credits-needed', params: credits });
-          return;
+          return { status: 'leave', after: () => router.push({ pathname: '/(tabs)/swaps/credits-needed', params: credits }) };
         }
-        setToast({ text: err instanceof Error ? err.message : 'Errore', tone: 'danger' });
-      } finally {
-        setTaking(null);
+        return { status: 'error', message: err instanceof Error && err.message ? err.message : 'Non è andata: riprova.' };
       }
     },
     [studentId, queryClient, refetch, router],
-  );
-
-  const confirmTake = useCallback(
-    (o: AutoscuolaSwapOfferWithDetails) => {
-      Alert.alert(
-        'Prendi questa guida?',
-        `${longDay(o.appointment.startsAt)}, ${timeRangeWords(o.appointment)}.`,
-        [
-          { text: 'Indietro', style: 'cancel' },
-          { text: 'Prendila', onPress: () => accept(o.id) },
-        ],
-      );
-    },
-    [accept],
   );
 
   const revoke = useCallback(
@@ -180,14 +157,11 @@ export function StudentSwapsScreen() {
   // richiesta in attesa, altrimenti l'invito a lasciarne una.
   const pending = featured ? null : (myOffers[0] ?? null);
   const restMine = pending ? myOffers.slice(1) : myOffers;
-  const takeLabel = (id: string, label: string) =>
-    taking === id ? <ActivityIndicator size="small" color={CLAY.ink} style={s.takeSpin} /> : <Text style={s.take}>{label}</Text>;
 
   return (
     <View style={s.root} onLayout={(e) => setViewH(Math.round(e.nativeEvent.layout.height))}>
       <StatusBar style="dark" />
       <ToastNotice message={toast?.text ?? null} tone={toast?.tone} onHide={() => setToast(null)} />
-      <BookingCelebration visible={celebration} variant="swap" onHidden={() => setCelebration(false)} />
       <StretchyCover style={stretch.coverStyle} testID="swaps-cover">
         <Image source={COVER} style={s.coverImg} resizeMode="cover" accessibilityIgnoresInvertColors />
       </StretchyCover>
@@ -236,8 +210,7 @@ export function StudentSwapsScreen() {
                   <ClayButton
                     title="Prendila"
                     compact
-                    loading={taking === featured.id}
-                    onPress={() => confirmTake(featured)}
+                    onPress={() => openOffer(featured)}
                     style={s.heroCta}
                     testID="swap-take-featured"
                   />
@@ -284,8 +257,8 @@ export function StudentSwapsScreen() {
                       subtitle={offerMeta(o)}
                       onPress={() => openOffer(o)}
                       trailing={
-                        <Pressable onPress={() => confirmTake(o)} hitSlop={10} disabled={!!taking} accessibilityRole="button" testID={`swap-take-${o.id}`}>
-                          {takeLabel(o.id, 'Prendi')}
+                        <Pressable onPress={() => openOffer(o)} hitSlop={10} accessibilityRole="button" testID={`swap-take-${o.id}`}>
+                          <Text style={s.take}>Prendi</Text>
                         </Pressable>
                       }
                     />
@@ -385,7 +358,6 @@ const s = StyleSheet.create({
   ritira: { alignSelf: 'center', paddingHorizontal: 20 },
   rows: { marginTop: 18 },
   take: { fontSize: 15.5, fontWeight: '600', color: CLAY.ink, paddingVertical: 8, paddingLeft: 10, paddingRight: 2 },
-  takeSpin: { paddingHorizontal: 12 },
   dt: { alignItems: 'center' },
   dtNum: { fontSize: 22, lineHeight: 24, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.5 },
   dtMonth: { fontSize: 12.5, color: CLAY.ink3 },
