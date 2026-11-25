@@ -11,6 +11,8 @@ export default function HomeLayout() {
           campanella dell'Agenda = schermate push (swipe indietro nativo). */}
       <Stack.Screen name="availability" />
       <Stack.Screen name="notifications" />
+      {/* REG-791: «In programma» da «Prossime guide» dell'allievo (pagina push). */}
+      <Stack.Screen name="upcoming" />
       <Stack.Screen name="availability-exception" options={FORM_SHEET} />
       <Stack.Screen name="publish-day" options={FORM_SHEET} />
       <Stack.Screen name="credits-needed" options={FORM_SHEET} />

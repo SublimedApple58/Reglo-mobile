@@ -60,6 +60,8 @@ export function useStudentSwaps({ enabled, poll }: { enabled: boolean; poll?: bo
     offers: peers.data ?? [],
     myOffers: mine.data ?? [],
     loading: on && (peers.isLoading || mine.isLoading) && !peers.data,
+    /** REG-791: le proprie richieste sono arrivate (o gli scambi sono spenti): chi segna le guide lasciate aspetta questo. */
+    myReady: !on || mine.data !== undefined || mine.isError,
     refetch: async () => {
       await Promise.all([peers.refetch(), mine.refetch()]);
     },

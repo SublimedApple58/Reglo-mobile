@@ -14,6 +14,8 @@ export default function GuideLayout() {
       <Stack.Screen name="lesson-detail" options={FORM_SHEET} />
       <Stack.Screen name="group-lesson-detail" options={TALL_SHEET} />
       <Stack.Screen name="notes" />
+      {/* REG-791: «In programma», pagina push. */}
+      <Stack.Screen name="upcoming" />
       <Stack.Screen name="road-map" options={{ presentation: 'fullScreenModal', headerShown: false }} />
     </Stack>
   );

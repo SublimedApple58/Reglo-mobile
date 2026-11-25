@@ -152,3 +152,19 @@ export const swapBlockReason = (
   if (new Date(l.startsAt).getTime() - now < 3600000) return "Manca meno di un'ora";
   return null;
 };
+
+/** Lunedì 0:00 della settimana di `d` (REG-789, gruppi per settimana). */
+export const mondayOf = (d: Date) => {
+  const m = new Date(d);
+  m.setHours(0, 0, 0, 0);
+  m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
+  return m;
+};
+
+/** «Questa settimana», «Prossima settimana», «Settimana del 15 dicembre». */
+export const weekTitle = (monday: Date) => {
+  const weeks = Math.round((monday.getTime() - mondayOf(new Date()).getTime()) / (7 * 86400000));
+  if (weeks <= 0) return 'Questa settimana';
+  if (weeks === 1) return 'Prossima settimana';
+  return `Settimana del ${monday.getDate()} ${monday.toLocaleDateString('it-IT', { month: 'long' })}`;
+};
