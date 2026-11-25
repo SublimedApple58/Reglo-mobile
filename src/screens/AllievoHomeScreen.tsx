@@ -15,8 +15,7 @@ import { spacing } from '../theme';
 
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useFocusEffect } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { loadConfirmedLesson } from '../components/BookingConfirmed';
+import { celebrateThenClose } from '../components/BookingSuccessOverlay';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { CalendarNavigatorRange } from '../components/CalendarNavigator';
 import { SkeletonBlock } from '../components/Skeleton';
@@ -71,7 +70,6 @@ import { lessonDetailStore } from '../stores/lessonDetailStore';
 import { groupLessonStudentStore } from '../stores/groupLessonStudentStore';
 import { examDetailStore } from '../stores/examDetailStore';
 import { bookingFlowStore } from '../stores/bookingFlowStore';
-import { bookingConfirmedStore } from '../stores/bookingConfirmedStore';
 
 
 
@@ -387,6 +385,13 @@ export const AllievoHomeScreen = () => {
       slotsLoading: false,
       loading: false,
       searchError: null,
+      confirmError: null,
+      // REG-790: regola di annullo nel riepilogo, come la salva il server.
+      penaltyCutoffHours:
+        (settings?.autoPaymentsEnabled || settings?.lessonCreditFlowEnabled) && settings?.penaltyCutoffHoursPreset
+          ? settings.penaltyCutoffHoursPreset
+          : null,
+      studentCancellationEnabled: !!canCancelAppointments,
       preferredDateAvailable,
       availableDurations,
       availableLessonTypes,
@@ -428,21 +433,14 @@ export const AllievoHomeScreen = () => {
       onConfirmBooking: () => {
         const s = bookingFlowStore.get();
         if (!s?.selectedSlot || !selectedStudentId) return;
-        // No optimistic insert: keep the sheet in its loading state, wait for the
-        // BE + refetch, then dismiss and celebrate. The lesson appears only once
-        // the server has confirmed it.
-        bookingFlowStore.set({ loading: true });
+        // REG-790: si conferma dal foglio di riepilogo. Niente optimistic
+        // insert: il foglio resta in caricamento finché il server risponde.
+        // Successo → quadratino STOP → OK sopra i fogli, poi si chiude tutta la
+        // pila (Prenota → Orari → Riepilogo) e la guida è già nella home.
+        // Rifiuto → l'errore resta nel riepilogo, niente quadratino.
+        bookingFlowStore.set({ loading: true, confirmError: null });
         const slot = s.selectedSlot;
-        // On error (weekly limit, slot taken, …) close the booking modal and show
-        // the toast on the home — otherwise the slots route keeps its own confirm
-        // spinner running (it lives in the route, not here) and the toast would be
-        // hidden behind the modal.
-        const closeWithError = (msg: string) => {
-          // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
-          router.dismissTo('/(tabs)/home');
-          bookingFlowStore.clear();
-          setToast({ text: msg, tone: 'danger' });
-        };
+        const fail = (msg: string) => bookingFlowStore.set({ loading: false, confirmError: msg });
         regloApi.createBookingRequest({
           studentId: selectedStudentId,
           preferredDate: toDateString(s.preferredDate),
@@ -453,27 +451,19 @@ export const AllievoHomeScreen = () => {
           ...slotLocationParam(slot),
         }).then(async (response) => {
           if (response.matched) {
-            // REG-790: il foglio «Orari» resta aperto e diventa la conferma
-            // (cartello STOP → OK), a guida letta dal server con istruttore,
-            // auto e sede. Lo chiude l'allievo con «Fatto».
-            const [lesson] = await Promise.all([
-              loadConfirmedLesson(selectedStudentId, response.appointment),
-              invalidateAllData(),
-            ]);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-            bookingConfirmedStore.set({
-              variant: 'booked',
-              lesson,
-              vehiclesEnabled: settings?.vehiclesEnabled !== false,
-              onOpenLesson: (l) => openLessonDetailRef.current(l),
-            });
+            const refresh = invalidateAllData();
+            await celebrateThenClose(() => {
+              router.dismissTo('/(tabs)/home');
+              bookingFlowStore.clear();
+            }, 'Prenotata');
+            await refresh;
             return;
           }
-          await invalidateAllData();
-          closeWithError('Slot non più disponibile. Riprova.');
+          void invalidateAllData();
+          fail('Questo orario non è più libero. Torna indietro e scegline un altro.');
         }).catch((err) => {
           // REG-784: crediti non bastano → si chiude la pila e si apre il
-          // foglio dei crediti (salvadanaio), non un toast.
+          // foglio dei crediti (salvadanaio).
           const credits = lessonCreditsSheetParams(err);
           if (credits) {
             router.dismissTo('/(tabs)/home');
@@ -482,9 +472,10 @@ export const AllievoHomeScreen = () => {
             void invalidateAllData();
             return;
           }
-          // Surface the server message (e.g. the weekly-limit rejection
-          // "Hai raggiunto il limite massimo di N guide settimanali…").
-          closeWithError(err instanceof Error ? err.message : 'Errore nella prenotazione');
+          // Il messaggio del server (es. limite settimanale) detto nel riepilogo.
+          fail(err instanceof Error && err.message && err.message !== 'Request failed'
+            ? err.message
+            : 'Prenotazione non riuscita. Controlla la connessione e riprova.');
         });
       },
       onClose: () => { bookingFlowStore.clear(); },
@@ -1414,9 +1405,6 @@ export const AllievoHomeScreen = () => {
     });
     router.push('/(tabs)/home/lesson-detail');
   }, [bookingOptions, settings, canCancelAppointments, mySwapByAppointment, handleCreateSwap, handleCancel, handleRevokeSwap, router]);
-  // REG-790: «Vedi la guida» dalla conferma apre il foglio con le azioni di adesso.
-  const openLessonDetailRef = useRef(openLessonDetail);
-  openLessonDetailRef.current = openLessonDetail;
 
   const openGroupLessonDetail = useCallback((appt: AutoscuolaAppointmentWithRelations) => {
     if (!appt.groupLessonId) return;

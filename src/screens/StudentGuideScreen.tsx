@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -15,7 +15,6 @@ import { useBookingOptions } from '../hooks/queries/useBookingOptions';
 import { useStudentSwaps } from '../hooks/useStudentSwaps';
 import { useStudentLessonActions } from '../hooks/useStudentLessonActions';
 import { doneLessonStore } from '../stores/doneLessonStore';
-import { openLessonRequestStore } from '../stores/openLessonRequestStore';
 import { CLAY } from '../theme/clay';
 import { isCompanyManualMode } from '../utils/lessonPayments';
 import { studentEvaluationLevels } from '../utils/evaluationSheet';
@@ -154,16 +153,6 @@ export function StudentGuideScreen() {
     mySwapByAppointment,
     notice,
   });
-
-  // REG-790: «Vedi la guida» dalla conferma di uno scambio.
-  const openRequest = useSyncExternalStore(openLessonRequestStore.subscribe, openLessonRequestStore.get);
-  useEffect(() => {
-    if (!openRequest || !query.data) return;
-    const lesson = all.find((l) => l.id === openRequest);
-    if (!lesson) return;
-    openLessonRequestStore.clear();
-    openUpcoming(lesson, all);
-  }, [openRequest, query.data, all, openUpcoming]);
 
   const upcoming = useMemo(
     () =>

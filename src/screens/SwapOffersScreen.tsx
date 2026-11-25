@@ -22,15 +22,13 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { loadConfirmedLesson } from '../components/BookingConfirmed';
-import { bookingConfirmedStore } from '../stores/bookingConfirmedStore';
 import { ToastNotice, ToastTone } from '../components/ToastNotice';
 import { UserPhotoCircle } from '../components/UserPhotoCircle';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { subscribePushIntent } from '../services/pushNotifications';
 import { notificationEvents } from '../services/notificationEvents';
-import { swapDetailStore } from '../stores/swapDetailStore';
+import { swapDetailStore, type SwapTakeResult } from '../stores/swapDetailStore';
 import { AutoscuolaSwapOfferWithDetails, AutoscuolaStudent } from '../types/regloApi';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -147,32 +145,25 @@ export const SwapOffersScreen = () => {
     setRefreshing(false);
   };
 
-  const handleAccept = useCallback(async (offerId: string) => {
-    if (!studentId) return;
+  // REG-790: l'esito torna al foglio di riepilogo (quadratino o errore).
+  const handleAccept = useCallback(async (offerId: string): Promise<SwapTakeResult> => {
+    if (!studentId) return { status: 'error', message: "Sessione scaduta: riapri l'app e riprova." };
     setToast(null);
     try {
-      const res = await regloApi.respondSwapOffer(offerId, {
-        studentId,
-        response: 'accept',
-      });
+      const res = await regloApi.respondSwapOffer(offerId, { studentId, response: 'accept' });
+      void loadOffers(studentId);
       if (res.accepted) {
-        // REG-790: il momento di conferma al posto del toast.
-        const lesson = await loadConfirmedLesson(studentId, res.appointment);
         notificationEvents.emitDataChanged(); // sync home agenda + swap markers
-        bookingConfirmedStore.set({ variant: 'swap', lesson, vehiclesEnabled: true });
-        router.push('/(tabs)/home/booking-confirmed');
-      } else {
-        setToast({ text: 'Offerta non più disponibile', tone: 'info' });
+        return { status: 'taken' };
       }
-      await loadOffers(studentId);
+      return { status: 'error', message: 'Offerta non più disponibile.' };
     } catch (err) {
       // REG-784: crediti non bastano → il foglio dei crediti.
       const credits = lessonCreditsSheetParams(err);
       if (credits) {
-        router.push({ pathname: '/(tabs)/home/credits-needed', params: credits });
-        return;
+        return { status: 'leave', after: () => router.push({ pathname: '/(tabs)/home/credits-needed', params: credits }) };
       }
-      setToast({ text: err instanceof Error ? err.message : 'Errore', tone: 'danger' });
+      return { status: 'error', message: err instanceof Error && err.message ? err.message : 'Non è andata: riprova.' };
     }
   }, [studentId, loadOffers, router]);
 

@@ -1195,9 +1195,9 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ---
 
-### 6.17 BookingConfirmed (REG-790, sostituisce BookingCelebration)
+### 6.17 BookingSuccessOverlay (REG-790, sostituisce BookingCelebration)
 
-**File:** `src/components/BookingConfirmed.tsx`. Momento di conferma di una guida: video 132 pt del cartello STOP che gira e si ferma su «OK» verde (`assets/conferma/stop-ok.mp4`, `expo-av`, una volta, poster = primo fotogramma, bianco puro), titolo 30/600 «Prenotata!» / «La guida è tua!», giorno · orario, righe `FlatRow` istruttore · auto · sede, nota 13 grigia, CTA nera «Fatto» + «Vedi la guida» come testo. Testi in dissolvenza 200 ms in cascata (`ReduceMotion.Never`). Dettagli in `docs/features/booking-flow.md`.
+**File:** `src/components/BookingSuccessOverlay.tsx`. Il «quadratino» di conferma dopo una prenotazione o uno scambio: card clay bianca 176 pt (raggio 36, ombra morbida, velo `rgba(17,17,17,0.10)`) al centro dello schermo, sopra i fogli, con il video del cartello STOP che gira e si ferma su «OK» verde e una parola sotto. Niente riepilogo dopo: sparisce e il foglio si chiude. Il riepilogo PRIMA è `LessonReview` (`booking-review`, `swap-detail`). Dettagli in `docs/features/booking-flow.md`.
 
 ---
 

@@ -22,6 +22,7 @@ import {
 } from '../src/utils/pendingInstructorLink';
 import { colors } from '../src/theme';
 import { RoadController } from '../src/road/RoadController';
+import { BookingSuccessHost } from '../src/components/BookingSuccessOverlay';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { useAutoscuolaSettings } from '../src/hooks/queries/useAutoscuolaSettings';
 import { isInstructor } from '../src/utils/roles';
@@ -205,6 +206,7 @@ const AuthGate = () => {
         <>
           <Slot />
           <RoadController />
+          <BookingSuccessHost />
         </>
       ) : null}
       {status === 'loading' || waitSettings ? (

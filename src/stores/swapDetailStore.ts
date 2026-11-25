@@ -1,10 +1,20 @@
 import type { AutoscuolaSwapOfferWithDetails } from '../types/regloApi';
 
+/**
+ * REG-790: esito di «Prendi la guida» nel riepilogo. `taken` → quadratino e
+ * chiusura; `error` → messaggio nel foglio; `leave` → il foglio si chiude e poi
+ * gira `after` (es. il foglio dei crediti).
+ */
+export type SwapTakeResult =
+  | { status: 'taken' }
+  | { status: 'error'; message: string }
+  | { status: 'leave'; after: () => void };
+
 type SwapDetailData = {
   offer: AutoscuolaSwapOfferWithDetails;
   /** When true the offer was created by the viewer → show revoke instead of accept. */
   mine?: boolean;
-  onAccept?: (offerId: string) => void;
+  onAccept?: (offerId: string) => Promise<SwapTakeResult>;
   onRevoke?: (offerId: string) => void;
 };
 

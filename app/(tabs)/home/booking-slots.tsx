@@ -1,11 +1,9 @@
-import React, { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { bookingFlowStore, type BookingFlowState } from '../../../src/stores/bookingFlowStore';
-import { bookingConfirmedStore } from '../../../src/stores/bookingConfirmedStore';
-import { BookingConfirmedBody, BookingConfirmedCta } from '../../../src/components/BookingConfirmed';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import {
   ClayButton,
@@ -26,10 +24,8 @@ import type { AvailableSlot } from '../../../src/types/regloApi';
  * IL form sheet con il giorno nel titolo, «60 min · 5 orari liberi» sotto,
  * orari raggruppati in Mattina / Pomeriggio / Sera in liste clay, spunta nera
  * sull'orario scelto, CTA nera «Prenota alle 15:00» con lo spinner.
- * La conferma resta `onConfirmBooking` dello store (niente optimistic update).
- * REG-790: a guida presa il foglio NON si chiude: diventa il momento di
- * conferma (`BookingConfirmed`, cartello STOP → OK) in dissolvenza; «Fatto»,
- * la X o il gesto chiudono tutta la pila fino alla home.
+ * REG-790: scelto l'orario NON si prenota subito: «Continua» apre il foglio
+ * di riepilogo (`booking-review`), che conferma con `onConfirmBooking`.
  */
 
 const WEEKDAYS_LONG = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -57,9 +53,6 @@ export default function BookingSlotsScreen() {
   const router = useRouter();
   const [snapshot] = useState(() => bookingFlowStore.get());
   const [selectedSlot, setSelectedSlot] = useState<BookingFlowState['selectedSlot']>(null);
-  const [confirming, setConfirming] = useState(false);
-  const confirmed = useSyncExternalStore(bookingConfirmedStore.subscribe, bookingConfirmedStore.get);
-  useEffect(() => () => bookingConfirmedStore.clear(), []);
 
   const slots = (snapshot?.slots ?? []) as SlotWithInstructor[];
   // REG-705e: un luogo solo → nel sottotitolo; più luoghi → su ogni orario.
@@ -86,39 +79,12 @@ export default function BookingSlotsScreen() {
 
   if (!snapshot) return <View style={s.empty} />;
 
-  if (confirmed) {
-    // Due form sheet (Prenota → Orari): si chiude tutta la pila fino alla home.
-    const finish = () => {
-      router.dismissTo('/(tabs)/home');
-      bookingFlowStore.clear();
-    };
-    const open = confirmed.onOpenLesson
-      ? () => {
-          const { lesson, onOpenLesson } = confirmed;
-          finish();
-          setTimeout(() => onOpenLesson?.(lesson), 350);
-        }
-      : undefined;
-    return (
-      <FormSheet
-        testID="booking-slots-sheet"
-        contentKey="confirmed"
-        onClose={finish}
-        closeOnGesture
-        cta={<BookingConfirmedCta onDone={finish} onOpenLesson={open} />}
-      >
-        <BookingConfirmedBody data={confirmed} />
-      </FormSheet>
-    );
-  }
+  const { preferredDate, durationMinutes } = snapshot;
 
-  const { preferredDate, durationMinutes, onConfirmBooking } = snapshot;
-
-  const handleConfirm = () => {
-    if (!selectedSlot || confirming) return;
-    bookingFlowStore.set({ selectedSlot });
-    setConfirming(true);
-    onConfirmBooking();
+  const handleContinue = () => {
+    if (!selectedSlot) return;
+    bookingFlowStore.set({ selectedSlot, confirmError: null });
+    router.push('/(tabs)/home/booking-review');
   };
 
   const count = slots.length;
@@ -135,13 +101,11 @@ export default function BookingSlotsScreen() {
       title={formatLongDay(preferredDate)}
       subtitle={count ? subtitle : `${durationMinutes} min`}
       testID="booking-slots-sheet"
-      busy={confirming}
       cta={
         count ? (
           <ClayButton
-            title={selectedSlot ? `Prenota alle ${hm(selectedSlot.startsAt)}` : 'Prenota'}
-            onPress={handleConfirm}
-            loading={confirming}
+            title={selectedSlot ? `Continua con le ${hm(selectedSlot.startsAt)}` : 'Scegli un orario'}
+            onPress={handleContinue}
             disabled={!selectedSlot}
             testID="booking-slots-confirm"
           />

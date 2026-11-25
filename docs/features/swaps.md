@@ -38,7 +38,7 @@ posto delle pillole; via anche i badge «Aperta» / «In attesa». In `swap-deta
 una riga «Luogo» prima dell'istruttore.
 
 ## Components used
-BookingConfirmed (foglio `booking-confirmed`, REG-790), ToastNotice (+ native Modal page sheet, BlurView header).
+REG-790: `swap-detail` è il riepilogo clay (FormSheet adattivo) con «Prendi la guida» → quadratino STOP → OK («È tua») o errore nel foglio; «Prendila»/«Prendi» nella lista aprono il riepilogo (niente più Alert). `swapDetailStore.onAccept` ritorna `SwapTakeResult`. ToastNotice (+ native Modal page sheet, BlurView header).
 No longer uses Screen / BottomSheet / Button.
 
 ## Connected features

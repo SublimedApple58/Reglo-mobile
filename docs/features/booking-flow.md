@@ -1,26 +1,28 @@
 # Booking Flow
 
 ## What it does
-Student lesson booking: select type/duration → pick date → view available slots → confirm → momento di conferma (REG-790) nel foglio «Orari».
+Student lesson booking: select type/duration → pick date → view available slots → riepilogo → conferma → quadratino STOP → OK (REG-790).
 
 ## Key files
 - `src/screens/AllievoHomeScreen.tsx` (119KB) — main booking UI
-- `src/components/BookingConfirmed.tsx` — REG-790: conferma (video STOP → OK, «Prenotata!», riepilogo, «Fatto» / «Vedi la guida»)
-- `src/stores/bookingConfirmedStore.ts` — la guida appena presa (variant `booked` | `swap`)
+- `app/(tabs)/home/booking-review.tsx` — REG-790: foglio di riepilogo prima di prenotare
+- `src/components/LessonReview.tsx` — pezzi dei riepiloghi (orario grande, righe, regole, errore)
+- `src/components/BookingSuccessOverlay.tsx` — il quadratino con il video (`BookingSuccessHost` nel layout radice, `celebrateThenClose`)
 - `assets/conferma/stop-ok.mp4` + `stop-ok-primo.png` — video (2,4 s, 396 px, 78 KB) e poster
 
 ## Flow
 1. `getBookingOptions()` → lesson types, durations per cluster
 2. `getAvailableSlots(date, duration)` → available time slots
 3. `createBookingRequest(slot)` → book lesson
-4. On `matched: true`: `loadConfirmedLesson` (guida con istruttore/auto/sede) + `invalidateAllData()`, haptic success, `bookingConfirmedStore.set({ variant: 'booked' })`: il foglio `booking-slots` NON si chiude, diventa la conferma (dissolvenza `contentKey`). «Fatto», X o gesto → `dismissTo('/(tabs)/home')`; «Vedi la guida» → chiude e apre `lesson-detail` (`openLessonDetailRef`).
+4. «Continua con le 17:30» (Orari) apre `booking-review`; «Conferma prenotazione» → `onConfirmBooking` → `createBookingRequest`.
+5. `matched: true` → `celebrateThenClose`: quadratino STOP → OK al centro sopra i fogli, poi `dismissTo('/(tabs)/home')`; rifiuto (`matched: false` o errore del server) → `confirmError` nel riepilogo, niente quadratino; crediti insufficienti → foglio crediti.
 
-## Conferma (REG-790, Tiziano 25/11/2026)
-- Protagonista: cartello STOP 3D che gira sul palo e si ferma sulla faccia verde con la spunta (video Veo, `expo-av` `Video`: una riproduzione, muto, fermo sull'ultimo fotogramma, primo fotogramma come poster; sfondo bianco puro = Y 235 in limited range, si fonde col foglio). `expo-av` e non `expo-video` perché è già nella build nativa → si rilascia in OTA.
-- «Prenotata!» (o «La guida è tua!» da Scambi), giorno · orario, righe istruttore · auto (se veicoli attivi) · sede, nota piccola (promemoria; soglia senza penale solo se la guida ha `penaltyCutoffAt`).
-- Non esiste una prenotazione allievo «in attesa dell'autoscuola»: il server crea la guida `scheduled` subito (`autoscuole-availability.actions.ts`), `matched: false` = orario preso → errore. Niente variante «in attesa».
-- Scambi: `StudentSwapsScreen` (e la vecchia `SwapOffersScreen`) dopo `respondSwapOffer` accettato aprono il foglio `swaps/booking-confirmed` (`home/booking-confirmed`); «Vedi la guida» → tab Guide via `openLessonRequestStore`.
-- Tolto `BookingCelebration` (overlay con scintille + toast «La guida è tua!»).
+## Riepilogo e conferma (REG-790, Tiziano 25/11/2026 — flusso Airbnb)
+- **Riepilogo** (`booking-review`, form sheet adattivo): titolo il giorno, «Oggi/Domani/Tra N giorni», orario grande 46/600, tipo · durata, righe, regole in piccolo, CTA nera «Conferma prenotazione». Istruttore e auto li sceglie il server ALLA conferma (`/available-slots` non li manda): l'istruttore compare solo se scelto o assegnato all'allievo (`isLockedToInstructor`), altrimenti «Il primo istruttore libero»; l'auto non si mostra; la sede solo se l'orario ha `locationName`. Regola di annullo: «senza penale fino a …» solo se l'autoscuola addebita la guida (pagamenti automatici o crediti, come il server per `penaltyCutoffAt`), «contatta l'autoscuola» se l'allievo non può annullare dall'app.
+- **Quadratino** (`BookingSuccessOverlay`): card clay bianca 176 pt, raggio 36, ombra morbida, velo leggero, video 132 pt (`expo-av`: una volta, muto, poster = primo fotogramma, bianco puro) e una parola sotto («Prenotata» / «È tua»). Su iOS vive in una `FullWindowOverlay` (sopra i form sheet nativi), poi si chiude il foglio; su Android prima si chiude il foglio e poi compare. Entra 220 ms, resta ferma sulla spunta 450 ms dopo la fine del video, esce 240 ms; rete di sicurezza 4,2 s. `ReduceMotion.Never`.
+- `expo-av` e non `expo-video` perché è già nella build nativa → si rilascia in OTA.
+- Non esiste una prenotazione allievo «in attesa dell'autoscuola»: il server crea la guida `scheduled` subito.
+- Tolto `BookingCelebration` (overlay con scintille + toast).
 
 ## Optimistic update (no flicker)
 The just-booked lesson is held in an **optimistic overlay** (`optimisticAppts` state in
@@ -80,7 +82,7 @@ compatto non c'è più il tag «Pratica». «Le tue guide» (`LessonsOverview`):
 `getBookingOptions`, `getAvailableSlots`, `getDateAvailability`, `createBookingRequest`, `getAppointments`
 
 ## Components used
-Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, BookingConfirmed
+Screen, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Card, Badge, BookingSuccessOverlay
 
 ## Connected features
 - **Notifications** — booking success can trigger proposal/confirmation

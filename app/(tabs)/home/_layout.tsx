@@ -14,7 +14,6 @@ export default function HomeLayout() {
       <Stack.Screen name="availability-exception" options={FORM_SHEET} />
       <Stack.Screen name="publish-day" options={FORM_SHEET} />
       <Stack.Screen name="credits-needed" options={FORM_SHEET} />
-      <Stack.Screen name="booking-confirmed" options={FORM_SHEET} />
       <Stack.Screen name="add-action" options={FORM_SHEET} />
       <Stack.Screen name="select-date" options={FORM_SHEET} />
       {/* REG-671: dall'agenda (fantasma → tipo): «Con chi guidi?» → riepilogo; blocco/teoria. */}
@@ -80,12 +79,13 @@ export default function HomeLayout() {
       {/* Prenotazione allievo riallineata a Clay (M8): form sheet ad altezza adattiva. */}
       <Stack.Screen name="booking-flow" options={FORM_SHEET} />
       <Stack.Screen name="booking-slots" options={FORM_SHEET} />
+      <Stack.Screen name="booking-review" options={FORM_SHEET} />
       <Stack.Screen name="exam-detail" options={TALL_SHEET} />
       <Stack.Screen name="all-lessons" options={SCROLL_SHEET} />
       <Stack.Screen name="quiz-hint" options={{ presentation: 'modal', headerShown: false, gestureEnabled: true }} />
       <Stack.Screen name="swaps" options={{ headerShown: false }} />
       <Stack.Screen name="group-lesson-invites" options={{ headerShown: false }} />
-      <Stack.Screen name="swap-detail" options={TALL_SHEET} />
+      <Stack.Screen name="swap-detail" options={FORM_SHEET} />
       {/* REG-638 Reglo Road: invito e informativa = form sheet con CTA in fondo;
           percorso dell'allievo a tutto schermo. */}
       <Stack.Screen name="road-invite" options={FORM_SHEET} />
