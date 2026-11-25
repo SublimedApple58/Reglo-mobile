@@ -56,9 +56,9 @@ export function StudentUpcomingScreen({ stack }: { stack: 'guide' | 'home' }) {
   }, [studentId]);
   const query = useAppointments(params);
   const all = useMemo(() => query.data ?? [], [query.data]);
-  const ready = !!query.data || query.isError;
-
-  const { myOffers } = useStudentSwaps({ enabled: swapEnabled });
+  const { myOffers, myReady } = useStudentSwaps({ enabled: swapEnabled });
+  // Le guide lasciate a un compagno compaiono subito con l'orologio: si aspettano anche le richieste.
+  const ready = (!!query.data || query.isError) && myReady;
   const mySwapByAppointment = useMemo(() => new Map(myOffers.map((o) => [o.appointmentId, o.id])), [myOffers]);
 
   const notice = useCallback((text: string, tone: ToastTone) => setToast({ text, tone }), []);

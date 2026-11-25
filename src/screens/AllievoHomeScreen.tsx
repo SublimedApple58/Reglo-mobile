@@ -77,6 +77,7 @@ import { formatTime } from '../utils/date';
 import { examTimeIsTbd } from '../utils/examTime';
 import { ExamHeroCard } from './allievoHome/ExamHomeCards';
 import { UpcomingLessonRow } from '../components/studentLesson/UpcomingLessonRow';
+import { useStudentSwaps } from '../hooks/useStudentSwaps';
 import { slotLocationParam } from '../utils/slotLocation';
 import { transmissionLabel } from '../utils/license';
 import { Ionicons } from '@expo/vector-icons';
@@ -213,7 +214,6 @@ export const AllievoHomeScreen = () => {
   // Elenco (solo data/posti, countOnly) per la riga «Posti liberi» della home.
   const [groupInvites, setGroupInvites] = useState<GroupLessonInvite[]>([]);
   // My active swap requests: appointmentId → offerId (for the home marker + revoke).
-  const [mySwapByAppointment, setMySwapByAppointment] = useState<Map<string, string>>(new Map());
 
   // ── Linked student (must come before hooks that depend on studentId) ──
   const selectedStudent = useMemo(
@@ -751,33 +751,15 @@ export const AllievoHomeScreen = () => {
     void refreshGroupInvitesCount();
   }, [refreshGroupInvitesCount]);
 
-  // My active swap requests (background): mark the lessons I asked to swap.
-  const refreshMySwaps = useCallback(async () => {
-    if (!swapEnabled || !selectedStudentId) {
-      setMySwapByAppointment(new Map());
-      return;
-    }
-    try {
-      const list = await regloApi.getMySwapOffers(selectedStudentId);
-      const map = new Map<string, string>();
-      (Array.isArray(list) ? list : []).forEach((o) => map.set(o.appointmentId, o.id));
-      setMySwapByAppointment(map);
-    } catch {
-      // non-blocking
-    }
-  }, [swapEnabled, selectedStudentId]);
-
-  useEffect(() => {
-    refreshMySwaps();
-  }, [refreshMySwaps]);
-
-  // Re-sync swap markers when another screen mutates swaps (e.g. revoke/accept
-  // from the Scambi section emits emitDataChanged).
-  useEffect(() => {
-    return notificationEvents.onDataChanged(() => {
-      refreshMySwaps();
-    });
-  }, [refreshMySwaps]);
+  // REG-791: le proprie richieste di scambio dalla stessa cache di «In programma»
+  // e della tab Guide (`useStudentSwaps`), così la guida lasciata ha l'orologio
+  // ovunque; si aggiorna con le push di scambio e con `emitDataChanged`.
+  const { myOffers, myReady: mySwapsReady } = useStudentSwaps({ enabled: swapEnabled });
+  const mySwapByAppointment = useMemo(() => new Map(myOffers.map((o) => [o.appointmentId, o.id])), [myOffers]);
+  const refreshMySwaps = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['swap-my-offers'] }),
+    [queryClient],
+  );
 
   // Declare weekly absence to the assigned instructor (used by the slim row).
   const handleDeclareAbsence = useCallback(() => {
@@ -1709,7 +1691,10 @@ export const AllievoHomeScreen = () => {
 
   const { scrollY, onScroll } = useLargeTitleScroll();
   // Se booking-options fallisce la home si mostra lo stesso (senza bottoni di prenotazione).
-  const dataReady = studentsLoaded && studentDataReady && (!!bookingOptions || bookingOptionsQuery.isError);
+  // REG-791: anche le proprie richieste di scambio, così la guida lasciata
+  // compare subito con l'orologio (mai l'auto che poi cambia): fino ad allora skeleton.
+  const dataReady =
+    studentsLoaded && studentDataReady && (!!bookingOptions || bookingOptionsQuery.isError) && mySwapsReady;
   const canFreelyBook = !!bookingPolicy?.canBookFreely && policyMode === 'open';
 
 
