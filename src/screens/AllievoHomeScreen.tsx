@@ -76,6 +76,7 @@ import { bookingFlowStore } from '../stores/bookingFlowStore';
 import { formatTime } from '../utils/date';
 import { examTimeIsTbd } from '../utils/examTime';
 import { ExamHeroCard } from './allievoHome/ExamHomeCards';
+import { UpcomingLessonRow } from '../components/studentLesson/UpcomingLessonRow';
 import { slotLocationParam } from '../utils/slotLocation';
 import { transmissionLabel } from '../utils/license';
 import { Ionicons } from '@expo/vector-icons';
@@ -988,6 +989,9 @@ export const AllievoHomeScreen = () => {
     [upcoming, upcomingGroupLessons],
   );
   const nextLesson = allUpcoming[0];
+  // REG-791 (anteprima H1): sotto le card, le guide dopo la prossima (che è
+  // già nella card grande o piccola). Al massimo 3; le altre in «In programma».
+  const laterLessons = useMemo(() => allUpcoming.slice(1, 4), [allUpcoming]);
   const nextLessonIsGroup = !!nextLesson?.groupLessonId;
 
   const nextLessonCountdown = useMemo(() => {
@@ -1937,6 +1941,25 @@ export const AllievoHomeScreen = () => {
 
             {/* ── CTA primaria: prenota, blocco a sé sotto le card ── */}
             {bookCta}
+
+            {/* ── REG-791: le prossime guide, a righe; tocco = foglio della guida ── */}
+            {laterLessons.length ? (
+              <HomeSection
+                title="Prossime guide"
+                right={`Tutte · ${allUpcoming.length}`}
+                onRightPress={() => router.push('/(tabs)/home/upcoming')}
+              >
+                {laterLessons.map((l, i) => (
+                  <UpcomingLessonRow
+                    key={l.id}
+                    lesson={l}
+                    swapAsked={mySwapByAppointment.has(l.id)}
+                    first={i === 0}
+                    onPress={openAnyLessonDetail}
+                  />
+                ))}
+              </HomeSection>
+            ) : null}
 
             {/* ── Livello 3: tutto il resto a righe ── */}
             {bookRow}

@@ -16,7 +16,7 @@ import { car34Art } from '../road/markerArt';
 import { swapNoticeStore } from '../stores/swapNoticeStore';
 import { CLAY, CLAY_SHADOW } from '../theme/clay';
 import { firstName } from '../components/studentLesson/LessonSheetParts';
-import { isUpcomingLesson, monthShort, swapBlockReason, timeRangeWords, weekdayWord } from '../utils/studentLessons';
+import { isUpcomingLesson, mondayOf, monthShort, swapBlockReason, timeRangeWords, weekTitle, weekdayWord } from '../utils/studentLessons';
 import type { AutoscuolaAppointmentWithRelations } from '../types/regloApi';
 
 const KEY_ART = require('../../assets/web/3d/chiave-3d.png');
@@ -31,21 +31,6 @@ type Item =
       lesson: AutoscuolaAppointmentWithRelations;
       blocked: string | null;
     };
-
-const mondayOf = (d: Date) => {
-  const m = new Date(d);
-  m.setHours(0, 0, 0, 0);
-  m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
-  return m;
-};
-
-/** «Questa settimana», «Prossima settimana», «Settimana del 15 dicembre». */
-const weekTitle = (monday: Date) => {
-  const weeks = Math.round((monday.getTime() - mondayOf(new Date()).getTime()) / (7 * 86400000));
-  if (weeks <= 0) return 'Questa settimana';
-  if (weeks === 1) return 'Prossima settimana';
-  return `Settimana del ${monday.getDate()} ${monday.toLocaleDateString('it-IT', { month: 'long' })}`;
-};
 
 const hm = (iso: string) => {
   const d = new Date(iso);
