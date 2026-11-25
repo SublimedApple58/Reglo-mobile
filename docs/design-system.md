@@ -2325,6 +2325,12 @@ Abbinare sempre animazioni con feedback tattile (`expo-haptics`):
 3. **Liste lunghe solo con `FlatList`** (anche nei fogli: `FormSheet list`) e righe in `React.memo`. Niente `.map()` di decine di righe dentro una `ScrollView`.
 4. **Niente `MapView` ripetute nelle liste.** Le miniature sono immagini salvate (`takeSnapshot` → `src/road/thumbCache.ts`). La mappa grande si monta una volta sola, in anticipo e a riposo.
 5. **Niente layout transitions né entrate dal basso** (`FadeInDown`, stagger, `layout=`) su contenitori con ombre. Solo dissolvenze da 150–200 ms (`ROAD_FADE_IN`/`ROAD_FADE_OUT`, `CROSSFADE_TIMING` in `src/utils/motion.ts`).
+   **Permanenti vs. accese per un istante** (REG-792, Tiziano 25/11/2026). Il divieto vale per le transizioni di layout **permanenti**, cioè un `layout=`/`entering`/`exiting` sempre montato che scatta a ogni rilayout, scroll o aggiornamento di rete. Sono ammesse quelle **accese per un istante** a cambio dati deciso, come il riordino delle prossime guide (`src/screens/allievoHome/homeMotion.ts`), a queste condizioni:
+   - si accendono solo durante il cambio. Il render «armato» mette le props, poi i dati nuovi arrivano al fotogramma dopo e le props si tolgono a fine corsa (~450 ms);
+   - i blocchi si muovono solo per traslazione e opacità. Le card con ombra non cambiano misura: restano ferme o si dissolvono;
+   - un solo cambio semplice alla volta (una voce in più o in meno). Per tutto il resto, cioè primo caricamento e pull-to-refresh, niente coreografia;
+   - il cambio parte a schermo e non dietro un foglio o un overlay (`useIsFocused`, `useBookingSuccessActive`).
+   Le layout animations di Reanimated 4 su Fabric sono sincronizzate col commit: fanno il FLIP senza il fotogramma di scatto di un FLIP a mano.
 6. **Strati minimi sui componenti ripetuti.** Su iOS ogni voce di `boxShadow` costa uno strato in più e un rendering fuori schermo. Volti, righe e celle hanno una sola ombra esterna. Lucentezze e bordini vanno cotti in un'immagine fissa (`Avatar.tsx`). Le animazioni stanno solo dove c'è davvero una selezione.
 7. **Schermate grandi in sezioni con `memo`**, con props stabili (`useCallback`, dati confrontati prima di `setState`). Niente timer che le ridisegnano e niente ricaricamento se a ogni focus arrivano dati identici.
 8. **Nessun fetch al tocco.** I dati si caricano prima (warm-up all'avvio o al focus, cache di modulo) e al tocco sono già pronti. L'aggiornamento di rete arriva dopo, senza bloccare l'animazione.
