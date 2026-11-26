@@ -188,7 +188,7 @@ export const PublicationModeEditor = ({ instructorId, onToast, forName }: Props)
 
   // ── Selected week → 7 day rows (cached, persisted; composite queryFn) ──
   const weekKey = queryKeys.publicationWeek(activeCompanyId, instructorId, weekStart);
-  const weekQuery = usePublicationWeek(instructorId, weekStart, { isPublished: published });
+  const weekQuery = usePublicationWeek(instructorId, weekStart);
   const days = useMemo<DayState[]>(() => weekQuery.data ?? [], [weekQuery.data]);
   const loading = weekQuery.isLoading && !weekQuery.data;
 
@@ -323,7 +323,7 @@ export const PublicationModeEditor = ({ instructorId, onToast, forName }: Props)
       <ClaySection
         title="Giorni"
         style={styles.section}
-        footnote={loading ? undefined : 'Tocca un giorno per gli orari. Trascinalo verso sinistra per attivarlo o metterlo a riposo. I giorni non toccati riprendono la settimana pubblicata prima.'}
+        footnote={loading ? undefined : 'Tocca un giorno per gli orari. Trascinalo verso sinistra per attivarlo o metterlo a riposo. Ogni settimana parte vuota: si pubblicano solo i giorni salvati.'}
       >
         {loading ? (
           <ClayList>
