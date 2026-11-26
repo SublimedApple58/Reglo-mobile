@@ -115,7 +115,7 @@ const InstructorHead = React.memo(function InstructorHead({
 const headSub = (day: InstructorDay) => {
   if (day.absence === 'sick') return 'Malattia';
   if (day.absence === 'holiday') return 'Ferie';
-  return day.lessonCount ? plural(day.lessonCount, 'guida', 'guide') : 'Nessuna guida';
+  return day.lessonCount ? plural(day.lessonCount, 'guida', 'guide') : 'Libero';
 };
 
 /* ------------------------------------------------------------------ */
