@@ -211,7 +211,7 @@ fissa** (saluto + titolo + bottoni) perché sotto scorre la griglia.
 `ClayPageHeader` (testata dentro lo scroll, che non collassa) resta **solo
 nell'app allievo**, in attesa del suo giro.
 
-**Copertina elastica** (REG-661, 30/10, `src/components/clay/StretchyCover.tsx`): per le pagine con mappa o illustrazione in alto (home Road, Punti critici, allievo: Home `home-quartiere`, Guide `guide-strada`, Scambi `scambi-chiavi`). Le illustrazioni di copertina riempiono tutto il quadro (niente diorama sul vuoto), colori caldi e verdi sbiaditi, soggetto in basso a sinistra/centro: in alto a destra c'è la campanella. La copertina sta dietro lo scroll; copertina e foglio scorrono insieme; tirando giù la copertina si allarga ancorata in alto (niente vuoto bianco), scorrendo su sale a metà velocità. Con poco contenuto la copertina riempie lo spazio, il foglio arriva alla tab bar e lo scroll si ferma dove finisce il contenuto. Solo transform guidati dallo scroll; cambi di altezza in 220 ms senza rimbalzo.
+**Copertina elastica** (REG-661, 30/10, `src/components/clay/StretchyCover.tsx`): per le pagine con mappa o illustrazione in alto (home Road, Punti critici, allievo: Home `home-quartiere`, Guide `guide-strada`, Scambi `scambi-chiavi`). Ricetta in §0.9 «Copertine e auto». Le illustrazioni di copertina riempiono tutto il quadro (niente diorama sul vuoto), colori caldi e verdi sbiaditi, soggetto in basso a sinistra/centro: in alto a destra c'è la campanella. La copertina sta dietro lo scroll; copertina e foglio scorrono insieme; tirando giù la copertina si allarga ancorata in alto (niente vuoto bianco), scorrendo su sale a metà velocità. Con poco contenuto la copertina riempie lo spazio, il foglio arriva alla tab bar e lo scroll si ferma dove finisce il contenuto. Solo transform guidati dallo scroll; cambi di altezza in 220 ms senza rimbalzo.
 
 ### 0.6 Fogli — adattivi, testata fissa e opaca, CTA fissa, X, niente grabber
 
@@ -417,6 +417,65 @@ reference di Gabriele con cui è stato approvato il metodo il 28/10/2026.
 **Autorizzazione:** le sessioni di sviluppo sono AUTORIZZATE da Tiziano a usare
 il Mac a CONTROLLO COMPLETO (usa_il_mac, non limitato a Chrome) per generare le
 icone su Gemini, senza chiedere.
+
+#### Copertine e auto (REG-793, 25/11/2026)
+
+**Copertine delle sezioni allievo** (Home `home-quartiere`, Guide `guide-strada`,
+Scambi `scambi-chiavi`; vedi la copertina elastica in §0.5). Regole venute
+dalle bocciature di Tiziano: scena a **pieno quadro** (niente diorama o isola
+sul vuoto, niente fondo vuoto), **pochissimo grigio** (strade solo come nastri
+crema, mai asfalto o piazzali), colori caldi dagli oggetti, soggetto **in basso
+a sinistra/al centro** (in alto a destra c'è la campanella, in basso il foglio
+che sale). Una scena per chat nuova su Gemini, 3 allegati: le 2 reference di
+stile (`docs/assets/icone-ref/ref1.png`, `ref2.png`) + la copertina di Guide
+(`assets/vita/guide-strada@3x.jpg`) come reference di **composizione**. Prompt
+della Home (le altre scene cambiano solo la riga `Scene:`):
+
+```
+Premium 3D clay illustration in the spirit of Airbnb's 2025 app icons: real-world objects, softly simplified, friendly but adult, clean rounded shapes. Material: matte satin soft-touch clay, slightly puffy edges, generous rounded bevels. Light: bright warm morning sunlight from the top-left, golden and cheerful, soft ambient occlusion, short soft WARM shadows (peachy), never grey. Mood: lively, happy, a sunny "good morning", immersive.
+
+Format and composition: wide landscape 3:2. The scene FILLS THE ENTIRE FRAME edge to edge, like the third attached image (a road that enters and leaves the frame): it is a close-up crop of a bigger world, seen from above at about 40 degrees. Lawns, roads, trees and flowers touch and run off all four edges of the image. NO diorama, NO island, NO floating platform, NO empty background, NO visible ground edge, no horizon. Keep the top-right corner a little calmer (only soft lawn, no tall or busy objects there) and keep the bottom strip simple (lawn or road) because it will be covered. Put the most important objects in the centre and left-centre.
+
+Colours: vivid fresh leaf greens #2FA36B and #6CC08B for lawns and round trees, light warm cream #F1E9DD for roads and paths with white dashes, warm off-white #FAF7F2 for buildings, one signal red #E5484D car, touches of sunny yellow #F5C542 and warm orange #F5A524 (flowers, awnings, cones). Very little grey. No blue, no pink, no purple. Not photorealistic, no emoji style, no faces, no people, no logos, no watermark, no text.
+
+Use the first two attached images as style reference for material and light, and the third image as reference for the full-frame composition.
+
+Scene: a close-up of a cosy neighbourhood. In the centre-left a small friendly off-white driving-school building with a rounded roof edge and a sunny yellow striped awning, surrounded by round green trees and bushes that run off the left and bottom edges. A light cream street passes in front of it and leaves the frame on both sides; a red driving-school car with a small white roof sign showing a red letter L (the only letter allowed) is parked in front. Small orange and yellow flowers in the lawn. Green lawn fills the rest of the frame.
+```
+
+Dopo la generazione i verdi si **sbiadiscono** a mano (Tiziano: «troppo
+accesa»): `python3 scripts/sbiadisci-verdi.py <in.jpg> <out.jpg>` (default
+«molto forte»: saturazione dei verdi −58%, più chiari, tinta 8° verso il giallo
+perché restino caldi; tocca solo 65°–175°, auto/tende/fiori restano uguali).
+Poi 1x/@2x/@3x = 390/780/1170 px di larghezza, JPEG 82.
+
+**Auto 3D** (`assets/road/cars/auto-34-<colore>`, usata ovunque da
+`car34Art`): l'auto della copertina — clay tondeggiante, fari gialli, cartello
+bianco a cuneo con la L rossa. Reference: il ritaglio dell'auto dalla copertina
+(UN solo allegato). Prompt:
+
+```
+Create a 3D clay icon of the small red car in the attached image, on its own: a cute compact rounded car, red body, dark grey windows, round yellow headlights, dark grey bumper, dark round wheels, and a small white wedge sign on the roof with a red letter L. Soft matte clay material with rounded puffy edges, soft warm light from the top-left. Three-quarter front view from slightly above, the car facing left, whole car centered and filling most of the square frame. Plain pure white background, no floor, no shadow, nothing else.
+```
+
+Poi i 10 colori del backend (`CAR_COLOR_KEYS`) con
+`python3 scripts/auto-colori.py <auto-rossa.png> assets/road/cars`: toglie il
+bianco attorno (alfa morbida), ricolora solo la carrozzeria tenendo luci e
+ombre. La carrozzeria si riconosce dalla **tinta**: rosso saturo (tinta PIL
+≤14 o ≥245, saturazione ≥110, luminosità ≥60) + i riflessi rosati collegati;
+così paraurti marrone, fari gialli, gomme scure e cartello crema restano
+com'erano e la L (staccata dal corpo) resta rossa. Controllare sempre il
+foglio coi 10 colori prima di copiare: se un pezzo nuovo del modello cambia
+colore, va stretta la soglia. Lo script scrive i PNG con gli stessi nomi e la stessa tela (240×195 @3x, auto
+appoggiata in basso): l'auto cambia in tutta l'app senza toccare il codice.
+
+Auto attuale: generata il 26/11 al primo tentativo con questo prompt.
+
+**Note operative** (25/11): con l'operatore del Mac UNA immagine per chiamata;
+dopo il download prendere solo il file di Download con l'orario di adesso
+(`ls -ltT`) e copiarlo con `cp`, mai `mv`. Dopo ~15 generazioni in un giorno
+Gemini può rifiutare tutto («I'm having a hard time…») senza avviso di quota:
+riprovare più tardi.
 
 ### 0.10 Componenti — `src/components/clay/` (import da `src/components/clay`)
 
