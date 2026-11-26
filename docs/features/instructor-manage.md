@@ -39,7 +39,9 @@ Screen, Card, Badge, BottomSheet, CalendarDrawer, CalendarNavigatorRange, Search
 ## Owner / Titolare home (`ownerMode`)
 `TitolareHomeScreen` (ruolo `OWNER`, titolare puro senza profilo istruttore) **non è più uno screen a sé**: è un wrapper sottile che rende `<IstruttoreHomeScreen ownerMode />` (stesso pattern del `VehiclesScreen` unificato). Routing in `RoleHomeScreen.tsx`: `OWNER → TitolareHomeScreen`, `INSTRUCTOR*/`→ IstruttoreHomeScreen.
 
-`ownerMode` trasforma la stessa home in **sola lettura + scope "tutti gli istruttori"**:
+> **26/11/2026 (REG-794 rilascio 2)**: la sola lettura è finita. Il titolare puro agisce come sul web: fogli senza `readOnly`, blocchi tappabili, menu completo. L'audit dei permessi è in REG-795. I punti «Niente azioni» e «Sheet in sola lettura» qui sotto sono storia; resta lo scope «tutti gli istruttori». La tab «Istruttore» non c'è più: vedi [oggi-titolare.md](oggi-titolare.md).
+
+`ownerMode` trasformava la stessa home in **sola lettura + scope "tutti gli istruttori"**:
 - **Scope fisso `all`**: `effectiveInstructorId = undefined` → bootstrap/appuntamenti/blocchi caricano le guide di **tutta** la scuola (non di un singolo istruttore). I chip scope sono nascosti.
 - **Guard `!instructorId` bypassati** con `&& !ownerMode` (bootstrapParams, `loadData`, render "profilo mancante", `loadOutOfAvailability`); `getInstructorBlocks` **omette** `instructorId` per l'owner.
 - **Niente azioni**: FAB nascosto, `canInstructorBook=false` (niente `BookableBand`/quick-book), live card senza check-in.

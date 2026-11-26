@@ -96,9 +96,12 @@ IstruttoreHomeScreen
 
 ## Regole / gotcha
 
-- Il titolare puro (`ownerMode`) è in sola lettura sui fogli: niente FAB,
-  blocchi non tappabili, fogli in `readOnly`. Crea però dal fantasma (REG-671),
-  scegliendo l'istruttore o, nel giorno della scuola, per la colonna toccata.
+- Il titolare puro (`ownerMode`) dal 26/11 (REG-794 rilascio 2) agisce sulle
+  guide come sul web: fogli senza `readOnly`, blocchi tappabili, Sposta,
+  Scambia, Elimina, presenza. Niente FAB: crea dal fantasma, per la colonna
+  toccata o scegliendo l'istruttore. Le richieste di «Oggi» (settimana di un
+  istruttore, «La mia», malattia) arrivano da `ownerAgendaRequestStore`
+  ([oggi-titolare.md](oggi-titolare.md)).
 - Il colore dei blocchi passa SOLO da `agendaLook` (non duplicare la logica
   nella griglia).
 - **Colori = «Aspetto agenda»**: i blocchi usano **esattamente il colore scelto in «Aspetto agenda»** dall'autoscuola (anche blu/azzurro), a fondo pastello pieno — decisione di Tiziano del 29/10 («i colori devono rispettare i setting Aspetto agenda»). La regola `NEUTRAL_BLUE` provata la notte del 28/10 è stata eliminata.
