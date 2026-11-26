@@ -40,9 +40,11 @@ guide» (vedi `plans/reg-639-handoff.md`).
    (§0.8).
 8. **CTA tonde** (capsula `CTA_HEIGHT` 54, raggio 27) e bottoni icona tondi
    (`ClayIconButton` 40). La CTA è sempre l'ultima cosa del foglio, fissa.
-9. **La tab bar NON è clay**: resta la «T1 piatta» di REG-638 (§6.19). La
-   capsula clay con bolla in rilievo è stata bocciata il 28/10/2026 («sembra la
-   versione finta di quella nativa Apple»): non riproporla.
+9. **La tab bar NON è clay**: su iOS è la barra NATIVA di sistema (Liquid
+   Glass, REG-800), su Android la nostra barra JS; stesse icone Reglo, a tratto
+   grigio spente e a colori accese (§6.19). La capsula clay con bolla in rilievo
+   è stata bocciata il 28/10/2026 («sembra la versione finta di quella nativa
+   Apple»): non riproporla.
 
 ### 0.2 «Vita» — dosata per importanza, mai asettica
 
@@ -510,7 +512,7 @@ Fuori da `src/components/clay/`:
 | `ClayAccountParts` | `ProfileSummaryCard`, `ClayTextRow` (`danger` = `CLAY_DANGER`), `AppVersionFooter` |
 | `AgendaTodayCard`, `MonthHoursCard`, `WeekStrip` | le card «vita» di Agenda, Tu, Disponibilità |
 | `ClayPageHeader` | SOLO app allievo, da sostituire con la testata di §0.5 |
-| Tab bar | NON clay: «T1 piatta» (§6.19) |
+| Tab bar | NON clay: nativa iOS (Liquid Glass) + JS Android, set icone Reglo (§6.19) |
 
 
 ---
@@ -1282,7 +1284,34 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 
 ---
 
-### 6.19 AppTabBar (era GlassTabBar)
+### 6.19 Tab bar (iOS nativa Liquid Glass + `AppTabBar` su Android)
+
+> **REG-800 (26/11/2026, approvato da Tiziano sulle anteprime v3) — vale questo, il resto della sezione è storico.**
+>
+> - **iOS = barra di sistema.** `NativeTabs` di expo-router (`expo-router/unstable-native-tabs`, `UITabBar` di react-native-screens 4.16) in `app/(tabs)/_layout.tsx`: su iOS 26 è il vetro Liquid Glass del sistema (capsula che galleggia, lente grigia sotto la voce attiva: è di sistema, non un nostro badge). Niente build nativa: il nativo c'era già, passa con l'OTA.
+> - **Android = `AppTabBar`** (barra JS «B · vetro» di prima) con le stesse icone, disegnate in SVG (`SvgXml`).
+> - **Set icone Reglo** — sorgente unica `src/theme/tabIconArt.ts` (griglia 28, tratto 1,8, terminali e giunti tondi, grammatica SF Symbols). Spenta: tratto grigio `#8E8E93`. Accesa: la stessa sagoma con i suoi colori realistici, piatti (niente 3D, niente sfumature), pochi colori condivisi: rosso `#E5484D` (tetto, intestazione calendario, pin, biglietto, segnalibro), giallo sole `#FFC21A`, oro campanella `#F5B400`, mattone `#C9966A`, rosa patente `#F59BBE`, nero volante `#1C1C1E`, asfalto `#48484A`. Il rosa qui è il colore della patente dentro l'icona, non un colore della UI.
+>
+> | Voce | Icona | Accesa |
+> |---|---|---|
+> | Oggi (titolare) | sole | sole giallo, raggi arancio |
+> | Agenda (istruttore, titolare) | calendario | foglio bianco, intestazione rossa, oggi in rosso |
+> | Road (istruttore) | percorso con pin | strada asfalto, pin rosso |
+> | Allievi | due persone | maglie arancio e verde |
+> | Tu / Profilo (tutti) | patente | tessera rosa |
+> | Home (allievo) | casetta | tetto rosso, corpo mattone |
+> | Guide (allievo) | volante | nero |
+> | Scambi (allievo) | biglietto | rosso, frecce bianche |
+> | Quiz (allievo in teoria) | libro aperto | pagine crema, segnalibro rosso |
+> | Notifiche (allievo in teoria) | campanella | oro |
+>
+> - **iOS, PNG:** le tab native vogliono immagini. `npx tsx scripts/build-tab-icons.ts` genera `assets/tab-icons/<chiave>.png` (spenta) e `<chiave>-on.png` (accesa) @1x/@2x/@3x da `tabIconArt` (rasterizza con `sharp` del repo web). Se cambi un disegno, rigenera. Mostrate a **colori originali** (non tinte dalla barra) grazie a `patches/expo-router+6.0.23.patch` (`imageSource` al posto di `templateSource`): icona spenta e accesa devono essere dello stesso tipo, per questo anche la spenta è un PNG già grigio.
+> - **Etichette:** su iOS 26 il vetro disegna le etichette spente in nero di sistema (il colore grigio passato a `labelStyle` viene ignorato); accesa nero semibold. Android: grigio `#8E8E93` spenta, nero accesa.
+> - **Voci per ruolo:** titolare Oggi · Agenda · [Road] · Allievi · Tu; istruttore Agenda · [Road] · Allievi · Tu; allievo in pratica Home · Guide · [Scambi] · Profilo; allievo in teoria Quiz · Profilo · Notifiche (badge rosso solo con non lette). **Allievo in attesa o patentato (una voce sola): nessuna barra.** Se un allievo scende a una voce sola ad app aperta, su iOS resta la sola Home fino al riavvio (smontare la barra nativa a caldo manda in errore react-native-screens).
+> - **Spazio in fondo (iOS):** il sistema non sposta il contenuto. Radici sotto il vetro (Oggi, Agenda, Road, Allievi, Tu; Home, Guide, Scambi dell'allievo in pratica) → `useTabBarOverlap()`; pagine push degli stack → `useTabStackOptions(tab, opzioni)` nei `_layout` delle tab (lista `TAB_FULL_PAGES` in `tabBarSpace.ts`: una pagina push nuova va aggiunta lì); tab senza stack → `useTabRootPadding`. Fogli e modali coprono la barra da sé.
+> - **Road e Agenda (iOS):** la «Torna in Road» galleggia sopra la barra nativa (SDK 54 non ha `bottomAccessory`); la barra del blocco fantasma dell'Agenda («Guida ⌄ · Continua») le sta sopra invece di prenderne il posto.
+> - **Rimpicciolimento allo scroll:** `minimizeBehavior="onScrollDown"` è impostato ma con react-native-screens 4.16 non scatta (lo scroll delle nostre schermate non è quello che UIKit segue). Da riprovare con SDK 55.
+> - Tocco sulla voce già attiva: torna in cima alla pila (comportamento nativo).
 
 > **Reattività (28/10/2026):** la voce toccata si accende già al tocco (`onPressIn` → stato locale `pressedKey`), senza aspettare che la navigazione renderizzi la schermata nuova; si riallinea a `state.index` appena la navigazione è avvenuta, o si spegne se il tocco è annullato.
 

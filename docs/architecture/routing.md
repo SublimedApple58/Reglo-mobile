@@ -22,7 +22,8 @@ Sub-routes: home/create-exam, home/notifications, home/swaps, notes/[studentId],
 
 ## Tab bar
 - iOS: native tabs (`NativeTabs` + `GlassTabBar.ios.tsx`)
-- Android: custom animated tab bar (`GlassTabBar.tsx`, Reanimated, pink highlight)
+- REG-800: iOS = `NativeTabs` (barra di sistema, Liquid Glass su iOS 26); Android = `AppTabBar` (JS); nessuna barra con una voce sola. Vedi [features/tab-bar.md](../features/tab-bar.md).
+- (storico) Android: custom animated tab bar (`GlassTabBar.tsx`, Reanimated, pink highlight)
 
 ## Key files
 - `app/_layout.tsx` — root: SessionProvider, push intent peek
