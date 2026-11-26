@@ -5,7 +5,12 @@
  * (parent refreshes its agenda from the BE, so the cancelled guides drop out) and
  * `onDone` (toast). Non-optimistic. Mirrors `blockSheetStore`.
  */
+/** REG-794: lo stesso foglio segna la malattia o le ferie. */
+export type LeaveKind = 'sick' | 'vacation';
+
 export type SickLeaveSheetData = {
+  /** Senza = malattia. */
+  kind?: LeaveKind;
   /** ISO string of the day the sheet opens on. */
   initialDate: string;
   /** The instructor the sick leave belongs to (for scope). */

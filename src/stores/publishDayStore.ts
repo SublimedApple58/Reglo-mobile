@@ -6,6 +6,8 @@ import { TimeRange } from '../types/regloApi';
 
 export type PublishDayStoreData = {
   dayLabel: string; // e.g. "Lunedì 1 giugno"
+  /** REG-794: riga sotto il titolo; senza, «Scegli i tuoi orari per questo giorno.». */
+  subtitle?: string;
   available: boolean;
   ranges: TimeRange[];
   openTimePicker: (current: Date, onPick: (d: Date) => void) => void;

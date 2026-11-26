@@ -55,7 +55,7 @@ export default function PublishDayScreen() {
   return (
     <FormSheet
       title={data.dayLabel}
-      subtitle="Scegli i tuoi orari per questo giorno."
+      subtitle={data.subtitle ?? 'Scegli i tuoi orari per questo giorno.'}
       testID="publish-day-sheet"
       cta={<ClayButton title="Salva" onPress={handleSave} testID="publish-day-save" />}
     >

@@ -8,7 +8,7 @@
 | Booking Flow | [booking-flow.md](features/booking-flow.md) | `AllievoHomeScreen` |
 | Prenotazione allievi «solo eccezioni» (home allievo nei 3 stati + sospese, foglio «Si è liberato un posto», «Posti liberi a breve», «Chi prenota» del gruppo autonomo) | [student-booking-exceptions.md](features/student-booking-exceptions.md) | `src/utils/studentBookingPolicy.ts`, `AllievoHomeScreen` + `allievoHome/HomeSections`, `SlotOfferSheet`, `LastMinuteSheet`, `notes/booking-rules` + `notes/booking-exceptions` |
 | Le tue guide — storico allievo (Tutte/Programmate/Svolte/Annullate) | [guide-annullate.md](features/guide-annullate.md) | `LessonsOverview`, `home/all-lessons`, `settings/le-tue-guide`, `SettingsScreen`, `allLessonsStore` |
-| Availability Editor | [availability-editor.md](features/availability-editor.md) | `InstructorAvailabilityScreen`, `DefaultAvailabilityEditor`, `PublicationModeEditor`, `role/availability-exception` |
+| Availability Editor (anche «Disponibilità di X» del titolare, Assenze, REG-794) | [availability-editor.md](features/availability-editor.md) | `InstructorAvailabilityScreen`, `DefaultAvailabilityEditor`, `PublicationModeEditor`, `role/availability-exception`, `AbsencesSection` |
 | Swaps | [swaps.md](features/swaps.md) | `StudentSwapsScreen` (tab Scambi, REG-786), `SwapOffersScreen` (vecchia `home/swaps`) |
 | Esito esame (idoneo/respinto dal foglio esame) | [exam-outcome.md](features/exam-outcome.md) | `app/(tabs)/home/exam-manage.tsx`, `regloApi.setExamOutcome`, campo `examOutcome` sull'appuntamento |
 | Pronto per l'esame (exam-ready) | [exam-ready.md](features/exam-ready.md) | `StudentNotesDetailScreen`, `CreateExamScreen`, `select-exam-students`, `examStudentsStore` |

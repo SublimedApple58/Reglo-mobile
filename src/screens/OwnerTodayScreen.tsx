@@ -20,9 +20,10 @@ import { buildInstructorsToday, buildSchoolNow, firstNameOf, hhmm, type Instruct
 import { regloApi } from '../services/regloApi';
 import { ownerAgendaRequestStore, type OwnerAgendaRequest } from '../stores/ownerAgendaRequestStore';
 import { ownerTodayInstructorStore } from '../stores/ownerTodayInstructorStore';
-import { ownerInstructorSheetStore } from '../stores/ownerInstructorSheetStore';
 import { outOfAvailStore } from '../stores/outOfAvailStore';
 import { groupOutOfAvailability } from '../utils/outOfAvailability';
+import { nextAbsenceText, type AbsencePeriod } from '../utils/absencePeriods';
+import { useInstructorAbsences } from '../hooks/queries/useInstructorAbsences';
 import { CLAY } from '../theme/clay';
 import { VITA_ART, greetingFor } from '../theme/vitaArt';
 import { MORALE_ART } from '../theme/moraleArt';
@@ -77,6 +78,13 @@ export const OwnerTodayScreen = () => {
     enabled: !!activeCompanyId,
     staleTime: 60 * 1000,
   });
+  // REG-794: malattie e ferie di tutta la scuola, per «Assenze · Ferie dal 22 dic» nel foglio.
+  const absences = useInstructorAbsences(null);
+  const absencesById = useMemo(() => {
+    const out: Record<string, AbsencePeriod[]> = {};
+    for (const p of absences.data ?? []) (out[p.instructorId] ??= []).push(p);
+    return out;
+  }, [absences.data]);
 
   // Tornando su «Oggi» i dati si rinfrescano in background, se hanno più di un minuto.
   useFocusEffect(
@@ -91,10 +99,10 @@ export const OwnerTodayScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([bootstrap.refetch(), outOfAvail.refetch()]);
+    await Promise.all([bootstrap.refetch(), outOfAvail.refetch(), absences.refetch()]);
     setNow(new Date());
     setRefreshing(false);
-  }, [bootstrap, outOfAvail]);
+  }, [bootstrap, outOfAvail, absences]);
 
   const appointments = useMemo(() => bootstrap.data?.appointments ?? [], [bootstrap.data]);
   const blocks = useMemo(() => bootstrap.data?.instructorBlocks ?? [], [bootstrap.data]);
@@ -116,19 +124,36 @@ export const OwnerTodayScreen = () => {
     router.navigate('/(tabs)/home');
   }, [router]);
 
+  // Per sé stessi (titolare-istruttore) l'editor di sempre; per un collega la stessa
+  // schermata «per conto di», con telefono e nome già noti (nessun fetch al tocco).
+  const openAvailability = useCallback((ins: InstructorToday['instructor'], absences = false) => {
+    if (ins.isMe) {
+      router.push('/(tabs)/today/availability');
+      return;
+    }
+    const phone = rawInstructors.find((i) => i.id === ins.id)?.phone ?? '';
+    router.push({
+      pathname: '/(tabs)/today/availability',
+      params: { instructorId: ins.id, name: ins.name, phone, ...(absences ? { focus: 'absences' } : {}) },
+    } as never);
+  }, [rawInstructors, router]);
+
   const openInstructor = useCallback((day: InstructorToday) => {
     const ins = day.instructor;
     ownerTodayInstructorStore.set({
       day,
       phone: rawInstructors.find((i) => i.id === ins.id)?.phone ?? null,
       isMe: ins.isMe,
+      absenceLine: ins.isMe ? null : nextAbsenceText(absencesById[ins.id] ?? [], new Date()),
+      // REG-794: «Disponibilità di …» è una schermata push di questo stack. Prima
+      // si chiude il foglio: iOS non presenta nulla mentre ne chiude un altro.
       onAvailability: () => {
-        ownerInstructorSheetStore.setAvailability({
-          instructorId: ins.id,
-          instructorName: ins.name,
-          availabilityWeeks: Number(settings.data?.availabilityWeeks) || 4,
-        });
-        router.push('/(tabs)/today/instructor-availability');
+        router.back();
+        setTimeout(() => openAvailability(ins), SHEET_CLOSE_MS);
+      },
+      onAbsences: () => {
+        router.back();
+        setTimeout(() => openAvailability(ins, true), SHEET_CLOSE_MS);
       },
       // Prima si chiude il foglio, poi si cambia tab: iOS non presenta un
       // foglio nuovo mentre ne sta chiudendo un altro.
@@ -142,7 +167,7 @@ export const OwnerTodayScreen = () => {
       },
     });
     router.push('/(tabs)/today/instructor');
-  }, [rawInstructors, settings.data?.availabilityWeeks, router, goAgenda]);
+  }, [rawInstructors, absencesById, openAvailability, router, goAgenda]);
 
   const openOutOfAvail = useCallback(() => {
     outOfAvailStore.set({

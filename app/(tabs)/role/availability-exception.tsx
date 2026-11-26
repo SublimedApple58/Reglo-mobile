@@ -52,7 +52,7 @@ const minutesToDate = (m: number): Date => {
  * Eccezione alla disponibilità (giorno libero o orari speciali) — REG-639
  * clay: form sheet unico che scorre da sé (niente scroll interna, niente
  * footer fisso). Una volta / Ricorrente = segmentato; il calendario si apre
- * sotto la riga «Giorno» e si richiude alla scelta; Non disponibile / Orari
+ * sotto la riga «Giorno» e resta aperto: si toccano uno o più giorni (REG-794); Non disponibile / Orari
  * diversi = segmentato; CTA e «Rimuovi» in fondo.
  */
 export default function AvailabilityExceptionScreen() {
@@ -64,7 +64,8 @@ export default function AvailabilityExceptionScreen() {
   const editing = !!data?.editDate;
 
   const [mode, setMode] = useState<'once' | 'recurring'>('once');
-  const [date, setDate] = useState<string | null>(data?.editDate ?? null);
+  // REG-794: una nuova eccezione «una volta» vale per uno o più giorni insieme (come sul web).
+  const [dates, setDates] = useState<string[]>(data?.editDate ? [data.editDate] : []);
   const [weekday, setWeekday] = useState(1);
   const [weeks, setWeeks] = useState(4);
   const [absent, setAbsent] = useState<boolean>(data?.editIsAbsent ?? false);
@@ -81,6 +82,11 @@ export default function AvailabilityExceptionScreen() {
   const [calendarOpen, setCalendarOpen] = useState(!editing);
 
   const markedSet = useMemo(() => new Set(data?.markedDates ?? []), [data?.markedDates]);
+  const selectedSet = useMemo(() => new Set(dates), [dates]);
+  const toggleDate = (d: string) => {
+    setError(null);
+    setDates((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
+  };
 
   if (!data) return <View style={s.empty} />;
 
@@ -96,7 +102,7 @@ export default function AvailabilityExceptionScreen() {
   };
 
   const validate = (): boolean => {
-    if (mode === 'once' && !date) {
+    if (mode === 'once' && !dates.length) {
       setError('Seleziona una data.');
       return false;
     }
@@ -117,13 +123,16 @@ export default function AvailabilityExceptionScreen() {
     setSaving(true);
     try {
       const payloadRanges = absent ? [] : ranges;
-      if (mode === 'once' && date) {
-        await regloApi.setDailyAvailabilityOverride({
-          ownerType: 'instructor',
-          ownerId: data.instructorId,
-          date,
-          ranges: payloadRanges,
-        });
+      if (mode === 'once') {
+        // Un giorno alla volta: è la stessa rotta dell'eccezione singola.
+        for (const date of dates) {
+          await regloApi.setDailyAvailabilityOverride({
+            ownerType: 'instructor',
+            ownerId: data.instructorId,
+            date,
+            ranges: payloadRanges,
+          });
+        }
       } else {
         await regloApi.setRecurringAvailabilityOverride({
           ownerType: 'instructor',
@@ -159,14 +168,18 @@ export default function AvailabilityExceptionScreen() {
     }
   };
 
-  const whenComplete = mode === 'once' ? !!date : true;
+  const whenComplete = mode === 'once' ? dates.length > 0 : true;
+  const manyDays = mode === 'once' && dates.length > 1;
+  const daysText = dates.length
+    ? `${dates.map(formatShort).join(', ')}${dates.length > 1 ? ` · ${dates.length} giorni` : ''}`
+    : 'Seleziona uno o più giorni';
   const weeksLabel = `${weeks} ${weeks === 1 ? 'settimana' : 'settimane'}`;
 
   const cta = (
     <View style={s.ctaCol}>
       {error ? <Text style={s.error}>{error}</Text> : null}
       <ClayButton
-        title="Salva eccezione"
+        title={manyDays ? `Salva ${dates.length} eccezioni` : 'Salva eccezione'}
         onPress={handleSave}
         loading={saving}
         disabled={!whenComplete}
@@ -211,8 +224,8 @@ export default function AvailabilityExceptionScreen() {
               <ClaySection title="Quando">
                 <ClayList>
                   <ClayListRow
-                    title="Giorno"
-                    subtitle={date ? formatShort(date) : 'Seleziona una data'}
+                    title={dates.length > 1 ? 'Giorni' : 'Giorno'}
+                    subtitle={daysText}
                     onPress={() => setCalendarOpen((o) => !o)}
                     chevron={!calendarOpen}
                     testID="availability-exception-day"
@@ -227,8 +240,9 @@ export default function AvailabilityExceptionScreen() {
                         ))}
                       </View>
                       <ScrollableMonthsCalendar
-                        selectedDate={date}
-                        onSelectDate={(d) => { setDate(d); setError(null); setCalendarOpen(false); }}
+                        selectedDate={null}
+                        selectedDates={selectedSet}
+                        onSelectDate={toggleDate}
                         markedDates={markedSet}
                         monthsCount={12}
                         hideWeekHeader
@@ -326,7 +340,7 @@ export default function AvailabilityExceptionScreen() {
           </Animated.View>
         ) : (
           <Animated.Text entering={SOFT_SWAP_IN} exiting={SOFT_SWAP_OUT} style={s.note}>
-            Giorno chiuso, nessuna guida.
+            {manyDays ? 'Giorni chiusi, nessuna guida.' : 'Giorno chiuso, nessuna guida.'}
           </Animated.Text>
         )}
       </ClaySection>

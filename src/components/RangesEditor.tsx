@@ -30,7 +30,7 @@ const fmtMin = (m: number) => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
  * («Fascia 1», inizio – fine come due orari incavati premibili, X per
  * toglierla) e «Aggiungi fascia» come CTA secondaria compatta sotto.
  * Usato da Disponibilità istruttore (fogli publish-day, availability-exception)
- * e da OwnerInstructorScreen / InstructorManageScreen.
+ * e da InstructorManageScreen.
  */
 export default function RangesEditor({ ranges, onChange, onPickTime, onAddRange, disabled = false, locationLabel, onPickLocation }: RangesEditorProps) {
   const canRemove = ranges.length > 1;

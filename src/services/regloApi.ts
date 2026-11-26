@@ -17,6 +17,7 @@ import {
   AutoscuolaCaseWithStudent,
   AutoscuolaDeadlineItem,
   AutoscuolaInstructor,
+  AvailabilityMode,
   AutoscuolaOverview,
   AutoscuolaStudent,
   AutoscuolaVehicle,
@@ -596,6 +597,24 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       }),
+
+    // REG-794: ferie di un istruttore (il titolare passa `instructorId`, come per la malattia).
+    createInstructorVacation: async (input: { instructorId?: string; startDate: string; startTime?: string; endDate: string }) =>
+      client.request<{ blocksCreated: number; appointmentsCancelled: number }>('/api/autoscuole/instructor-vacation', {
+        method: 'POST',
+        body: input,
+      }),
+
+    // REG-794 B1: modalità di disponibilità di un istruttore, per il titolare.
+    getInstructorAvailabilityMode: async (instructorId: string) =>
+      client.request<{ instructorId: string; availabilityMode: AvailabilityMode }>(
+        `/api/autoscuole/instructors/${instructorId}/availability-mode`,
+      ),
+    setInstructorAvailabilityMode: async (instructorId: string, availabilityMode: AvailabilityMode) =>
+      client.request<{ instructorId: string; availabilityMode: AvailabilityMode }>(
+        `/api/autoscuole/instructors/${instructorId}/availability-mode`,
+        { method: 'PATCH', body: { availabilityMode } },
+      ),
 
     getNotifications: async (limit = 20) =>
       client.request<Array<{ id: string; kind: string; data: Record<string, unknown>; createdAt: string }>>('/api/autoscuole/notifications', {

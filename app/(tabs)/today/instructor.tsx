@@ -14,8 +14,8 @@ const FIRST_ROWS = 5;
 /**
  * Foglio istruttore di «Oggi» (REG-794, anteprima O2): la sua giornata a righe
  * (fatte in grigio, quella in corso in nero), poi Chiama, Disponibilità e
- * «Segna malattia» (le ferie l'app non le segna ancora: l'anteprima diceva
- * «malattia o ferie»), e in fondo «Vedi la settimana di …».
+ * Assenze (con la prossima: «Ferie dal 22 dic»), che aprono «Disponibilità di …»
+ * (REG-794); per sé stessi «Segna malattia». In fondo «Vedi la settimana di …».
  */
 export default function OwnerTodayInstructorSheet() {
   const data = useSyncExternalStore(ownerTodayInstructorStore.subscribe, ownerTodayInstructorStore.get);
@@ -75,12 +75,22 @@ export default function OwnerTodayInstructorSheet() {
           onPress={data.onAvailability}
           testID="today-instructor-availability"
         />
-        <ClayListRow
-          key="sick"
-          title="Segna malattia"
-          onPress={data.onSick}
-          testID="today-instructor-sick"
-        />
+        {isMe ? (
+          <ClayListRow
+            key="sick"
+            title="Segna malattia"
+            onPress={data.onSick}
+            testID="today-instructor-sick"
+          />
+        ) : (
+          <ClayListRow
+            key="absences"
+            title="Assenze"
+            trailing={data.absenceLine ? <Text style={s.trailing} numberOfLines={1}>{data.absenceLine}</Text> : undefined}
+            onPress={data.onAbsences}
+            testID="today-instructor-absences"
+          />
+        )}
       </ClayList>
     </FormSheet>
   );

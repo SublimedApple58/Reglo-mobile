@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useStackBase } from '../hooks/useStackBase';
 import { useRangeLocations } from '../hooks/useRangeLocations';
@@ -58,9 +59,14 @@ type Props = {
   onToast: (text: string, tone?: ToastTone) => void;
   /** Testata della card in rilievo (titolo + riga), sopra la striscia della settimana. */
   intro?: React.ReactNode;
+  /** REG-794: nome (primo) dell'istruttore quando il titolare ne cura la disponibilità. */
+  forName?: string;
 };
 
-export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro }: Props) => {
+/** Eccezioni mostrate prima di «Altre N». */
+const FIRST_EXCEPTIONS = 5;
+
+export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro, forName }: Props) => {
   const router = useRouter();
   // I fogli si aprono nello stack corrente (`home/` o `role/`).
   const stackBase = useStackBase();
@@ -124,6 +130,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
     const ranges = schedule[day] ?? [];
     publishDayStore.set({
       dayLabel: DAY_FULL[day],
+      ...(forName ? { subtitle: `Gli orari di ${forName} per ogni ${DAY_FULL[day].toLowerCase()}.` } : {}),
       available: ranges.length > 0,
       ranges: ranges.length ? ranges : [{ ...DEFAULT_RANGE }],
       openTimePicker,
@@ -185,6 +192,10 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
       .filter((o) => o.date.slice(0, 10) >= t)
       .sort((a, b) => a.date.slice(0, 10).localeCompare(b.date.slice(0, 10)));
   }, [overrides]);
+
+  const [allExceptions, setAllExceptions] = useState(false);
+  const shownOverrides = allExceptions ? upcomingOverrides : upcomingOverrides.slice(0, FIRST_EXCEPTIONS);
+  const hiddenOverrides = upcomingOverrides.length - shownOverrides.length;
 
   const markedDates = useMemo(() => overrides.map((o) => o.date.slice(0, 10)), [overrides]);
 
@@ -277,6 +288,11 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
       {/* ── Eccezioni ─────────────────────────────────── */}
       <ClaySection
         title="Eccezioni"
+        action={
+          !overridesLoading && upcomingOverrides.length > 0 ? (
+            <Text style={st.count}>{upcomingOverrides.length} in programma</Text>
+          ) : undefined
+        }
         style={st.section}
         footnote={
           !overridesLoading && upcomingOverrides.length === 0
@@ -293,7 +309,7 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
         ) : upcomingOverrides.length > 0 ? (
           <Animated.View entering={softEnter()}>
             <ClayList>
-              {upcomingOverrides.map((o) => {
+              {shownOverrides.map((o) => {
                 // Unavailable day = no positive-length range. The web saves a "giorno
                 // non disponibile" as a sentinel [{0,0}] range, so length===0 isn't
                 // enough — treat any all-zero-duration override as absent.
@@ -302,11 +318,21 @@ export const DefaultAvailabilityEditor = ({ instructorId, weeks, onToast, intro 
                   <ClayListRow
                     key={o.id}
                     title={formatExceptionDate(o.date)}
-                    subtitle={absent ? 'Assente' : rangeLocations.rangesText(o.ranges)}
+                    subtitle={absent ? 'Non disponibile' : rangeLocations.rangesText(o.ranges)}
                     onPress={() => openExceptionSheet(o)}
                   />
                 );
               })}
+              {hiddenOverrides > 0 ? (
+                <ClayListRow
+                  key="more"
+                  title={`Altre ${hiddenOverrides}`}
+                  chevron={false}
+                  trailing={<Ionicons name="chevron-down" size={17} color={CLAY.chevron} />}
+                  onPress={() => setAllExceptions(true)}
+                  testID="availability-exceptions-more"
+                />
+              ) : null}
             </ClayList>
           </Animated.View>
         ) : null}
@@ -374,6 +400,7 @@ const st = StyleSheet.create({
   stripTrack: { marginTop: 8, width: 30, height: 112, borderRadius: 11, backgroundColor: 'rgba(17,17,17,0.045)', overflow: 'hidden' },
   stripFill: { position: 'absolute', left: 0, right: 0, borderRadius: 8, backgroundColor: CLAY.ink },
   firstSection: { marginTop: 18 },
+  count: { fontSize: 15, fontWeight: '500', color: CLAY.ink3, letterSpacing: -0.2 },
   section: { marginTop: 34 },
   save: { marginTop: 18 },
   add: { marginTop: 16 },

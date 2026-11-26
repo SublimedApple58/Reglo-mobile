@@ -13,6 +13,17 @@
   - tab dei titolari Oggi · Agenda · [Road] · Allievi · Tu, campanella in testa a Oggi, Tu unificato;
   - parte mobile di REG-795: disponibilità di tutti da `agenda/availability` con ripiego sul 404, esame dal fantasma a nome dell'istruttore della colonna, titolare puro non più in sola lettura.
   - Doc: `docs/features/oggi-titolare.md`.
+- **Hotfix IN PROD il 26/11** (master `66f28b4`, OTA doppia): tolto il bottone «Modifica disponibilità» del foglio vecchio, che perdeva gli orari per giorno.
+- **Disponibilità «per conto di» (piano base M0–M6, approvato da Tiziano il 26/11; niente B3/B4), commit locali:**
+  - M0: anteprime in `/tmp/hiro-anteprime/reg-794/disp/`, approvate con l'avviso prima del cambio di modalità e «Non disponibile» nell'elenco eccezioni;
+  - M1–M2: «Disponibilità di Sara» = `InstructorAvailabilityScreen` con `instructorId`, modalità via B1 con il segmentato in testa;
+  - M3: eccezioni su più giorni, «Non disponibile», «Altre N»;
+  - M4: Assenze (malattia, ferie nuove su `instructor-vacation`, periodi eliminabili);
+  - M5: accessi da Oggi e dall'orologio della settimana in Agenda; tolti il foglio vecchio, `OwnerInstructorScreen`, l'invito istruttore e la navigazione legacy (`App.tsx`, `index.ts`, `src/navigation`);
+  - M6: provato su iOS, titolare puro contro staging, titolare-istruttore su dev (staging non ha titolari-istruttori). Android NON provato.
+  - Fuori piano: l'invito Road del titolare-istruttore si apre in Oggi (prima saltava all'Agenda).
+  - Backend B1+B2 (`fix/reg-794-availability-owner`, altro terminale) va in prod PRIMA dell'OTA.
+  - Doc: `docs/features/availability-editor.md` (sezione «Per conto di»).
 
 ### Modifiche concordate durante il lavoro
 
@@ -22,12 +33,14 @@
 4. Le notifiche del titolare restano fuori, in un task a parte.
 5. Si rilascia in due tempi: prima l'Agenda, poi Oggi e le tab.
 6. Concetto A per il giorno della scuola; «Oggi» così com'è nelle anteprime.
-7. «Segna malattia o ferie» diventa «Segna malattia»: l'app non segna ancora le ferie.
+7. «Segna malattia o ferie» diventa «Segna malattia»; dal 26/11 la riga è «Assenze» (malattia e ferie) per un collega.
+8. Tiziano (26/11): il titolare vede e modifica la disponibilità di OGNI istruttore con la stessa flessibilità del web → piano M0–M6 (ricognizione in `/tmp/hiro-anteprime/reg-794/ricognizione-disponibilita.md`).
 
 ### Resta da fare
 
-- Pensione di `OwnerInstructorScreen` e della tab `role/` per i titolari: i file ci sono ancora ma non sono raggiungibili.
-- Ferie dal foglio istruttore.
+- «Invita istruttore» non è più nell'app (era solo in `OwnerInstructorScreen`): resta sul web.
+- Android da provare (serve una build di debug locale).
+- Facoltativi B3 (luogo di una fascia dall'agenda) e B4 (serie di blocchi).
 - QA su Android, ok di Tiziano e OTA doppia del rilascio 2. L'OTA può partire prima del backend in prod grazie al ripiego.
 
 ---

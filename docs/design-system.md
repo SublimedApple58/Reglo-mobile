@@ -2209,9 +2209,9 @@ praticamente tutti quelli dell'app istruttore/titolare.**
   `out-of-availability`, `follow-car-conflict` e `-long`
   (`FollowCarConflictSheet`), `select-date`, `select-date-range`,
   `select-student`, `time-picker`.
-- Disponibilità (stack `role/`): `availability-exception`, `publish-day`,
-  `time-picker`, `instructor-invite`, `instructor-availability` (anche
-  ri-esportati in `more/` per la Panoramica istruttori del titolare-istruttore).
+- Disponibilità (stack `role/`, `home/` e, da REG-794, `today/`): `availability-exception`, `publish-day`,
+  `time-picker`, `sick-leave`, `select-date`, `select-date-range`. (`instructor-invite` e
+  `instructor-availability` tolti con `OwnerInstructorScreen`, REG-794.)
 - «Tu» (stack `more/`): `profile-edit`, `availability-mode`,
   `agenda-settings`, `location-form`, `vehicle-form`, `evaluation-item`
   (`EvaluationItemSheet`), `time-picker`, `color-picker`, `hours-period`.
@@ -2231,9 +2231,6 @@ praticamente tutti quelli dell'app istruttore/titolare.**
   `settings/availability` (`TALL_SHEET`), `settings/le-tue-guide`
   (`SCROLL_SHEET`), `settings/time-picker` (`HUG_SHEET`);
 - componenti: `LessonsOverview`, `PaymentHistorySheet`.
-
-`instructor-invite` e `instructor-availability` sono registrati con `FORM_SHEET`
-in entrambi gli stack (`role/` e `more/`).
 
 **Testata fissa (28/10 notte):** in `<FormSheet>` titolo, sottotitolo e X sono uno sticky header (`stickyHeaderIndices={[0]}`): restano in alto mentre il contenuto scorre sotto, così il foglio si chiude sempre con la X.
 

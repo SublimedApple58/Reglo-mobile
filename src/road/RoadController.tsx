@@ -12,7 +12,7 @@ import { isInviteDismissed, resumeRoad } from './roadActions';
 import { isRoadTrackingActive, stopRoadTracking } from './tracking';
 import { roadUploader } from './uploader';
 import { loadQueue, roadQueue } from './queue';
-import { onRoadCheckRequest, ROAD_INVITE_ROUTE, ROAD_ROUTE, roadEntryStore, roadInviteOpen } from './entryFlow';
+import { onRoadCheckRequest, ROAD_ROUTE, roadEntryStore, roadInviteOpen, roadSheetBase, roadSheetRoute } from './entryFlow';
 import { ROAD_COVER_MS, ROAD_SWITCH_MS, roadMiniStore, useRoadMinimized } from './miniStore';
 import { roadNightNow } from './night';
 
@@ -42,6 +42,9 @@ export function RoadController() {
   const root = segments[0];
   const rootRef = useRef(root);
   rootRef.current = root;
+  // REG-794: l'invito si apre nello stack della tab in cui si è (Oggi o Agenda).
+  const sheetBaseRef = useRef(roadSheetBase(segments));
+  sheetBaseRef.current = roadSheetBase(segments);
   const checking = useRef(false);
   const veil = useRef<RouteVeilHandle>(null);
   const switching = useRef(false);
@@ -90,7 +93,7 @@ export function RoadController() {
       if (!opts.force && (await isInviteDismissed(lesson.appointmentId))) return;
       roadEntryStore.set({ lesson });
       roadInviteOpen.current = true;
-      router.push(ROAD_INVITE_ROUTE);
+      router.push(roadSheetRoute(sheetBaseRef.current, 'road-invite') as never);
     } catch {
       // rete assente / Road spento: nessun invito, si riprova al prossimo foreground
     } finally {

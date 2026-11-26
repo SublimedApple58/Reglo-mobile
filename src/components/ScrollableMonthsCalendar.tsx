@@ -10,6 +10,8 @@ export type ScrollableMonthsCalendarProps = {
   selectedDate: string | null; // YYYY-MM-DD
   onSelectDate: (date: string) => void;
   markedDates?: Set<string>;
+  /** REG-794: più giorni scelti insieme (eccezioni). Se c'è, vince su `selectedDate`. */
+  selectedDates?: Set<string>;
   monthsCount?: number; // how many months ahead to render (default 12)
   monthsBack?: number; // how many months before the current one to render (default 0)
   allowPast?: boolean; // when true, past days are selectable + not greyed (agenda use)
@@ -34,6 +36,7 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
   selectedDate,
   onSelectDate,
   markedDates,
+  selectedDates,
   monthsCount = 12,
   monthsBack = 0,
   allowPast = false,
@@ -105,7 +108,7 @@ export const ScrollableMonthsCalendar: React.FC<ScrollableMonthsCalendarProps> =
                 const disabled = past && !allowPast;
                 const isToday = date.getTime() === today.getTime();
                 const ds = toDateString(year, month, day);
-                const selected = selectedDate === ds;
+                const selected = selectedDates ? selectedDates.has(ds) : selectedDate === ds;
                 const marked = (markedDates?.has(ds) ?? false) && !selected;
                 return (
                   <Pressable

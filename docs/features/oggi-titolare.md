@@ -29,7 +29,7 @@ Anteprime approvate da Tiziano il 26/11: O1, O1b e O2 in
 |---|---|
 | `app/(tabs)/_layout.tsx` | Tab `today` prima di tutte (solo titolari), `role` e `inbox` nascoste ai titolari, `more` = «Tu» |
 | `src/components/AppTabBar.tsx` | `OWNER_ICONS` (= icone dell'istruttore + `today-outline`) |
-| `app/(tabs)/today/_layout.tsx` | Stack di Oggi: `index`, `notifications` (push), form sheet `instructor`, `instructor-availability` (+ `time-picker`, `select-options*` dello stack `role/`), `out-of-availability` |
+| `app/(tabs)/today/_layout.tsx` | Stack di Oggi: `index`, `notifications`, `availability` (push); form sheet `instructor`, fogli della disponibilità (`availability-exception`, `publish-day`, `sick-leave`, `select-date*`, `time-picker`, `select-options*`), `out-of-availability`, fogli Road (`road-invite`, `road-privacy`, `giro`) |
 | `src/screens/OwnerTodayScreen.tsx` | La schermata |
 | `src/components/ownerToday/todayModel.ts` | Puro: `buildInstructorsToday` (giornata, stato a parole, chi lavora), `buildSchoolNow` (numeri della protagonista, prossime tre), `windowsText` |
 | `app/(tabs)/today/instructor.tsx` | Foglio istruttore (O2), seed `ownerTodayInstructorStore` |
@@ -59,8 +59,8 @@ Anteprime approvate da Tiziano il 26/11: O1, O1b e O2 in
 - **Foglio istruttore** (O2):
   - «La sua giornata» a righe: le fatte in grigio, quella in corso in nero, «Assente» in rosso. Dopo cinque righe c'è «Altre N».
   - Chiama (`tel:`), se c'è il telefono.
-  - Disponibilità, con le fasce di oggi, che apre il foglio «Disponibilità di X» in Oggi.
-  - «Segna malattia».
+  - Disponibilità, con le fasce di oggi, che apre «Disponibilità di X» (push in Oggi, dopo la chiusura del foglio; vedi [availability-editor.md](availability-editor.md)).
+  - Assenze, con la prossima («Ferie dal 22 dic», `useInstructorAbsences(null)`), che apre la stessa schermata sulle Assenze. Per sé stessi resta «Segna malattia».
   - CTA «Vedi la settimana di Sara» («la tua» per sé).
 
 ## Dati
@@ -90,4 +90,5 @@ apre altri fogli con percorsi fissi `home/...`. Oggi quindi:
 - **Malattia per un collega**: `sickLeaveSheetStore.forInstructorName` fa mandare `instructorId` a `instructor-sick-leave`.
   - Il backend accetta `instructorId` solo dai titolari, anche quando l'istruttore indica sé stesso, quindi va mandato solo per un collega.
   - Il foglio dice «Malattia di Marco», senza «Riguardati.».
-- **Ferie**: l'app non le segna ancora. L'anteprima diceva «Segna malattia o ferie»; la riga dice «Segna malattia».
+- **Ferie**: dalle Assenze della disponibilità di un istruttore (REG-794).
+- **Invito Road** (titolare-istruttore): si apre nello stack della tab in cui si è (`roadSheetBase`): in Oggi non salta più all'Agenda, e «Non ora» resta su Oggi.

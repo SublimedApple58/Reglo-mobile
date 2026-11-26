@@ -29,7 +29,7 @@ const FULL_PAGES = new Set([
   'cluster-settings',
   // REG-646: punti critici nella tab Road.
   'punti-critici',
-  'settings', 'appearance', 'instructor-hours', 'instructors-overview', 'locations', 'vehicles', 'evaluation-sheet',
+  'settings', 'appearance', 'instructor-hours', 'locations', 'vehicles', 'evaluation-sheet',
 ]);
 
 type NestedState = { routes?: { name: string }[]; index?: number } | undefined;

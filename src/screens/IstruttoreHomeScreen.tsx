@@ -771,7 +771,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
 
   // ── Quale agenda (REG-794): La mia · Tutti (giorno della scuola) · un istruttore ──
   const scopeDirectory = useMemo(
-    () => Object.fromEntries(scopeInstructors.map((i) => [i.id, { name: i.name, userId: i.userId ?? null }])),
+    () => Object.fromEntries(scopeInstructors.map((i) => [i.id, { name: i.name, userId: i.userId ?? null, phone: i.phone ?? null }])),
     [scopeInstructors],
   );
   // Un istruttore che non c'è più (disattivato, altra autoscuola) torna a «Tutti».
@@ -2223,14 +2223,19 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       {/* Agenda REG-639: solo la settimana (griglia) con testata clay. */}
       <View style={{ flex: 1, paddingTop: safeInsets.top }}>
         <View style={hd.wrap}>
-          {focusInfo ? (
-            <ClayIconButton
-              icon="back"
-              onPress={() => applyScope({ kind: 'all' })}
-              style={hd.back}
-              accessibilityLabel="Torna a tutti gli istruttori"
-              testID="agenda-focus-back"
-            />
+          {focusInfo && focusId ? (
+            <View style={hd.focusBar}>
+              <ClayIconButton
+                icon="back"
+                onPress={() => applyScope({ kind: 'all' })}
+                accessibilityLabel="Torna a tutti gli istruttori"
+                testID="agenda-focus-back"
+              />
+              {/* REG-794: l'orologio dell'istruttore apre «Disponibilità di …» (per sé: la propria). */}
+              <AvailabilityButton
+                instructor={focusId === instructorId ? undefined : { id: focusId, name: focusInfo.name, phone: focusInfo.phone }}
+              />
+            </View>
           ) : null}
           <View style={hd.top}>
             {focusInfo ? <Avatar userId={focusInfo.userId} name={focusInfo.name} size={48} /> : null}
@@ -4070,7 +4075,7 @@ const hd = StyleSheet.create({
   titleFocus: { fontSize: 26, letterSpacing: -0.6 },
   greet: { fontSize: 15, fontWeight: '500', color: CLAY.ink3, marginBottom: 1 },
   focusSub: { fontSize: 15, fontWeight: '500', color: CLAY.ink3, marginTop: 1 },
-  back: { marginBottom: 12 },
+  focusBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   // «La mia · Tutti» (REG-794): segmentato nativo a tutta larghezza.
   seg: { marginTop: 14 },
   oob: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingVertical: 10, paddingHorizontal: 14 },

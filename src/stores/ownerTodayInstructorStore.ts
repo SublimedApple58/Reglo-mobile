@@ -11,7 +11,12 @@ export type OwnerTodayInstructorData = {
   /** Il titolare-istruttore guarda sé stesso («la tua settimana»). */
   isMe: boolean;
   onAvailability: () => void;
+  /** Per sé stessi: il foglio malattia in Agenda. */
   onSick: () => void;
+  /** REG-794: per un collega, «Assenze» apre la sua disponibilità sulle Assenze. */
+  onAbsences: () => void;
+  /** La prossima assenza in breve («Ferie dal 22 dic»), se c'è. */
+  absenceLine: string | null;
   onWeek: () => void;
 };
 
