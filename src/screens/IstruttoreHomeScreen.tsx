@@ -1254,8 +1254,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     async (
       lesson: AutoscuolaAppointmentWithRelations,
       action: InstructorActionStatus,
-      options?: { lessonTypes?: string[]; closeDrawerOnSuccess?: boolean; correction?: boolean },
-    ) => {
+      options?: { lessonTypes?: string[]; correction?: boolean },
+    ): Promise<boolean> => {
       setToast(null);
       const availability = getActionAvailability(lesson, new Date(), settings?.autoCheckinEnabled);
       // In correzione (guida passata) la finestra "live" è chiusa: si salta il
@@ -1265,7 +1265,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         if (availability.reason) {
           setToast({ text: availability.reason, tone: 'info' });
         }
-        return;
+        return false;
       }
 
       const types = (options?.lessonTypes ?? []).map(normalizeLessonType).filter(Boolean);
@@ -1274,11 +1274,12 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           text: 'Seleziona prima il tipo guida dal dettaglio.',
           tone: 'info',
         });
-        return;
+        return false;
       }
 
       // No optimistic update: wait for the BE, then refresh from it. The spinner
-      // (pendingAction) stays up the whole time so the action doesn't feel dead.
+      // (pendingAction) stays up on the still-open sheet the whole time; the
+      // sheet closes only when this resolves `true` (REG-798).
       const lessonId = lesson.id;
       setPendingAction(action);
       setError(null);
@@ -1290,28 +1291,36 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
           lessonTypes: types.length ? types : undefined,
         });
         // Refresh from the BE before closing so the list/card show the true state.
+        const refreshedAt = Date.now();
         await loadData();
+        // Le altre finestre in cache (es. «Oggi» del titolare) si ricaricano in
+        // background: tornandoci non mostrano la guida ancora da segnare. Quella
+        // appena ricaricata da loadData resta fuori (niente doppia chiamata).
+        void queryClient.invalidateQueries({
+          queryKey: ['agenda-bootstrap'],
+          predicate: (q) => q.state.dataUpdatedAt < refreshedAt,
+        });
         // REG-638: «Presente» = la guida parte → proponi subito Reglo Road
-        // (anche se l'invito era stato chiuso prima della guida).
-        if (action === 'checked_in') requestRoadCheck({ force: true });
+        // (anche se l'invito era stato chiuso prima della guida). Dopo la
+        // chiusura del foglio: iOS non presenta nulla mentre ne chiude un altro.
+        if (action === 'checked_in') setTimeout(() => requestRoadCheck({ force: true }), 350);
         setToast({
           text: options?.correction
             ? `Esito corretto: ${action === 'checked_in' ? 'Presente' : 'Assente'}`
             : 'Stato aggiornato',
           tone: 'success',
         });
-        if (options?.closeDrawerOnSuccess) {
-          setSheetLesson(null);
-        }
+        return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Errore aggiornando stato';
         setError(message);
         setToast({ text: message, tone: 'danger' });
+        return false;
       } finally {
         setPendingAction(null);
       }
     },
-    [loadData, settings?.autoCheckinEnabled],
+    [loadData, queryClient, settings?.autoCheckinEnabled],
   );
 
   // Saves tipo guida / valutazione / note from the details sub-sheet. Instructor
@@ -1688,13 +1697,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       onChangeInstructor: (instructor) => changeLessonInstructor(lesson, instructor),
       // Uses the captured `lesson` (not sheetLesson): the route closes itself
       // first, which nulls sheetLesson before this fires.
-      onStatus: (action) => {
-        void executeStatusAction(lesson, action, {
+      onStatus: (action) =>
+        executeStatusAction(lesson, action, {
           lessonTypes: resolveInitialLessonTypes(lesson),
-          closeDrawerOnSuccess: true,
           correction: correctionMode,
-        });
-      },
+        }),
       onMenu: (key) => {
         if (key === 'sposta') {
           rescheduleStore.set({

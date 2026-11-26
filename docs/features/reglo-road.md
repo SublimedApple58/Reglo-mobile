@@ -263,7 +263,7 @@ vedeva. La tab Note elenca solo guide con nota o pagellino.
 ## Colore delle auto e ingresso (2026-10-27)
 
 - **Colore auto**: `RoadLesson.carColor` (dal backend, già risolto veicolo → tinta istruttore → bianco). Varianti pre-generate in `assets/road/cars/auto-{su,34}-<chiave>.png`; `carTopArt(color)` / `car34Art(color)` in `src/road/markerArt.ts` (chiave sconosciuta → bianco). Usate da `RoadCarMarker` (mappa Road) e dall'invito `road-invite`. Solo immagini JS: arriva via OTA.
-- **Ingresso in Road**: `RoadController` rilegge `/road/state` all'avvio, al ritorno in primo piano, ogni 60 s con l'app aperta e subito dopo «Presente» (`requestRoadCheck({ force: true })` da `executeStatusAction`, ripropone l'invito anche se chiuso con «Non ora»). Il bottone nero «Entra in Road» sta sulla guida idonea sia nella live card della vista settimanale sia nella riga dell'itinerario giornaliero (`testID itin-enter-road`). OTA iOS runtime 2.4.0 del 27/10 (gruppo 9211f025).
+- **Ingresso in Road**: `RoadController` rilegge `/road/state` all'avvio, al ritorno in primo piano, ogni 60 s con l'app aperta e subito dopo «Presente» (`requestRoadCheck({ force: true })` da `executeStatusAction`, 350 ms dopo la chiusura del foglio, ripropone l'invito anche se chiuso con «Non ora»). Il bottone nero «Entra in Road» sta sulla guida idonea sia nella live card della vista settimanale sia nella riga dell'itinerario giornaliero (`testID itin-enter-road`). OTA iOS runtime 2.4.0 del 27/10 (gruppo 9211f025).
 
 ## QA 27/10 sera — segno, pagellino, percorso nella guida, fogli
 

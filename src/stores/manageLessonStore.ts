@@ -112,7 +112,13 @@ export type ManageLessonData = {
   onEvaluationAutosaved?: () => void;
   /** Reassign instructor — checks availability and auto-saves (optimistic). */
   onChangeInstructor: (instructor: AutoscuolaInstructor) => void;
-  onStatus: (action: 'checked_in' | 'no_show') => void;
+  /**
+   * Segna Presente/Assente. Il foglio resta aperto con lo spinner sul bottone
+   * finché il BE risponde e l'agenda è ricaricata; `true` = fatto, il foglio si
+   * chiude. REG-798: chiudendolo PRIMA, riaprire la guida durante l'attesa
+   * mostrava il foglio vecchio, congelato con Presente/Assente.
+   */
+  onStatus: (action: 'checked_in' | 'no_show') => Promise<boolean>;
   onMenu: (key: string) => void;
   onChangeLocation: (location: AutoscuolaLocation) => void;
   /** Reassign the lesson's primary vehicle (null = unassign) — auto-saves. */
