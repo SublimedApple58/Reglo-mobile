@@ -943,7 +943,9 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     Animated.timing(bubbleOpacity, { toValue: 0, duration: 150, useNativeDriver: true }).start();
     // Istruttore: niente tab Notifiche (REG-638) → push nello stack Agenda.
     // Allievo (REG-786): notifiche nella campanella della home, niente tab.
-    router.push(isInstructor || isStudent ? '/(tabs)/home/notifications' : '/(tabs)/inbox');
+    // Titolare (REG-794): niente tab Notifiche, la campanella sta in «Oggi»
+    // (con la barra nativa di iOS una tab nascosta non si può aprire).
+    router.push(isInstructor || isStudent ? '/(tabs)/home/notifications' : isOwner ? '/(tabs)/today/notifications' : '/(tabs)/inbox');
   };
 
   if (!isStudent && !isInstructor && !isOwner) return null;

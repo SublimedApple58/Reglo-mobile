@@ -1,5 +1,8 @@
 import React from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Tabs } from 'expo-router';
+import { Badge, Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '../../src/context/SessionContext';
 import { useSwapEnabled } from '../../src/hooks/useSwapEnabled';
 import { useVehiclesEnabled } from '../../src/hooks/useVehiclesEnabled';
@@ -11,10 +14,19 @@ import { AppTabBar } from '../../src/components/AppTabBar';
 import { PhoneGateScreen } from '../../src/screens/PhoneGateScreen';
 import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
-import { isMotoLicenseCategory } from '../../src/utils/license';
 import { useInstructorTabs } from '../../src/hooks/useInstructorTabs';
 import { warmRoadFree } from '../../src/road/freeStartStore';
-import { useTabBarHeight } from '../../src/components/tabBarSpace';
+import {
+  setTabBarMiniHeight,
+  TabSceneContext,
+  useNativeTabBarBase,
+  useTabBarHeight,
+  type TabBarKind,
+} from '../../src/components/tabBarSpace';
+import { TAB_ICON_PNG, tabIconKey } from '../../src/components/tabIcons';
+import { TAB_ICON_OFF } from '../../src/theme/tabIconArt';
+import { RoadMiniBar } from '../../src/components/road/RoadMiniBar';
+import { useUnreadNotifications } from '../../src/hooks/useUnreadNotifications';
 
 /**
  * Tab bar «B · vetro» (Tiziano 28/10): la barra sta sopra le schermate. Solo le
@@ -47,6 +59,26 @@ function topPageIsRoot(state: NestedState): boolean {
 }
 
 
+/** Ordine delle voci (e prima voce visibile = tab d'avvio). */
+const TAB_ORDER = ['today', 'home', 'guide', 'swaps', 'role', 'drive', 'notes', 'more', 'settings', 'quiz', 'inbox'] as const;
+
+/**
+ * REG-800 — iOS: la «Torna in Road» (REG-700) galleggia sopra la barra nativa,
+ * che non può ospitarla (niente `bottomAccessory` in SDK 54). La sua altezza
+ * entra nello spazio che le schermate si tengono in fondo.
+ */
+function NativeRoadMiniBar() {
+  const base = useNativeTabBarBase();
+  React.useEffect(() => () => setTabBarMiniHeight(0), []);
+  return (
+    <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, st.miniWrap, { paddingBottom: base }]}>
+      <View onLayout={(e) => setTabBarMiniHeight(e.nativeEvent.layout.height)}>
+        <RoadMiniBar />
+      </View>
+    </View>
+  );
+}
+
 /* ── Layout ── */
 
 export default function TabsLayout() {
@@ -54,7 +86,7 @@ export default function TabsLayout() {
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
-  const { phase: studentPhase, hasQuizAccess, licenseCategory: studentLicenseCategory, needsLicensePath } = useStudentPhase();
+  const { phase: studentPhase, hasQuizAccess, needsLicensePath } = useStudentPhase();
   const showRoleTab = isOwnerRole(autoscuolaRole) || isInstructorRole(autoscuolaRole);
   const isStudent = isStudentRole(autoscuolaRole);
   const isInstructor = isInstructorRole(autoscuolaRole);
@@ -62,7 +94,6 @@ export default function TabsLayout() {
   const isStudentAwaiting = isStudent && studentPhase === 'AWAITING';
   const isStudentInTeoria = isStudent && studentPhase === 'TEORIA';
   const isStudentLicensed = isStudent && studentPhase === 'PATENTATO';
-  const isStudentMoto = isStudent && isMotoLicenseCategory(studentLicenseCategory);
   // Students in AWAITING: only the home neutral screen — no functional tabs.
   // Students in PATENTATO: only home tab is visible.
   // Students in TEORIA: quiz central, no swaps.
@@ -96,6 +127,8 @@ export default function TabsLayout() {
     !instructorApp && !ownerApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed && !isStudentDriving));
   const isOwner = autoscuolaRole === 'OWNER';
   const tabBarHeight = useTabBarHeight();
+  const insets = useSafeAreaInsets();
+  const unreadCount = useUnreadNotifications();
 
   // Compute hidden tabs explicitly so the Android custom tab bar can
   // filter reliably (expo-router descriptors don't update reactively).
@@ -132,6 +165,35 @@ export default function TabsLayout() {
     isStudentLicensed,
   ]);
 
+  // REG-800: quale barra. Una sola voce (allievo in attesa o patentato) =
+  // niente barra; su iOS la barra di sistema (Liquid Glass), su Android la
+  // nostra barra JS con le stesse icone.
+  const visibleTabs = TAB_ORDER.filter((name) => !hiddenTabs.has(name));
+  const barKind: TabBarKind = visibleTabs.length <= 1 ? 'none' : Platform.OS === 'ios' ? 'native' : 'js';
+  // iOS: radici che scorrono sotto il vetro (si tengono lo spazio da sé con
+  // `useTabBarOverlap`). La Home dell'allievo in teoria (Quiz) no.
+  const sceneInfo = React.useMemo(() => {
+    const underGlass = new Set(['today', 'drive', 'notes', 'more', 'guide', 'swaps']);
+    if (!isStudentInTeoria) underGlass.add('home');
+    return { kind: barKind, underGlass };
+  }, [barKind, isStudentInTeoria]);
+  const staffApp = instructorApp || ownerApp;
+  const titleFor = (name: (typeof TAB_ORDER)[number]): string => {
+    switch (name) {
+      case 'today': return 'Oggi';
+      case 'home': return staffApp ? 'Agenda' : isStudentInTeoria ? 'Quiz' : 'Home';
+      case 'guide': return 'Guide';
+      case 'swaps': return 'Scambi';
+      case 'role': return isOwner ? 'Istruttore' : 'Disponibilità';
+      case 'drive': return 'Road';
+      case 'notes': return showRoleTab ? 'Allievi' : 'Note';
+      case 'more': return staffApp ? 'Tu' : 'Altro';
+      case 'settings': return isStudent ? 'Profilo' : 'Impostazioni';
+      case 'quiz': return 'Quiz';
+      case 'inbox': return 'Notifiche';
+    }
+  };
+
   // Blocking gate: a student without a phone number can't use the app until
   // they add one (registration has required it for a while — this catches the
   // older accounts). Replaces the whole tab tree; only exits are save/logout.
@@ -146,20 +208,68 @@ export default function TabsLayout() {
     return <LicensePathGateScreen />;
   }
 
+  const overlay = (
+    <NotificationOverlay
+      isStudent={isStudent}
+      isInstructor={isInstructor}
+      isOwner={autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR_OWNER'}
+      swapEnabled={swapEnabled}
+    />
+  );
+
+  if (barKind === 'native') {
+    const iconCtx = { staffApp, studentTeoria: isStudentInTeoria };
+    return (
+      <QuizProvider>
+        <TabSceneContext.Provider value={sceneInfo}>
+          <View style={st.fill}>
+            {/* REG-800: tab bar di sistema (Liquid Glass su iOS 26). Voce spenta
+                = tratto grigio, accesa = icona a colori originali (PNG da
+                `tabIconArt`, patch di expo-router per non tingerli). Si
+                rimpicciolisce quando si scorre in giù. */}
+            <NativeTabs
+              minimizeBehavior="onScrollDown"
+              tintColor={TAB_LABEL_ON}
+              labelStyle={{
+                default: { color: TAB_ICON_OFF, fontSize: 10, fontWeight: '500' },
+                selected: { color: TAB_LABEL_ON, fontSize: 10, fontWeight: '600' },
+              }}
+              badgeBackgroundColor={BADGE_RED}
+            >
+              {visibleTabs.map((name) => {
+                const icon = TAB_ICON_PNG[tabIconKey(name, iconCtx)];
+                return (
+                  <NativeTabs.Trigger key={name} name={name}>
+                    <Icon src={{ default: icon.off, selected: icon.on }} />
+                    <Label>{titleFor(name)}</Label>
+                    {name === 'inbox' ? (
+                      <Badge hidden={unreadCount <= 0}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Badge>
+                    ) : null}
+                  </NativeTabs.Trigger>
+                );
+              })}
+            </NativeTabs>
+            {instructorApp ? <NativeRoadMiniBar /> : null}
+          </View>
+          {overlay}
+        </TabSceneContext.Provider>
+      </QuizProvider>
+    );
+  }
+
   return (
     <QuizProvider>
-    <>
+    <TabSceneContext.Provider value={sceneInfo}>
       <Tabs
         // I titolari partono da «Oggi», tutti gli altri dalla home/Agenda.
         initialRouteName={ownerApp ? 'today' : 'home'}
-        tabBar={(props) => (
+        tabBar={(props) => barKind === 'none' ? null : (
           <AppTabBar
             {...props}
             isOwner={isOwner}
             ownerApp={ownerApp}
             isStudent={isStudent}
             isStudentTeoria={isStudentInTeoria}
-            isStudentMoto={isStudentMoto}
             showMoreTab={showMoreTab}
             showRoleTab={showRoleTab}
             hiddenTabs={hiddenTabs}
@@ -172,7 +282,8 @@ export default function TabsLayout() {
           return {
             headerShown: false,
             tabBarHideOnKeyboard: true,
-            sceneStyle: { paddingBottom: underGlass ? 0 : tabBarHeight, backgroundColor: '#FFFFFF' },
+            // Senza barra (allievo con una voce sola) resta solo la safe area.
+            sceneStyle: { paddingBottom: barKind === 'none' ? insets.bottom : underGlass ? 0 : tabBarHeight, backgroundColor: '#FFFFFF' },
           };
         }}
       >
@@ -190,13 +301,16 @@ export default function TabsLayout() {
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
         <Tabs.Screen name="inbox" options={{ href: showInboxTab ? '/(tabs)/inbox' : null, title: 'Notifiche' }} />
       </Tabs>
-      <NotificationOverlay
-        isStudent={isStudent}
-        isInstructor={isInstructor}
-        isOwner={autoscuolaRole === 'OWNER' || autoscuolaRole === 'INSTRUCTOR_OWNER'}
-        swapEnabled={swapEnabled}
-      />
-    </>
+      {overlay}
+    </TabSceneContext.Provider>
     </QuizProvider>
   );
 }
+
+const TAB_LABEL_ON = '#111111';
+const BADGE_RED = '#C13515';
+
+const st = StyleSheet.create({
+  fill: { flex: 1 },
+  miniWrap: { justifyContent: 'flex-end' },
+});

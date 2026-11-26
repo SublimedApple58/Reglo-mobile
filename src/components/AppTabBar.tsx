@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import { SvgXml } from 'react-native-svg';
 import Animated, {
   Easing,
   FadeIn,
@@ -19,20 +19,8 @@ import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { setTabBarBodyHeight } from './tabBarSpace';
 import { RoadMiniBar } from './road/RoadMiniBar';
 import { useAnySheetOpen, useTabBarCovered } from './sheetPresence';
-
-/* ── Icon map: outline (inactive) → filled (active) ── */
-
-const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
-  home: 'car-sport-outline',
-  role: 'time-outline',
-  notes: 'people-outline',
-  swaps: 'repeat-outline',
-  inbox: 'file-tray-outline',
-  drive: 'map-outline',
-  more: 'ellipsis-horizontal',
-  settings: 'options-outline',
-  quiz: 'school-outline',
-};
+import { tabIconKey } from './tabIcons';
+import { TAB_ICON_COLOR, TAB_ICON_OFF, TAB_ICON_OUTLINE, type TabIconKey } from '../theme/tabIconArt';
 
 /* Label overrides based on student phase context */
 const LABEL_OVERRIDES: Record<string, Record<string, string>> = {
@@ -48,37 +36,9 @@ const TAB_IN = FadeIn.duration(220).reduceMotion(ReduceMotion.Never);
 const TAB_OUT = FadeOut.duration(160).reduceMotion(ReduceMotion.Never);
 
 const ACTIVE = '#111111';
-const INACTIVE = '#9A9A9F';
-
-/**
- * Allievo in pratica (REG-786, V1): Home · Guide · Scambi · Profilo, stessi
- * glifi delle anteprime approvate (contorno a riposo, pieno sulla voce attiva).
- */
-const STUDENT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  guide: 'calendar-outline',
-  swaps: 'swap-horizontal-outline',
-  settings: 'person-circle-outline',
-};
-
-/**
- * Istruttore (REG-638, «T1 piatta»): Agenda · Road · Allievi · Tu, glifi in
- * stile SF Symbols — contorno grigio a riposo, pieni neri sulla voce attiva.
- */
-const INSTRUCTOR_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  home: 'calendar-outline',
-  drive: 'map-outline',
-  notes: 'people-outline',
-  more: 'person-circle-outline',
-};
-
-/**
- * Titolare e titolare-istruttore (REG-794): Oggi · Agenda · [Road] · Allievi ·
- * Tu, gli stessi glifi dell'istruttore più «Oggi».
- */
-const OWNER_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  ...INSTRUCTOR_ICONS,
-  today: 'today-outline',
-};
+const INACTIVE = TAB_ICON_OFF;
+/** Lato delle icone (come la barra nativa di iOS). */
+const ICON = 27;
 
 /* ── Tab Item ── */
 
@@ -89,11 +49,15 @@ type TabItemProps = {
   onPress: () => void;
   onPressIn?: () => void;
   onPressOut?: () => void;
-  iconOverride?: keyof typeof Ionicons.glyphMap;
+  icon: TabIconKey;
   badgeCount?: number;
 };
 
-const TabItem = ({ routeName, label, isFocused, onPress, onPressIn, onPressOut, iconOverride, badgeCount = 0 }: TabItemProps) => {
+/**
+ * REG-800: lo stesso set della barra nativa di iOS (`tabIconArt`): tratto
+ * grigio a riposo, a colori quando la voce è accesa.
+ */
+const TabItem = ({ label, isFocused, onPress, onPressIn, onPressOut, icon, badgeCount = 0 }: TabItemProps) => {
   const progress = useSharedValue(isFocused ? 1 : 0);
 
   useEffect(() => {
@@ -107,11 +71,6 @@ const TabItem = ({ routeName, label, isFocused, onPress, onPressIn, onPressOut, 
     transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.08]) }],
   }));
 
-  const outline = iconOverride ?? ICON_MAP[routeName] ?? 'ellipse-outline';
-  // Come le tab bar native: contorno a riposo, pieno quando è attiva.
-  const filled = outline.replace(/-outline$/, '') as keyof typeof Ionicons.glyphMap;
-  const iconName = isFocused && filled in Ionicons.glyphMap ? filled : outline;
-
   return (
     <Animated.View style={st.tabSlot} layout={TAB_LAYOUT} entering={TAB_IN} exiting={TAB_OUT}>
     <Pressable
@@ -124,11 +83,7 @@ const TabItem = ({ routeName, label, isFocused, onPress, onPressIn, onPressOut, 
       style={st.tabItem}
     >
       <Animated.View style={iconStyle}>
-        <Ionicons
-          name={iconName}
-          size={26}
-          color={isFocused ? ACTIVE : INACTIVE}
-        />
+        <SvgXml xml={isFocused ? TAB_ICON_COLOR[icon] : TAB_ICON_OUTLINE[icon]} width={ICON} height={ICON} color={INACTIVE} />
         {badgeCount > 0 ? (
           <View style={st.badge}>
             <Text style={st.badgeText}>{badgeCount > 9 ? '9+' : String(badgeCount)}</Text>
@@ -156,8 +111,6 @@ type ExtraProps = {
   isOwner: boolean;
   isStudent: boolean;
   isStudentTeoria?: boolean;
-  /** Student on a motorcycle path (license AM | A1 | A2 | A) → moto Home icon. */
-  isStudentMoto?: boolean;
   showMoreTab: boolean;
   showRoleTab: boolean;
   /** App istruttore (anche titolare-istruttore): icone della «T1 piatta». */
@@ -174,7 +127,6 @@ export const AppTabBar = ({
   isOwner,
   isStudent,
   isStudentTeoria,
-  isStudentMoto,
   showRoleTab,
   instructorApp,
   ownerApp,
@@ -254,17 +206,6 @@ export const AppTabBar = ({
             }
           };
 
-          // Context-aware icon overrides. Teoria wins (Home = quiz); otherwise a
-          // moto student gets a moto-flavoured Home icon. Ionicons has no
-          // "motorcycle", so we reuse the instructor-side moto proxy.
-          let tabIconOverride: keyof typeof Ionicons.glyphMap | undefined =
-            ownerApp ? OWNER_ICONS[route.name] : instructorApp ? INSTRUCTOR_ICONS[route.name] : isStudent ? STUDENT_ICONS[route.name] : undefined;
-          if (isStudentTeoria && route.name === 'home') {
-            tabIconOverride = 'book-outline';
-          } else if (isStudentMoto && route.name === 'home') {
-            tabIconOverride = 'bicycle-outline';
-          }
-
           return (
             <TabItem
               key={route.key}
@@ -274,7 +215,7 @@ export const AppTabBar = ({
               onPress={onPress}
               onPressIn={() => setPressedKey(route.key)}
               onPressOut={() => setTimeout(() => setPressedKey((k) => (k === route.key ? null : k)), 0)}
-              iconOverride={tabIconOverride}
+              icon={tabIconKey(route.name, { staffApp: !!(instructorApp || ownerApp), studentTeoria: !!isStudentTeoria })}
               badgeCount={route.name === 'inbox' ? unreadCount : 0}
             />
           );
