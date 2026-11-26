@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useSegments } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useStackBase } from '../../../src/hooks/useStackBase';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import {
   ClayButton,
@@ -83,13 +84,13 @@ const detectRangesFromSlots = (
  * Form sheet unico, due modalità (ClaySegmented): Predefinito (giorni con
  * spunta + fasce) e Calendario (mese → giorno: il giorno scelto apre il suo
  * passo, con indietro, e torna al calendario dopo il salvataggio). L'orario
- * si sceglie col time-picker dello stesso stack (`role/` o `more/`).
+ * si sceglie col time-picker dello stesso stack (`role/`, `more/` o `today/`).
  * Registrato in `role/` e in `more/` (che lo ri-esporta).
  */
 export default function InstructorAvailabilitySheet() {
   const router = useRouter();
-  const segments = useSegments();
-  const stack = (segments as string[]).includes('more') ? 'more' : 'role';
+  // Stack in cui vive il foglio: `role/`, `more/` o `today/` (foglio istruttore di «Oggi»).
+  const stack = useStackBase('role');
   const data = useSyncExternalStore(ownerInstructorSheetStore.subscribe, ownerInstructorSheetStore.getAvailability);
   const instructorId = data?.instructorId ?? null;
   const availabilityWeeks = data?.availabilityWeeks ?? 4;

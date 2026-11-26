@@ -23,7 +23,7 @@ import { useTabBarHeight } from '../../src/components/tabBarSpace';
  * spazio riservato qui. I fogli (form sheet, modali) non contano: aprirli non
  * cambia il layout della radice sotto.
  */
-const UNDER_GLASS_TABS = new Set(['home', 'drive', 'notes', 'more']);
+const UNDER_GLASS_TABS = new Set(['today', 'home', 'drive', 'notes', 'more']);
 const FULL_PAGES = new Set([
   'availability', 'notifications', 'swaps', 'group-lesson-invites',
   'cluster-settings',
@@ -68,8 +68,12 @@ export default function TabsLayout() {
   // Students in TEORIA: quiz central, no swaps.
   // REG-786: la tab Note dell'allievo è diventata «Come stai andando» nella tab Guide.
   const showNotesTab = showRoleTab;
-  // "Altro" tab: always for instructors (Ore di guida), vehicles + settings for OWNER
-  const showMoreTab = isInstructor || isInstructorOwner || (showRoleTab && vehiclesEnabled);
+  // REG-794 (rilascio 2): titolare e titolare-istruttore hanno «Oggi» per
+  // prima tab; via le tab Istruttore e Notifiche (la campanella è in testa a
+  // «Oggi»); Altro e Impostazioni stanno in «Tu», come per l'istruttore.
+  const ownerApp = isOwnerRole(autoscuolaRole);
+  // «Tu»: istruttori (Ore di guida) e titolari (veicoli, luoghi, impostazioni).
+  const showMoreTab = isInstructor || isInstructorOwner || ownerApp;
   // Quiz tab: hidden for TEORIA students (quiz is integrated into the home).
   // Kept visible only for future phases that may need a standalone quiz tab.
   const showQuizTab = false;
@@ -89,7 +93,7 @@ export default function TabsLayout() {
   const showGuideTab = isStudentDriving;
   const showSwapsTab = isStudentDriving && swapEnabled;
   const showInboxTab =
-    !instructorApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed && !isStudentDriving));
+    !instructorApp && !ownerApp && (showRoleTab || (isStudent && !isStudentAwaiting && !isStudentLicensed && !isStudentDriving));
   const isOwner = autoscuolaRole === 'OWNER';
   const tabBarHeight = useTabBarHeight();
 
@@ -97,7 +101,10 @@ export default function TabsLayout() {
   // filter reliably (expo-router descriptors don't update reactively).
   const hiddenTabs = React.useMemo(() => {
     const set = new Set<string>();
-    if (!showRoleTab || instructorApp) set.add('role');
+    if (!ownerApp) set.add('today');
+    // «Istruttore» (titolare) e «Disponibilità» non sono più tab: la parte utile
+    // è in «Oggi» e nell'orologio dell'Agenda.
+    if (!showRoleTab || instructorApp || ownerApp) set.add('role');
     if (!showNotesTab) set.add('notes');
     if (!showMoreTab) set.add('more');
     if (!showQuizTab) set.add('quiz');
@@ -111,6 +118,7 @@ export default function TabsLayout() {
     if (isStudentAwaiting || isStudentLicensed) set.add('settings');
     return set;
   }, [
+    ownerApp,
     showRoleTab,
     showNotesTab,
     showMoreTab,
@@ -142,10 +150,13 @@ export default function TabsLayout() {
     <QuizProvider>
     <>
       <Tabs
+        // I titolari partono da «Oggi», tutti gli altri dalla home/Agenda.
+        initialRouteName={ownerApp ? 'today' : 'home'}
         tabBar={(props) => (
           <AppTabBar
             {...props}
             isOwner={isOwner}
+            ownerApp={ownerApp}
             isStudent={isStudent}
             isStudentTeoria={isStudentInTeoria}
             isStudentMoto={isStudentMoto}
@@ -157,7 +168,7 @@ export default function TabsLayout() {
         )}
         screenOptions={({ route }) => {
           const underGlass =
-            instructorApp && UNDER_GLASS_TABS.has(route.name) && topPageIsRoot((route as { state?: NestedState }).state);
+            (instructorApp || ownerApp) && UNDER_GLASS_TABS.has(route.name) && topPageIsRoot((route as { state?: NestedState }).state);
           return {
             headerShown: false,
             tabBarHideOnKeyboard: true,
@@ -165,15 +176,16 @@ export default function TabsLayout() {
           };
         }}
       >
-        <Tabs.Screen name="home" options={{ title: instructorApp ? 'Agenda' : 'Home' }} />
+        <Tabs.Screen name="today" options={{ href: ownerApp ? '/(tabs)/today' : null, title: 'Oggi' }} />
+        <Tabs.Screen name="home" options={{ title: instructorApp || ownerApp ? 'Agenda' : 'Home' }} />
         <Tabs.Screen name="guide" options={{ href: showGuideTab ? '/(tabs)/guide' : null, title: 'Guide' }} />
         <Tabs.Screen name="swaps" options={{ href: showSwapsTab ? '/(tabs)/swaps' : null, title: 'Scambi' }} />
-        <Tabs.Screen name="role" options={{ href: showRoleTab && !instructorApp ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
+        <Tabs.Screen name="role" options={{ href: showRoleTab && !instructorApp && !ownerApp ? '/(tabs)/role' : null, title: isOwner ? 'Istruttore' : 'Disponibilità' }} />
         {/* Road montata in anticipo (fluidità 29/10): la mappa nasce a riposo
             dopo l'avvio, non al primo tocco. Solo per chi ha la tab. */}
         <Tabs.Screen name="drive" options={{ href: showDriveTab ? '/(tabs)/drive' : null, title: 'Road', lazy: !showDriveTab }} />
         <Tabs.Screen name="notes" options={{ href: showNotesTab ? '/(tabs)/notes' : null, title: showRoleTab ? 'Allievi' : 'Note' }} />
-        <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: instructorApp ? 'Tu' : 'Altro' }} />
+        <Tabs.Screen name="more" options={{ href: showMoreTab ? '/(tabs)/more' : null, title: instructorApp || ownerApp ? 'Tu' : 'Altro' }} />
         <Tabs.Screen name="settings" options={{ title: isStudent ? 'Profilo' : 'Impostazioni' }} />
         <Tabs.Screen name="quiz" options={{ href: showQuizTab ? '/(tabs)/quiz' : null, title: 'Quiz' }} />
         <Tabs.Screen name="inbox" options={{ href: showInboxTab ? '/(tabs)/inbox' : null, title: 'Notifiche' }} />

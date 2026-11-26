@@ -10,6 +10,12 @@ export type SickLeaveSheetData = {
   initialDate: string;
   /** The instructor the sick leave belongs to (for scope). */
   instructorId: string;
+  /**
+   * REG-794: malattia segnata dal titolare per un collega (da «Oggi»). Solo
+   * allora `instructorId` va al backend (che lo accetta solo dai titolari) e il
+   * foglio dice di chi è.
+   */
+  forInstructorName?: string | null;
   /** After the create succeeds: refresh the parent's agenda from the BE. */
   onApplied: () => Promise<void>;
   /** Success toast. */

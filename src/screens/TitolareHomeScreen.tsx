@@ -5,11 +5,10 @@ import { IstruttoreHomeScreen } from './IstruttoreHomeScreen';
 /**
  * Home del titolare/owner (ruolo OWNER, senza profilo istruttore).
  *
- * È la STESSA home dell'istruttore — stesso itinerario Airbnb, stessa vista
- * settimana "controllo in parole", stessi chip/header/day-detail — riusata in
- * modalità `ownerMode`: SOLA LETTURA (niente FAB, niente prenotazione/band,
- * niente azioni mutanti sulle guide) e scope fisso "tutti gli istruttori"
- * (l'agenda mostra le guide di tutta la scuola, non di un singolo istruttore).
+ * È la STESSA Agenda dell'istruttore in modalità `ownerMode`: scope fisso
+ * «tutti gli istruttori» (il giorno della scuola), niente FAB. Dal 26/11
+ * (REG-794 rilascio 2) agisce sulle guide come sul web: niente più sola lettura.
+ * La prima tab del titolare è «Oggi» (`OwnerTodayScreen`).
  *
  * Stesso pattern del `VehiclesScreen` unificato Owner+Instructor.
  */

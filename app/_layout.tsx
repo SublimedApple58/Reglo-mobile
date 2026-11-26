@@ -25,7 +25,7 @@ import { RoadController } from '../src/road/RoadController';
 import { BookingSuccessHost } from '../src/components/BookingSuccessOverlay';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { useAutoscuolaSettings } from '../src/hooks/queries/useAutoscuolaSettings';
-import { isInstructor } from '../src/utils/roles';
+import { homeRouteFor, isInstructor } from '../src/utils/roles';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,7 +148,7 @@ const AuthGate = () => {
 
     roleRetryRef.current = false;
     if (!inTabs && !inRoad) {
-      router.replace('/(tabs)/home');
+      router.replace(homeRouteFor(autoscuolaRole));
     }
   }, [status, autoscuolaRole, router, segments, signOut, refreshMe]);
 

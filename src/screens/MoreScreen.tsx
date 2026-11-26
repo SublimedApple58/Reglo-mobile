@@ -17,7 +17,6 @@ type MenuItem = { route: string; label: string };
 const VEHICLES_ITEM: MenuItem = { route: 'vehicles', label: 'Veicoli' };
 const SETTINGS_ITEM: MenuItem = { route: 'settings', label: 'Impostazioni' };
 const INSTRUCTOR_HOURS_ITEM: MenuItem = { route: 'instructor-hours', label: 'Ore di guida' };
-const INSTRUCTORS_OVERVIEW_ITEM: MenuItem = { route: 'instructors-overview', label: 'Panoramica Istruttori' };
 const LOCATIONS_ITEM: MenuItem = { route: 'locations', label: 'Luoghi guida' };
 const EVALUATION_SHEET_ITEM: MenuItem = { route: 'evaluation-sheet', label: 'Pagellino' };
 const APPEARANCE_ITEM: MenuItem = { route: 'appearance', label: 'Aspetto agenda' };
@@ -36,7 +35,6 @@ export const MoreScreen = () => {
 
   const management = useMemo(() => {
     const out: MenuItem[] = [];
-    if (autoscuolaRole === 'INSTRUCTOR_OWNER') out.push(INSTRUCTORS_OVERVIEW_ITEM);
     if (isInstructor(autoscuolaRole)) out.push(INSTRUCTOR_HOURS_ITEM);
     if (vehiclesEnabled) out.push(VEHICLES_ITEM);
     if (isInstructor(autoscuolaRole) || autoscuolaRole === 'OWNER') out.push(LOCATIONS_ITEM);
@@ -54,7 +52,7 @@ export const MoreScreen = () => {
     <View style={s.root}>
       <StatusBar style="dark" />
       <ClayLargeTitleScroll
-        title={isInstructor(autoscuolaRole) ? 'Tu' : 'Altro'}
+        title={isInstructor(autoscuolaRole) || isOwner(autoscuolaRole) ? 'Tu' : 'Altro'}
         contentContainerStyle={s.content}
         actions={
           <Pressable

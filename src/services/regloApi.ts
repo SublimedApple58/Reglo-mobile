@@ -12,6 +12,7 @@ import {
   AutoscuolaAppointment,
   AutoscuolaAppointmentWithRelations,
   AutoscuolaAvailabilitySlot,
+  AgendaInstructorAvailability,
   AutoscuolaCase,
   AutoscuolaCaseWithStudent,
   AutoscuolaDeadlineItem,
@@ -838,6 +839,14 @@ export const createRegloApi = (baseUrl?: string) => {
       to?: string;
     }) =>
       client.request<AutoscuolaAvailabilitySlot[]>('/api/autoscuole/availability/slots', {
+        params,
+      }),
+    /**
+     * REG-795: disponibilità di TUTTI gli istruttori come nell'agenda web.
+     * `from` e `to` in `YYYY-MM-DD`, `to` escluso (1–42 giorni). Solo titolari.
+     */
+    getAgendaAvailability: async (params: { from: string; to: string }) =>
+      client.request<AgendaInstructorAvailability[]>('/api/autoscuole/agenda/availability', {
         params,
       }),
     setDailyAvailabilityOverride: async (input: SetDailyAvailabilityOverrideInput) =>

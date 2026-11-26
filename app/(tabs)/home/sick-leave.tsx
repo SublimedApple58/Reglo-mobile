@@ -95,6 +95,7 @@ export default function SickLeaveScreen() {
     void (async () => {
       try {
         const result = await regloApi.createInstructorSickLeave({
+          ...(data.forInstructorName ? { instructorId: data.instructorId } : {}),
           startDate: toYMD(startDate),
           endDate: toYMD(multiDay ? endDate : startDate),
           ...(halfDay ? { startTime: fmtTime(startTime) } : {}),
@@ -119,7 +120,7 @@ export default function SickLeaveScreen() {
 
   return (
     <FormSheet
-      title="Malattia"
+      title={data.forInstructorName ? `Malattia di ${data.forInstructorName.trim().split(/\s+/)[0]}` : 'Malattia'}
       subtitle={`${summaryMain} · ${summarySub}`}
       onClose={() => { if (!pending) router.back(); }}
       busy={pending}
@@ -137,7 +138,9 @@ export default function SickLeaveScreen() {
       {/* REG-639 «vita»: il termometro 3D e una frase gentile. */}
       <View style={s.hero}>
         <Image source={VITA_ART.termometro} style={s.heroArt} />
-        <Text style={s.lead}>Riguardati. Le guide in conflitto vengono annullate e gli allievi avvisati.</Text>
+        <Text style={s.lead}>
+          {data.forInstructorName ? '' : 'Riguardati. '}Le guide in conflitto vengono annullate e gli allievi avvisati.
+        </Text>
       </View>
 
       {/* Date — singolo giorno o periodo (un solo calendario range) */}

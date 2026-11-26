@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -37,6 +37,7 @@ import WeeklyAgendaView, { type AgendaCreateKind, type AgendaCreateSlot } from '
 import { SchoolDayStrip, SchoolDayView, mondayOf, orderInstructors, toDateKey as schoolDateKey } from '../components/schoolDay';
 import { NativeSegmented } from '../components/NativeSegmented';
 import { useSchoolAvailability } from '../hooks/queries/useSchoolAvailability';
+import { ownerAgendaRequestStore } from '../stores/ownerAgendaRequestStore';
 import type { BookingSuggestion } from '../stores/bookingSheetStore';
 import { Avatar, ClayIconButton, ClaySurface } from '../components/clay';
 import { AgendaTodayCard } from '../components/agenda/AgendaTodayCard';
@@ -863,12 +864,11 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       examManageStore.set({
         ...g,
         coInstructors: g.coInstructors ?? null,
-        readOnly: ownerMode,
         onChanged: () => { loadData(); },
       });
       router.push('/(tabs)/home/exam-manage');
     },
-    [loadData, router, ownerMode],
+    [loadData, router],
   );
 
   // Manage an existing group lesson: open the dedicated "Gestisci guida di
@@ -887,7 +887,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         instructors: [],
         vehicles: [],
         vehiclesEnabled,
-        readOnly: ownerMode,
         onChanged: () => { loadData(); },
       });
       router.push('/(tabs)/home/manage-group-lesson');
@@ -907,7 +906,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         });
       })();
     },
-    [loadData, router, settings?.vehiclesEnabled, ownerMode],
+    [loadData, router, settings?.vehiclesEnabled],
   );
 
   // Dalla griglia arriva solo l'id del gruppo.
@@ -1635,7 +1634,8 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     const correctable =
       status !== 'cancelled' && status !== 'proposal' && !isTooEarly;
     const liveEnabled = Boolean(actionAvail.enabled);
-    const correctionMode = !ownerMode && correctable && !liveEnabled;
+    // REG-794/795: il titolare puro agisce come sul web (audit dei permessi).
+    const correctionMode = correctable && !liveEnabled;
     const menuOptions: ManageLessonData['menuOptions'] = [];
     if (['scheduled', 'confirmed', 'proposal'].includes(status) && startsFuture) {
       menuOptions.push({ key: 'sposta', label: 'Sposta' });
@@ -1675,15 +1675,14 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       })(),
       followCarRules: settings?.followCarRules,
       defaultLocation,
-      isDetailsEditable: !ownerMode && isDetailsEditable(lesson, now),
-      readOnly: ownerMode,
-      showStatusActions: !ownerMode && correctable,
+      isDetailsEditable: isDetailsEditable(lesson, now),
+      showStatusActions: correctable,
       correctionMode,
       // In correzione mostriamo entrambi i bottoni (per scegliere l'esito giusto);
       // nel flusso live si nasconde "Presente" quando la guida è già checked_in.
       allowPresente: correctionMode ? true : status !== 'checked_in',
       pendingAction,
-      menuOptions: ownerMode ? [] : menuOptions,
+      menuOptions,
       onSaveDetails: (input) => saveLessonDetails(lesson, input),
       onEvaluationAutosaved: () => void refreshAndSyncDrawer(lesson.id),
       onChangeInstructor: (instructor) => changeLessonInstructor(lesson, instructor),
@@ -1918,6 +1917,47 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
     router.push('/(tabs)/home/sick-leave');
   }, [selectedDate, effectiveInstructorId, instructorId, loadData, router]);
 
+  // Malattia o ferie per un istruttore scelto (da «Oggi» del titolare, REG-794).
+  const openSickLeaveFor = useCallback((forInstructorId: string) => {
+    sickLeaveSheetStore.set({
+      initialDate: new Date().toISOString(),
+      instructorId: forInstructorId,
+      forInstructorName: forInstructorId !== instructorId ? scopeDirectory[forInstructorId]?.name ?? '' : null,
+      onApplied: async () => { await loadData(); },
+      onDone: (message) => { setToast({ text: message, tone: 'success' }); },
+    });
+    router.push('/(tabs)/home/sick-leave');
+  }, [loadData, router, instructorId, scopeDirectory]);
+
+  // «Oggi» → Agenda (REG-794): la richiesta arriva prima o dopo il montaggio;
+  // per un istruttore aspetta che l'elenco degli istruttori sia caricato.
+  const agendaRequest = useSyncExternalStore(ownerAgendaRequestStore.subscribe, ownerAgendaRequestStore.get);
+  // Una richiesta si esegue una volta sola (due presentazioni dello stesso
+  // foglio insieme si annullano a vicenda).
+  const handledRequestRef = useRef<object | null>(null);
+  useEffect(() => {
+    if (!agendaRequest || handledRequestRef.current === agendaRequest) return;
+    if (agendaRequest.kind === 'mine') {
+      handledRequestRef.current = agendaRequest;
+      ownerAgendaRequestStore.clear();
+      setSelectedDate(new Date());
+      if (canSwitchScope) applyScope({ kind: 'personal' });
+      return;
+    }
+    const id = agendaRequest.instructorId;
+    if (!scopeDirectory[id]) {
+      // Istruttore che non c'è (più): la richiesta si lascia cadere.
+      if (scopeInstructors.length) ownerAgendaRequestStore.clear();
+      return;
+    }
+    handledRequestRef.current = agendaRequest;
+    ownerAgendaRequestStore.clear();
+    setSelectedDate(new Date());
+    openInstructorWeek(id);
+    // Il foglio dopo il cambio di tab, non durante.
+    if (agendaRequest.kind === 'sick') setTimeout(() => openSickLeaveFor(id), 450);
+  }, [agendaRequest, scopeDirectory, scopeInstructors.length, canSwitchScope, applyScope, openInstructorWeek, openSickLeaveFor]);
+
   const openCreateExam = useCallback(() => {
     examSheetStore.set({
       initialDate: selectedDate.toISOString(),
@@ -2104,7 +2144,13 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       return;
     }
     if (kind === 'exam') {
-      examSheetStore.set({ initialDate: at.toISOString(), presetDurationMinutes: durMin, onDone: onCreated });
+      examSheetStore.set({
+        initialDate: at.toISOString(),
+        presetDurationMinutes: durMin,
+        instructorId: target,
+        instructorName: forOther && target ? scopeDirectory[target]?.name ?? null : null,
+        onDone: onCreated,
+      });
       router.push('/(tabs)/home/create-exam');
       return;
     }
@@ -2277,7 +2323,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               onPressAppointment={openLessonDrawer}
               onPressExam={openExamFromAgenda}
               onPressGroupLesson={openGroupLessonFromGrid}
-              onPressBlock={ownerMode ? undefined : handlePressBlock}
+              onPressBlock={handlePressBlock}
               onPressInstructor={openInstructorWeek}
               onCreateAt={handleCreateAt}
               createKinds={createKinds}
@@ -2294,7 +2340,6 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               instructorBlocks={gridBlocks}
               holidays={holidays}
               anchorDate={selectedDate}
-              readOnly={ownerMode}
               loading={appointmentsLoading}
               refreshing={refreshing}
               onRefresh={handleRefresh}
@@ -2316,7 +2361,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               onPressAppointment={openLessonDrawer}
               onPressExam={openExamFromAgenda}
               onPressGroupLesson={openGroupLessonFromGrid}
-              onPressBlock={ownerMode ? undefined : handlePressBlock}
+              onPressBlock={handlePressBlock}
               onCreateAt={handleCreateAt}
               createKinds={createKinds}
               carColor={myVehicle?.color ?? null}

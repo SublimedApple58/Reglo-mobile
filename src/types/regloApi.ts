@@ -602,6 +602,25 @@ export type AutoscuolaDeadlineItem = {
   caseStatus: string;
 };
 
+/**
+ * REG-795: fasce di un istruttore come nell'agenda web (settimane pubblicate,
+ * eccezioni, luoghi), da `GET /api/autoscuole/agenda/availability`.
+ */
+export type AgendaAvailabilityWindow = {
+  startMinutes: number;
+  endMinutes: number;
+  locationName?: string | null;
+  locationId?: string | null;
+  inWeekly?: boolean;
+};
+
+export type AgendaInstructorAvailability = {
+  instructorId: Uuid;
+  instructorName: string;
+  /** Giorno `YYYY-MM-DD` → fasce; un giorno senza fasce non c'è. */
+  days: Record<string, AgendaAvailabilityWindow[]>;
+};
+
 export type AutoscuolaAvailabilitySlot = {
   id: Uuid;
   companyId: Uuid;

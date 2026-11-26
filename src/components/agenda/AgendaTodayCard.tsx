@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { ClaySurface } from '../clay';
 import { CLAY } from '../../theme/clay';
@@ -24,11 +25,17 @@ export function AgendaTodayCard({
   instructorBlocks,
   instructorId,
   now,
+  mine,
+  onPress,
 }: {
   appointments: AutoscuolaAppointmentWithRelations[];
   instructorBlocks: InstructorBlock[];
   instructorId: string;
   now: Date;
+  /** In «Oggi» del titolare-istruttore (REG-794): «Le tue guide: 5». */
+  mine?: boolean;
+  /** Con il tocco compare la freccia (da «Oggi» porta all'Agenda «La mia»). */
+  onPress?: () => void;
 }) {
   const { count, line, done } = useMemo(() => {
     const live = (s: string | null | undefined) => {
@@ -86,7 +93,7 @@ export function AgendaTodayCard({
   }, [appointments, instructorBlocks, instructorId, now]);
 
   return (
-    <ClaySurface padded={false} radius={22} style={s.card} testID="agenda-today-card">
+    <ClaySurface padded={false} radius={22} style={s.card} onPress={onPress} testID="agenda-today-card">
       {/* A giornata finita il calendario lascia il posto all'espresso (pausa meritata). */}
       <Animated.Image
         key={done ? 'done' : count ? 'day' : 'free'}
@@ -96,12 +103,15 @@ export function AgendaTodayCard({
       />
       <View style={s.main}>
         <Text style={s.title} numberOfLines={1}>
-          {count ? `Oggi ${count} guid${count === 1 ? 'a' : 'e'}` : 'Oggi nessuna guida'}
+          {mine
+            ? (count ? `Le tue guide: ${count}` : 'Oggi nessuna guida tua')
+            : (count ? `Oggi ${count} guid${count === 1 ? 'a' : 'e'}` : 'Oggi nessuna guida')}
         </Text>
         <Text style={s.sub} numberOfLines={2}>
           {line}
         </Text>
       </View>
+      {onPress ? <Ionicons name="chevron-forward" size={17} color={CLAY.chevron} /> : null}
     </ClaySurface>
   );
 }
