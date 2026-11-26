@@ -114,9 +114,13 @@ export const InstructorAvailabilityScreen = () => {
       autoSettings.refetch(),
       forId ? ownerMode.refetch() : instrSettings.refetch(),
       refreshMe().catch(() => undefined),
+      // REG-799: il rimontaggio da solo non rilegge settimane ancora «fresche»
+      // in cache (5 min): tirando giù si vuole lo stato vero del server.
+      queryClient.invalidateQueries({ queryKey: ['publication-week', activeCompanyId], refetchType: 'none' }),
+      queryClient.invalidateQueries({ queryKey: ['published-weeks', activeCompanyId], refetchType: 'none' }),
     ]);
     setEditorKey((k) => k + 1); // force the active editor to remount + refetch
-  }, [autoSettings, instrSettings, ownerMode, forId, refreshMe]);
+  }, [autoSettings, instrSettings, ownerMode, forId, refreshMe, queryClient, activeCompanyId]);
 
   const onToast = useCallback((text: string, tone: ToastTone = 'success') => {
     setToast({ text, tone });
