@@ -23,6 +23,7 @@ import { CLAY } from '../../theme/clay';
 import { SOFT } from '../../utils/motion';
 import { ClayPressable } from '../clay/ClayPressable';
 import { useTabBarCover } from '../sheetPresence';
+import { useTabBarKind } from '../tabBarSpace';
 import { createKindSheetStore } from '../../stores/createKindSheetStore';
 import { CREATE_LABEL, draftLook } from './createKinds';
 
@@ -667,10 +668,13 @@ export function GhostBlock({ geo, page, onDismiss }: { geo: GhostGeometry; page:
  */
 const GhostBar = React.memo(function GhostBar({
   bottomPad,
+  bottom,
   onChangeKind,
   onContinue,
 }: {
   bottomPad: number;
+  /** iOS, barra nativa: la barra poggia sopra la tab bar (che non si nasconde). */
+  bottom: number;
   onChangeKind: () => void;
   onContinue: () => void;
 }) {
@@ -679,7 +683,7 @@ const GhostBar = React.memo(function GhostBar({
   const range = useTextStore(ghostRangeLabel);
   const who = useTextStore(ghostWhoLabel);
   return (
-    <Animated.View entering={BAR_IN} exiting={BAR_OUT} style={[s.bar, { paddingBottom: bottomPad }]} testID="agenda-create-bar">
+    <Animated.View entering={BAR_IN} exiting={BAR_OUT} style={[s.bar, { paddingBottom: bottomPad, bottom }]} testID="agenda-create-bar">
       <Pressable
         onPress={onChangeKind}
         style={({ pressed }) => [s.barWhen, pressed && { opacity: 0.55 }]}
@@ -776,10 +780,15 @@ export function useGhostDraft({
 
   // La barra prende il posto della tab bar dove la griglia ci passa sotto
   // (istruttore); altrimenti (titolare) sta sopra la tab bar, che resta.
+  // REG-800: la tab bar nativa di iOS non si toglie, quindi lì la barra le
+  // sta sopra (come per il titolare su Android).
   const insets = useSafeAreaInsets();
+  const nativeBar = useTabBarKind() === 'native';
   const barActive = !!ghostInfo && !!onCreateAt;
-  useTabBarCover(barActive && barOverlap > 0);
-  const barBottomPad = barOverlap > 0 ? Math.max(insets.bottom, 12) : 12;
+  const covers = barOverlap > 0 && !nativeBar;
+  useTabBarCover(barActive && covers);
+  const barBottomPad = covers ? Math.max(insets.bottom, 12) : 12;
+  const barBottom = nativeBar ? barOverlap : 0;
 
   // Android: «indietro» toglie la bozza prima di uscire dalla schermata.
   useEffect(() => {
@@ -794,7 +803,7 @@ export function useGhostDraft({
   }, [ghostResetKey, dismissGhost]);
 
   const bar = barActive ? (
-    <GhostBar bottomPad={barBottomPad} onChangeKind={openKindSheet} onContinue={continueCreate} />
+    <GhostBar bottomPad={barBottomPad} bottom={barBottom} onChangeKind={openKindSheet} onContinue={continueCreate} />
   ) : null;
 
   return { ghostInfo, handleGhostChange, dismissGhost, ghostDismissTick, bar };

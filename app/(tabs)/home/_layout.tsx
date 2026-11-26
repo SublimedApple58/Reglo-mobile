@@ -1,11 +1,16 @@
 import { Stack } from 'expo-router';
+import { useTabStackOptions } from '../../../src/components/tabBarSpace';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
 import { TALL_SHEET, HUG_SHEET, PAGE_SHEET, SCROLL_SHEET, FORM_SHEET } from '../../../src/utils/sheetPresentation';
 
+// REG-800: su iOS (barra nativa) le pagine a schermo pieno si tengono lo spazio della barra.
+const STACK_OPTIONS = { headerShown: false, contentStyle: { backgroundColor: colors.background } };
+
 export default function HomeLayout() {
+  const stackOptions = useTabStackOptions('home', STACK_OPTIONS);
   return (
-    <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+    <Stack screenListeners={sheetScreenListeners} screenOptions={stackOptions}>
       <Stack.Screen name="index" />
       {/* REG-639 fluidità: Disponibilità e Notifiche dall'orologio e dalla
           campanella dell'Agenda = schermate push (swipe indietro nativo). */}

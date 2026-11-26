@@ -1,11 +1,16 @@
 import { Stack } from 'expo-router';
+import { useTabStackOptions } from '../../../src/components/tabBarSpace';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
 import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
 
+// REG-800: su iOS (barra nativa) le pagine a schermo pieno si tengono lo spazio della barra.
+const STACK_OPTIONS = { headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } };
+
 export default function MoreLayout() {
+  const stackOptions = useTabStackOptions('more', STACK_OPTIONS);
   return (
     // REG-639 clay: fondo bianco puro sotto le schermate della tab «Tu».
-    <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
+    <Stack screenListeners={sheetScreenListeners} screenOptions={stackOptions}>
       <Stack.Screen name="index" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="appearance" />

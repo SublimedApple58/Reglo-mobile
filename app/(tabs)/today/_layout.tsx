@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTabStackOptions } from '../../../src/components/tabBarSpace';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
 import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
 
@@ -11,9 +12,13 @@ import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
  */
 export const unstable_settings = { initialRouteName: 'index' };
 
+// REG-800: su iOS (barra nativa) le pagine a schermo pieno si tengono lo spazio della barra.
+const STACK_OPTIONS = { headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } };
+
 export default function TodayLayout() {
+  const stackOptions = useTabStackOptions('today', STACK_OPTIONS);
   return (
-    <Stack screenListeners={sheetScreenListeners} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
+    <Stack screenListeners={sheetScreenListeners} screenOptions={stackOptions}>
       <Stack.Screen name="index" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="instructor" options={FORM_SHEET} />

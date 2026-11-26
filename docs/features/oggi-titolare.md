@@ -28,7 +28,7 @@ Anteprime approvate da Tiziano il 26/11: O1, O1b e O2 in
 | File | Ruolo |
 |---|---|
 | `app/(tabs)/_layout.tsx` | Tab `today` prima di tutte (solo titolari), `role` e `inbox` nascoste ai titolari, `more` = «Tu» |
-| `src/components/AppTabBar.tsx` | `OWNER_ICONS` (= icone dell'istruttore + `today-outline`) |
+| `src/components/AppTabBar.tsx` / `app/(tabs)/_layout.tsx` | icone del set Reglo (REG-800): Oggi = sole, vedi [tab-bar.md](tab-bar.md); la campanella di `NotificationOverlay` del titolare apre `today/notifications` |
 | `app/(tabs)/today/_layout.tsx` | Stack di Oggi: `index`, `notifications`, `availability` (push); form sheet `instructor`, fogli della disponibilità (`availability-exception`, `publish-day`, `sick-leave`, `select-date*`, `time-picker`, `select-options*`), `out-of-availability`, fogli Road (`road-invite`, `road-privacy`, `giro`) |
 | `src/screens/OwnerTodayScreen.tsx` | La schermata |
 | `src/components/ownerToday/todayModel.ts` | Puro: `buildInstructorsToday` (giornata, stato a parole, chi lavora), `buildSchoolNow` (numeri della protagonista, prossime tre), `windowsText` |

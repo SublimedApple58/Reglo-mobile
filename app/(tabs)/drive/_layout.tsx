@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTabStackOptions } from '../../../src/components/tabBarSpace';
 import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
 
 /**
@@ -10,9 +11,13 @@ import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
 // presenta sopra, non al posto della schermata).
 export const unstable_settings = { initialRouteName: 'index' };
 
+// REG-800: su iOS (barra nativa) le pagine a schermo pieno si tengono lo spazio della barra.
+const STACK_OPTIONS = { headerShown: false };
+
 export default function DriveLayout() {
+  const stackOptions = useTabStackOptions('drive', STACK_OPTIONS);
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={stackOptions}>
       <Stack.Screen name="index" />
       {/* Campanella: notifiche come push di questo stack (swipe indietro nativo). */}
       <Stack.Screen name="notifications" />

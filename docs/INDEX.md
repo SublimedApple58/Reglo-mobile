@@ -5,6 +5,7 @@
 | Feature | Doc | Primary screens |
 |---------|-----|----------------|
 | Tab dell'allievo Home · Guide · Scambi · Profilo (REG-786): tab Guide con pagamenti e Road, tab Scambi, «Prenota guida» nella card | [student-tabs.md](features/student-tabs.md) | `StudentGuideScreen`, `StudentDoneLessonSheet`, `StudentSwapsScreen`, `app/(tabs)/guide/*`, `app/(tabs)/swaps/*`, `AppTabBar` |
+| Tab bar: iOS nativa Liquid Glass + set icone Reglo a colori (REG-800), Android `AppTabBar`, niente barra con una voce sola | [tab-bar.md](features/tab-bar.md) | `app/(tabs)/_layout.tsx`, `AppTabBar`, `tabBarSpace`, `tabIconArt` |
 | Booking Flow | [booking-flow.md](features/booking-flow.md) | `AllievoHomeScreen` |
 | Prenotazione allievi «solo eccezioni» (home allievo nei 3 stati + sospese, foglio «Si è liberato un posto», «Posti liberi a breve», «Chi prenota» del gruppo autonomo) | [student-booking-exceptions.md](features/student-booking-exceptions.md) | `src/utils/studentBookingPolicy.ts`, `AllievoHomeScreen` + `allievoHome/HomeSections`, `SlotOfferSheet`, `LastMinuteSheet`, `notes/booking-rules` + `notes/booking-exceptions` |
 | Le tue guide — storico allievo (Tutte/Programmate/Svolte/Annullate) | [guide-annullate.md](features/guide-annullate.md) | `LessonsOverview`, `home/all-lessons`, `settings/le-tue-guide`, `SettingsScreen`, `allLessonsStore` |
