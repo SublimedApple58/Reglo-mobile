@@ -24,7 +24,6 @@ import { ownerInstructorSheetStore } from '../stores/ownerInstructorSheetStore';
 import {
   AutoscuolaAppointmentWithRelations,
   AutoscuolaInstructor,
-  AutoscuolaSettings,
 } from '../types/regloApi';
 import { CLAY } from '../theme/clay';
 import { MORALE_ART } from '../theme/moraleArt';
@@ -104,7 +103,6 @@ export const OwnerInstructorScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [settings, setSettings] = useState<AutoscuolaSettings | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async () => {
@@ -117,18 +115,14 @@ export const OwnerInstructorScreen = () => {
       to.setDate(to.getDate() + 7);
       to.setHours(23, 59, 59, 999);
 
-      const [agendaBootstrap, settingsRes] = await Promise.all([
-        regloApi.getAgendaBootstrap({
-          instructorId: selectedInstructorId ?? undefined,
-          from: from.toISOString(),
-          to: to.toISOString(),
-          limit: 180,
-        }),
-        regloApi.getAutoscuolaSettings(),
-      ]);
+      const agendaBootstrap = await regloApi.getAgendaBootstrap({
+        instructorId: selectedInstructorId ?? undefined,
+        from: from.toISOString(),
+        to: to.toISOString(),
+        limit: 180,
+      });
       setInstructors(agendaBootstrap.instructors);
       setAppointments(agendaBootstrap.appointments);
-      setSettings(settingsRes);
       if (!selectedInstructorId && agendaBootstrap.instructors.length) {
         setSelectedInstructorId(agendaBootstrap.instructors[0].id);
       }
@@ -218,16 +212,6 @@ export const OwnerInstructorScreen = () => {
     : 'offline';
 
   // ─── Fogli (route FORM_SHEET dello stack corrente) ────────
-
-  const openAvailSheet = useCallback(() => {
-    if (!selectedInstructor) return;
-    ownerInstructorSheetStore.setAvailability({
-      instructorId: selectedInstructor.id,
-      instructorName: selectedInstructor.name,
-      availabilityWeeks: settings?.availabilityWeeks ?? 4,
-    });
-    router.push(`/(tabs)/${stack}/instructor-availability` as never);
-  }, [selectedInstructor, settings, router, stack]);
 
   const openInviteSheet = useCallback(() => {
     ownerInstructorSheetStore.setInvite({ onSent: () => setSuccessMsg('Invito inviato!') });
@@ -335,12 +319,6 @@ export const OwnerInstructorScreen = () => {
                     title="Vedi agenda"
                     onPress={() => router.navigate('/(tabs)/home')}
                     testID="owner-instructors-agenda"
-                  />
-                  <ClayButton
-                    title="Modifica disponibilità"
-                    variant="secondary"
-                    onPress={openAvailSheet}
-                    testID="owner-instructors-availability"
                   />
                 </View>
               </View>
