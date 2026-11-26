@@ -742,7 +742,7 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
     });
   }, [loadAll, studentId, isStudent]);
 
-  // ── Instructor push intents (weekly_absence, sick_leave_cancelled) ──
+  // ── Instructor push intents (weekly_absence, student_booked, sick_leave_cancelled) ──
   useEffect(() => {
     if (!isInstructor) return;
     const unsub = subscribePushIntent((intent, data) => {
@@ -755,6 +755,29 @@ export const NotificationOverlay = ({ isStudent, isInstructor = false, isOwner =
             studentId: String(data?.studentId ?? ''),
             studentName: String(data?.studentName ?? 'Un allievo'),
             weekStart: String(data?.weekStart ?? ''),
+          },
+          receivedAt: new Date().toISOString(),
+          read: false,
+          dismissed: false,
+        };
+        const merged = mergeFromApi(inboxRef.current, [persisted]);
+        inboxRef.current = merged;
+        setInboxItems(merged);
+        saveInbox(merged);
+        notificationEvents.emitInboxUpdated();
+      }
+      // REG-742: un suo allievo ha prenotato. Id stabile = quello del recupero
+      // (`student_booked_<guida>`), così push e recupero non fanno doppioni.
+      if (intent === 'student_booked') {
+        const persisted: PersistedNotification = {
+          kind: 'student_booked',
+          id: `student_booked_${data?.appointmentId ?? Date.now()}`,
+          data: {
+            appointmentId: String(data?.appointmentId ?? ''),
+            startsAt: String(data?.startsAt ?? ''),
+            studentId: data?.studentId ? String(data.studentId) : null,
+            studentName: String(data?.studentName ?? 'Un allievo'),
+            isGroupLesson: data?.isGroupLesson === true,
           },
           receivedAt: new Date().toISOString(),
           read: false,

@@ -621,7 +621,8 @@ export const createRegloApi = (baseUrl?: string) => {
         // REG-758: dichiara i kind che questa build sa mostrare. Il server
         // manda `appointment_created` solo a chi lo dichiara: una build
         // vecchia lo mostrerebbe come una riga vuota e non letta.
-        params: { limit: String(limit), supports: 'appointment_created' },
+        // REG-742: più kind separati da virgola (i params non ripetono la chiave).
+        params: { limit: String(limit), supports: 'appointment_created,student_booked' },
       }),
 
     getOverview: async () => client.request<AutoscuolaOverview>('/api/autoscuole/overview'),

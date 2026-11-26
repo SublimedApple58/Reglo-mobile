@@ -43,6 +43,11 @@ const getTitle = (item: PersistedNotification): string => {
       return 'Giorno festivo';
     case 'weekly_absence':
       return `${item.data.studentName ?? 'Un allievo'} assente`;
+    // REG-742: avviso all'istruttore, il volto dell'allievo sta a sinistra.
+    case 'student_booked':
+      return item.data.isGroupLesson
+        ? `${item.data.studentName} si è iscritto`
+        : `${item.data.studentName} ha prenotato`;
     case 'sick_leave_cancelled':
       return 'Guida cancellata';
     // REG-604: lo stesso kind serve guide ed esami — il payload dice quale.
@@ -135,6 +140,10 @@ const getSubtitle = (item: PersistedNotification): string => {
       return whenLabel({ ...item.data, isExam: true });
     case 'appointment_created':
       return item.data.count > 1 ? `La prima: ${whenLabel(item.data)}` : whenLabel(item.data);
+    case 'student_booked':
+      return item.data.isGroupLesson
+        ? `Guida di gruppo · ${whenLabel(item.data)}`
+        : whenLabel(item.data);
     case 'theory_exam_countdown':
       return item.data.theoryExamAt
         ? `Esame il ${formatDay(item.data.theoryExamAt)}`
@@ -245,6 +254,8 @@ function personOf(item: NotificationItem): { userId: string | null; name: string
       return item.data.acceptedByName ? { userId: null, name: item.data.acceptedByName } : null;
     case 'weekly_absence':
       return item.data.studentName ? { userId: item.data.studentId, name: item.data.studentName } : null;
+    case 'student_booked':
+      return { userId: item.data.studentId, name: item.data.studentName };
     default:
       return null;
   }

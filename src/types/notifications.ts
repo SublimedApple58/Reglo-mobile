@@ -90,6 +90,19 @@ export type AppointmentCreatedData = {
   isGroupLesson?: boolean;
 };
 
+/**
+ * REG-742 — un allievo dell'istruttore si è preso una guida (app, posto
+ * liberato o iscrizione a una guida di gruppo). Solo per l'istruttore della
+ * guida, e solo se l'autoscuola ha acceso la riga «Nuova prenotazione».
+ */
+export type StudentBookedData = {
+  appointmentId: string;
+  startsAt: string;
+  studentId: string | null;
+  studentName: string;
+  isGroupLesson?: boolean;
+};
+
 export type AvailabilityPublishedData = {
   instructorId: string;
   instructorName: string;
@@ -141,6 +154,7 @@ export type NotificationItem =
   | { kind: 'exam_ready_nudge'; id: string; data: ExamReadyNudgeData }
   | { kind: 'exam_scheduled'; id: string; data: ExamScheduledData }
   | { kind: 'appointment_created'; id: string; data: AppointmentCreatedData }
+  | { kind: 'student_booked'; id: string; data: StudentBookedData }
   | { kind: 'license_path_started'; id: string; data: LicensePathStartedData };
 
 /**

@@ -35,6 +35,7 @@ Push notification handling, intent routing, persistent inbox with 30-day expiry.
 | `availability_published` | Toast + route | Route to home/booking |
 | `exam_scheduled` | Inbox (nessun drawer) | **REG-604**. Esame fissato (`reason: "created"`) o orario appena definito (`reason: "time_set"`): un solo kind, il titolo del push distingue. Niente da accettare → solo posta, come `appointment_rescheduled` |
 | `appointment_created` | Inbox (nessun drawer) | **REG-758**. Lo staff (o l'assistente vocale) ha fissato una o più guide: il backend le raggruppa in un avviso solo (`count`, `startsAt` = la prima). Titolo «Guida fissata» / «N guide fissate», sottotitolo «La prima: …». Id **stabile** `created_<appointmentId>` sia nella push sia nel recupero (niente doppioni). Il recupero lo manda solo se `getNotifications` dichiara `supports=appointment_created`: le build vecchie mostrerebbero una riga vuota |
+| `student_booked` | Inbox (nessun drawer) | **REG-742**, solo istruttori (anche INSTRUCTOR_OWNER). Un suo allievo si è preso una guida (app, posto liberato, iscrizione a una guida di gruppo) e l'autoscuola ha acceso la riga «Nuova prenotazione» sul web. Titolo «Mario Rossi ha prenotato» / «… si è iscritto» col volto dell'allievo (`personOf`), sottotitolo `whenLabel` (gruppo: «Guida di gruppo · …»). Id **stabile** `student_booked_<appointmentId>` nella push e nel recupero. Il recupero lo manda solo se `getNotifications` dichiara `supports=…,student_booked` (lista separata da virgole, accettata dal backend da REG-742) |
 | `exam_ready_nudge` | Inbox (Toast) | **Owner-only**. Handler owner-gated in `NotificationOverlay` (`isOwner`). "N allievi pronti per l'esame". Id stabile `exam_ready_nudge_{companyId}` → dedup push/recovery. Overlay ora renderizza anche per titolare PURO (guard rilassato + prop `isOwner` da `_layout.tsx`). |
 
 ## «Orario da definire» (REG-604)
@@ -143,7 +144,7 @@ schermi istruttore. Il kind `proposal` non esiste più (né drawer né handler).
 2. `src/components/NotificationOverlay.tsx` — add handler in subscribePushIntent
 3. `src/screens/NotificationInboxScreen.tsx` — add to getTitle(), getSubtitle(), and opensDrawer() if it should open a drawer (ICON_MAP/THEME non esistono più dal 28/10, REG-639)
 4. `../reglo/app/api/autoscuole/notifications/route.ts` — add recovery query
-5. `../reglo/` action file — add `sendAutoscuolaPushToUsers()` call
+5. `../reglo/` action file — invio via `notifyAutoscuolaUser()` (mai `sendAutoscuolaPushToUsers()` diretto); se il kind va solo alle build nuove, aggiungilo a `supports` in `getNotifications` (`regloApi.ts`, lista separata da virgole)
 
 ## Connected features
 - **ALL features** — NotificationOverlay routes intents to all screens
