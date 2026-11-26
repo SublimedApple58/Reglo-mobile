@@ -39,6 +39,11 @@ export type BookingSheetData = {
    * resta a lui anche se l'allievo scelto è assegnato a un altro istruttore.
    */
   instructorFromColumn?: boolean;
+  /**
+   * REG-794: nome dell'istruttore quando la guida è di un collega (colonna o
+   * settimana di un altro): il primo foglio chiede «Con chi guida Marco?».
+   */
+  columnInstructorName?: string | null;
   /** '' when no vehicle / vehicles disabled. */
   defaultVehicleId: string;
   /** `color` (REG-639): l'auto 3D in testa al foglio è nel colore del veicolo. */

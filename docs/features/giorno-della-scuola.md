@@ -46,7 +46,8 @@ porterà «Oggi» e le tab nuove del titolare.
   - Guida: `bookingSheetStore.instructorId` = colonna, con `instructorFromColumn`, quindi non passa all'istruttore assegnato all'allievo.
   - Blocco, teoria e gruppo: `presetInstructorId`.
   - Per un collega (o per il titolare) i fogli mostrano la riga «Istruttore» già scelta.
-  - La barra dice di chi è la colonna: «Gio 26 nov · 13:00 – 14:00 · Marta».
+  - La barra dice di chi è la colonna: «Gio 26 nov · 13:00 – 14:00 · Marta». Lo stesso nella settimana di un collega (`WeeklyAgendaView.ghostInstructorName`).
+  - Per un collega il primo foglio della guida chiede «Con chi guida Marta?» invece di «Con chi guidi?» (`bookingSheetStore.columnInstructorName`).
   - L'esame resta com'era (foglio proprio).
 - **Disponibilità**: tinta appena accennata per colonna, dall'hook sopra. **È un ripiego**: gli slot non conoscono le settimane pubblicate né i luoghi, quindi possono differire dalle bande del web. Sotto-task backend di REG-794: rotta HTTP su `getInstructorAvailabilityForAgenda` (web), poi si cambia solo `useSchoolAvailability`.
 - **Dati**: nessuna chiamata nuova al tocco. Gli impegni sono quelli del bootstrap «Tutti» già caricato (finestra −7/+35 giorni, paginato); cambiare giorno filtra in memoria.

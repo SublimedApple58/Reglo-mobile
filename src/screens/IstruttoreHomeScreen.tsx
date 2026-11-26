@@ -2079,6 +2079,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
         ...(target ? {
           instructorId: target,
           instructorFromColumn: true,
+          columnInstructorName: forOther ? scopeDirectory[target]?.name ?? null : null,
           defaultVehicleId: vehicles.find((v) => v.assignedInstructorId === target)?.id ?? seeded.defaultVehicleId,
         } : {}),
         suggestions: bookingSuggestions,
@@ -2116,7 +2117,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
       onDone: onCreated,
     });
     router.push('/(tabs)/home/create-group-lesson');
-  }, [seedBookingStore, seedBlockStore, bookingSuggestions, ownerInstructorOptions, colleagueOptions, focusId, instructorId, ownerMode, vehicles, loadData, router]);
+  }, [seedBookingStore, seedBlockStore, bookingSuggestions, ownerInstructorOptions, colleagueOptions, focusId, instructorId, ownerMode, vehicles, scopeDirectory, loadData, router]);
 
   const openExamFromAgenda = useCallback((appts: AutoscuolaAppointmentWithRelations[]) => {
     if (!appts.length) return;
@@ -2299,6 +2300,7 @@ export const IstruttoreHomeScreen = ({ ownerMode = false }: { ownerMode?: boolea
               onRefresh={handleRefresh}
               myInstructorId={focusId ?? effectiveInstructorId ?? null}
               instructorDirectory={scopeDirectory}
+              ghostInstructorName={focusInfo?.name ?? null}
               studentCompletedMinutes={studentCompletedMinutes}
               weekAvailabilityByDate={focusAvailability ?? weekAvailability}
               onDateChange={(monday) => {

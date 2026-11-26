@@ -104,6 +104,11 @@ type WeeklyAgendaViewProps = {
   showInstructor?: boolean;
   /** id istruttore → nome e utente: nomi sui blocchi e volti del foglio «+N». */
   instructorDirectory?: Record<string, { name: string; userId?: string | null }>;
+  /**
+   * Settimana di un collega (REG-794): il suo nome, che la barra del fantasma
+   * mostra dopo la fascia («… · Marco»), come nel giorno a colonne.
+   */
+  ghostInstructorName?: string | null;
   /** Allowed lesson durations (minutes) — the ghost block snaps only to these (same set as the booking modal). */
   allowedDurations?: number[];
   /** Ghost CTA visible/hidden — lets the parent hide the FAB underneath. */
@@ -319,6 +324,7 @@ type WeekPageProps = {
   onRefresh?: () => void;
   showInstructor: boolean;
   instructorDirectory: Record<string, { name: string; userId?: string | null }>;
+  ghostInstructorName: string | null;
 };
 
 const WeekPage = React.memo(function WeekPage({
@@ -326,7 +332,7 @@ const WeekPage = React.memo(function WeekPage({
   weekAvailabilityByDate, readOnly, loading,
   onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock, myInstructorId,
   canBook, defaultDur, onGhostChange, ghostDismissTick, onGhostDismiss, ghostIgnoresEvents,
-  refreshing, onRefresh, showInstructor, instructorDirectory,
+  refreshing, onRefresh, showInstructor, instructorDirectory, ghostInstructorName,
 }: WeekPageProps) {
   // Tab bar in vetro sopra la griglia: l'ultima ora resta raggiungibile.
   const barOverlap = useTabBarOverlap();
@@ -345,8 +351,8 @@ const WeekPage = React.memo(function WeekPage({
   /* ── Fantasma (agenda/ghost): colonna = giorno della settimana ── */
   const columnAt = useCallback((col: number): GhostColumn | undefined => {
     const date = weekDays[Math.max(0, Math.min(5, col))];
-    return date ? { date } : undefined;
-  }, [weekDays]);
+    return date ? { date, instructorName: ghostInstructorName } : undefined;
+  }, [weekDays, ghostInstructorName]);
   const ghost = useGhostPage({ dayMin: DAY_MIN, defaultDur, columnAt, onGhostChange, ghostDismissTick });
   const { gFree } = ghost;
   const geo = useMemo((): GhostGeometry => ({
@@ -1084,6 +1090,7 @@ export default function WeeklyAgendaView({
   ghostResetKey = 0,
   showInstructor = false,
   instructorDirectory = EMPTY_DIRECTORY,
+  ghostInstructorName = null,
   allowedDurations,
   onGhostActiveChange,
   onDateChange,
@@ -1178,11 +1185,12 @@ export default function WeeklyAgendaView({
       onRefresh={onRefresh}
       showInstructor={showInstructor}
       instructorDirectory={instructorDirectory}
+      ghostInstructorName={ghostInstructorName}
     />
   ), [pageWidth, listH, colW, today, appointments, instructorBlocks, holidays, weekAvailabilityByDate,
       studentCompletedMinutes, readOnly, loading, onPressAppointment, onPressExam, onPressGroupLesson, onPressBlock,
       myInstructorId, onCreateAt, defaultDur, handleGhostChange, ghostDismissTick, dismissGhost, ghostIgnoresEvents, refreshing, onRefresh,
-      showInstructor, instructorDirectory]);
+      showInstructor, instructorDirectory, ghostInstructorName]);
 
   return (
     <View style={styles.container}>
