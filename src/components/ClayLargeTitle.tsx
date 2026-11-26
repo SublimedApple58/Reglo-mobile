@@ -126,10 +126,14 @@ export function ClayNavBar({
   );
 }
 
-/** Titolo grande + riga grigia di contesto: primo elemento dello scroll. */
-export function ClayLargeTitle({ title, subtitle }: { title: string; subtitle?: string | null }) {
+/**
+ * Titolo grande + riga grigia di contesto: primo elemento dello scroll.
+ * `greeting` (facoltativo): il saluto sopra il titolo, come nell'Agenda.
+ */
+export function ClayLargeTitle({ title, subtitle, greeting }: { title: string; subtitle?: string | null; greeting?: string | null }) {
   return (
     <View style={s.large}>
+      {greeting ? <Text style={s.greeting} numberOfLines={1}>{greeting}</Text> : null}
       <Text style={s.largeTitle} accessibilityRole="header">
         {title}
       </Text>
@@ -154,6 +158,7 @@ const s = StyleSheet.create({
   scrollPad: { paddingTop: 4 },
   largeTitle: { fontSize: 32, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.9 },
   subtitle: { fontSize: 15, lineHeight: 21, color: CLAY.ink3, marginTop: 2 },
+  greeting: { fontSize: 15, fontWeight: '500', color: CLAY.ink3, marginBottom: 1 },
 });
 
 /**
@@ -167,6 +172,8 @@ export const ClayLargeTitleScroll = React.forwardRef<
   Omit<React.ComponentProps<typeof Animated.ScrollView>, 'onScroll' | 'children'> & {
     title: string;
     subtitle?: string | null;
+    /** Saluto sopra il titolo grande («Buongiorno, Andrea»). */
+    greeting?: string | null;
     onBack?: () => void;
     actions?: React.ReactNode;
     search?: Search;
@@ -175,7 +182,7 @@ export const ClayLargeTitleScroll = React.forwardRef<
     children?: React.ReactNode;
   }
 >(function ClayLargeTitleScroll(
-  { title, subtitle, onBack, actions, search, hideLargeTitle, children, contentContainerStyle, ...scroll },
+  { title, subtitle, greeting, onBack, actions, search, hideLargeTitle, children, contentContainerStyle, ...scroll },
   ref,
 ) {
   const { scrollY, onScroll } = useLargeTitleScroll();
@@ -190,7 +197,7 @@ export const ClayLargeTitleScroll = React.forwardRef<
         {...scroll}
         contentContainerStyle={[s.scrollPad, contentContainerStyle]}
       >
-        {hideLargeTitle ? null : <ClayLargeTitle title={title} subtitle={subtitle} />}
+        {hideLargeTitle ? null : <ClayLargeTitle title={title} subtitle={subtitle} greeting={greeting} />}
         {children}
       </Animated.ScrollView>
     </>

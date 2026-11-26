@@ -12,6 +12,13 @@ export type ExamSheetData = {
   initialDate: string;
   /** REG-671: durata del blocco fantasma (l'orario sta già in `initialDate`). */
   presetDurationMinutes?: number;
+  /**
+   * REG-794/795: istruttore della colonna (giorno della scuola o settimana di
+   * un collega). Il backend salva l'esame a suo nome.
+   */
+  instructorId?: string | null;
+  /** Nome dell'istruttore quando è un collega: il sottotitolo lo dice. */
+  instructorName?: string | null;
   /** Success toast after the exam is created. */
   onDone: (message: string) => void;
 };

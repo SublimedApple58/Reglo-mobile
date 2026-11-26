@@ -35,6 +35,8 @@ import { useRangeLocations } from '../hooks/useRangeLocations';
 type Props = {
   instructorId: string;
   onToast: (text: string, tone?: ToastTone) => void;
+  /** REG-794: nome (primo) dell'istruttore quando il titolare ne cura la disponibilità. */
+  forName?: string;
 };
 
 // ── Constants ──────────────────────────────────────────────────
@@ -160,7 +162,7 @@ markClayRow(SwipeRow);
 
 // ── Main Component ─────────────────────────────────────────────
 
-export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
+export const PublicationModeEditor = ({ instructorId, onToast, forName }: Props) => {
   const router = useRouter();
   // I fogli si aprono nello stack corrente (`home/` o `role/`).
   const stackBase = useStackBase();
@@ -210,6 +212,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
     if (!day) return;
     publishDayStore.set({
       dayLabel: dayLongLabel(day.date, index),
+      ...(forName ? { subtitle: `Gli orari di ${forName} per questo giorno.` } : {}),
       available: day.available,
       ranges: day.ranges.length ? day.ranges : [...DEFAULT_RANGES],
       openTimePicker,
@@ -320,7 +323,7 @@ export const PublicationModeEditor = ({ instructorId, onToast }: Props) => {
       <ClaySection
         title="Giorni"
         style={styles.section}
-        footnote={loading ? undefined : 'Tocca un giorno per gli orari. Trascinalo verso sinistra per attivarlo o metterlo a riposo.'}
+        footnote={loading ? undefined : 'Tocca un giorno per gli orari. Trascinalo verso sinistra per attivarlo o metterlo a riposo. I giorni non toccati riprendono la settimana pubblicata prima.'}
       >
         {loading ? (
           <ClayList>

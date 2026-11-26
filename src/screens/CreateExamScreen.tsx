@@ -186,7 +186,8 @@ export const CreateExamScreen = () => {
     ? 'Nessun allievo'
     : `${selectedStudents.length} ${selectedStudents.length === 1 ? 'allievo' : 'allievi'}`;
   // Il riepilogo che stava nel footer ora è il sottotitolo del foglio.
-  const subtitle = `${summary} · ${fmtDay(examDate)}${timeSet ? ` · ${fmtTime(examDate)}` : ' · orario da definire'}`;
+  const forWhom = data?.instructorName?.trim().split(/\s+/)[0];
+  const subtitle = `${summary} · ${fmtDay(examDate)}${timeSet ? ` · ${fmtTime(examDate)}` : ' · orario da definire'}${forWhom ? ` · ${forWhom}` : ''}`;
   const guard = (fn: () => void) => () => { if (!saving) fn(); };
 
   const handleCreate = async () => {
@@ -202,6 +203,7 @@ export const CreateExamScreen = () => {
           endsAt: endsAt.toISOString(),
           notes: notes.trim() || undefined,
           examiners,
+          ...(data.instructorId ? { instructorId: data.instructorId } : {}),
         });
       } else {
         const dateOnly = new Date(examDate); dateOnly.setHours(0, 0, 0, 0);
@@ -210,6 +212,7 @@ export const CreateExamScreen = () => {
           startsAt: dateOnly.toISOString(),
           notes: notes.trim() || undefined,
           examiners,
+          ...(data.instructorId ? { instructorId: data.instructorId } : {}),
         });
       }
       data.onDone('Esame creato.');

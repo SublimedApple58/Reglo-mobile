@@ -5,11 +5,22 @@
  * (parent refreshes its agenda from the BE, so the cancelled guides drop out) and
  * `onDone` (toast). Non-optimistic. Mirrors `blockSheetStore`.
  */
+/** REG-794: lo stesso foglio segna la malattia o le ferie. */
+export type LeaveKind = 'sick' | 'vacation';
+
 export type SickLeaveSheetData = {
+  /** Senza = malattia. */
+  kind?: LeaveKind;
   /** ISO string of the day the sheet opens on. */
   initialDate: string;
   /** The instructor the sick leave belongs to (for scope). */
   instructorId: string;
+  /**
+   * REG-794: malattia segnata dal titolare per un collega (da «Oggi»). Solo
+   * allora `instructorId` va al backend (che lo accetta solo dai titolari) e il
+   * foglio dice di chi è.
+   */
+  forInstructorName?: string | null;
   /** After the create succeeds: refresh the parent's agenda from the BE. */
   onApplied: () => Promise<void>;
   /** Success toast. */

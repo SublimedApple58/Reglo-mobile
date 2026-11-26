@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { RoadPlanStop } from '../../types/regloApi';
@@ -27,6 +27,7 @@ import {
 } from '../../road/planStore';
 import { roadFreeStore, warmRoadFree } from '../../road/freeStartStore';
 import { GIRO_SHEET_ROUTE, giroSheetStore } from '../../road/giroSheetStore';
+import { roadSheetBase, roadSheetRoute } from '../../road/entryFlow';
 import { orderGuideStops } from '../../road/roadGuide';
 import { RoadPlanMap } from './RoadPlanMap';
 
@@ -93,6 +94,7 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   testID?: string;
 }) {
   const router = useRouter();
+  const segments = useSegments() as string[];
   const res = usePlan(studentId, durationMin, appointmentId);
   const failed = usePlanFailed(studentId, durationMin);
   const [on, setOn] = usePlanChoice(studentId);
@@ -140,7 +142,8 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   const open = () => {
     if (!studentId || !appointmentId) return;
     giroSheetStore.set({ appointmentId, studentId, durationMin, studentName });
-    router.push(GIRO_SHEET_ROUTE as never);
+    // REG-794: in Oggi (invito Road del titolare-istruttore) il foglio si apre lì.
+    router.push((roadSheetBase(segments) === 'today' ? roadSheetRoute('today', 'giro') : GIRO_SHEET_ROUTE) as never);
   };
   const editable = !!appointmentId;
   return (

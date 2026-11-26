@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { FormSheet } from '../../../src/components/SheetScaffold';
 import { ClayButton, ClaySurface, Icon3D } from '../../../src/components/clay';
 import { CLAY } from '../../../src/theme';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 
 import * as Haptics from '../../../src/utils/haptics';
 import { car34Art } from '../../../src/road/markerArt';
@@ -17,6 +17,7 @@ import {
   beginRoadEntry,
   roadEntryStore,
   roadInviteOpen,
+  roadSheetBase,
 } from '../../../src/road/entryFlow';
 
 /**
@@ -25,6 +26,8 @@ import {
  */
 export default function RoadInviteSheet() {
   const router = useRouter();
+  // REG-794: aperto in Oggi o in Agenda; l'informativa segue nello stesso stack.
+  const sheetBase = roadSheetBase(useSegments() as string[]);
   const live = useSyncExternalStore(roadEntryStore.subscribe, roadEntryStore.get);
   // Snapshot al mount: il seed può essere riscritto mentre il foglio si chiude.
   const [seed] = useState(() => live);
@@ -49,7 +52,7 @@ export default function RoadInviteSheet() {
   const onEnter = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
     router.back();
-    setTimeout(() => void beginRoadEntry(router, lesson), SHEET_HANDOFF_MS);
+    setTimeout(() => void beginRoadEntry(router, lesson, sheetBase), SHEET_HANDOFF_MS);
   };
 
   const onLater = () => {

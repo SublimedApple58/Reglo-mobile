@@ -65,6 +65,17 @@ export const roadPendingStart = {
 
 export const ROAD_INVITE_ROUTE = '/(tabs)/home/road-invite' as const;
 export const ROAD_PRIVACY_ROUTE = '/(tabs)/home/road-privacy' as const;
+
+/**
+ * REG-794: lo stack dei fogli di Road (invito, informativa, «Il giro»). Il
+ * titolare-istruttore parte da «Oggi»: lì i fogli si aprono in Oggi, senza
+ * saltare all'Agenda (e «Non ora» resta dov'era). Altrove l'Agenda, come sempre.
+ */
+export type RoadSheetBase = 'home' | 'today';
+export const roadSheetBase = (segments: string[]): RoadSheetBase =>
+  segments[0] === '(tabs)' && segments[1] === 'today' ? 'today' : 'home';
+export const roadSheetRoute = (base: RoadSheetBase, name: 'road-invite' | 'road-privacy' | 'giro') =>
+  `/(tabs)/${base}/${name}` as const;
 export const ROAD_ROUTE = '/road' as const;
 
 /** Pausa fra la chiusura di un form sheet iOS e la prossima presentazione. */
@@ -74,10 +85,10 @@ export const SHEET_HANDOFF_MS = 380;
  * «Entra in Road»: al primo ingresso sul dispositivo passa dall'informativa
  * (che poi chiede il permesso); altrimenti chiede il permesso e parte.
  */
-export async function beginRoadEntry(router: Router, lesson: RoadLesson) {
+export async function beginRoadEntry(router: Router, lesson: RoadLesson, base: RoadSheetBase = 'home') {
   if (!(await hasSeenRoadPrivacy())) {
     roadEntryStore.set({ lesson });
-    router.push(ROAD_PRIVACY_ROUTE);
+    router.push(roadSheetRoute(base, 'road-privacy') as never);
     return;
   }
   // REG-649: il giro scelto nella card (o nessuno con «Segui il giro» spento).

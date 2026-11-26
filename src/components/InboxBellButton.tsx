@@ -23,15 +23,29 @@ export const headerCircle: ViewStyle = {
  * nell'intestazione dell'Agenda invece che da una tab. È una push dello stack
  * Agenda (`home/availability`), così si chiude con lo swipe da sinistra.
  */
-export function AvailabilityButton({ style }: { style?: StyleProp<ViewStyle> }) {
+export function AvailabilityButton({
+  style,
+  instructor,
+}: {
+  style?: StyleProp<ViewStyle>;
+  /** REG-794: la disponibilità di un altro istruttore, curata dal titolare. */
+  instructor?: { id: string; name: string; phone: string | null };
+}) {
   const router = useRouter();
   return (
     <Pressable
-      onPress={() => router.push('/(tabs)/home/availability')}
+      onPress={() =>
+        instructor
+          ? router.push({
+              pathname: '/(tabs)/home/availability',
+              params: { instructorId: instructor.id, name: instructor.name, phone: instructor.phone ?? '' },
+            } as never)
+          : router.push('/(tabs)/home/availability')
+      }
       hitSlop={8}
       style={({ pressed }) => [headerCircle, pressed && CLAY_SHADOW.sink, style]}
       accessibilityRole="button"
-      accessibilityLabel="Disponibilità"
+      accessibilityLabel={instructor ? `Disponibilità di ${instructor.name}` : 'Disponibilità'}
       testID="availability-button"
     >
       <Ionicons name="time-outline" size={22} color="#111111" />

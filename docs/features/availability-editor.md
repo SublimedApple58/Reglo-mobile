@@ -97,11 +97,7 @@ luoghi) ogni fascia ha un luogo (`TimeRange.locationId`, assente = tutti i luogh
   (settimana tipo e pubblicazione) e `role/availability-exception`.
 - `DefaultAvailabilityEditor`: righe dei giorni ed eccezioni con i nomi dei luoghi;
   nota sotto la lista «Senza luogo, la fascia vale per tutti gli allievi».
-- `role/instructor-availability` («Disponibilità di X» del titolare, anche in
-  `more/`): stesso luogo sotto ogni fascia in Predefinito e nel giorno del
-  Calendario. Il Predefinito si ricava dagli slot, che non portano il luogo: se la
-  settimana tipo ha fasce con luogo si usano quelle (`getDefaultAvailability`),
-  così salvare da qui non cancella i luoghi.
+- (Il vecchio foglio `role/instructor-availability` del titolare è stato tolto in REG-794: vedi «Per conto di» qui sotto.)
 - `select-options` / `select-options-long` registrati anche negli stack `role/` e
   `more/` (prima solo `home/` e `notes/`): senza, «Luogo della fascia» non si
   apriva dalla tab Istruttore.
@@ -109,3 +105,45 @@ Spenta la funzione gli editor sono identici a prima.
 - REG-724 (05/11): in «A pubblicazione» anche le righe dei giorni mostrano il
   luogo accanto all'orario (`SwipeRow` riceve `formatRanges` =
   `rangeLocations.rangesText`). Verificato sul simulatore contro staging.
+
+## «Per conto di» — la disponibilità di un istruttore curata dal titolare (REG-794, 26/11/2026)
+
+La stessa `InstructorAvailabilityScreen`, con i parametri `instructorId`, `name`,
+`phone` e `focus` (`absences`), è «Disponibilità di Sara» per il titolare e il
+titolare-istruttore. Sostituisce il foglio `role/instructor-availability`, che
+salvava senza `scheduleByDay` e perdeva gli orari per giorno (tolto prima con un
+hotfix in prod, 26/11).
+
+- **Dove si apre:**
+  - foglio istruttore di Oggi: «Disponibilità» e «Assenze» (`focus=absences`) → `today/availability`;
+  - Agenda, settimana di un istruttore: l'orologio tondo in alto a destra (`AvailabilityButton` con `instructor`) → `home/availability`;
+  - per sé stessi (titolare-istruttore) l'editor di sempre, senza parametri.
+- **Modalità:** letta e cambiata con `instructors/[id]/availability-mode` (B1,
+  `useInstructorAvailabilityMode`). Il segmentato nativo «Predefinita · A
+  pubblicazione» sta nella card in testa; prima del cambio un avviso nativo.
+  «Annulla» rimonta il segmentato (`segKey`), che si era già spostato.
+- **Editor:** `DefaultAvailabilityEditor` e `PublicationModeEditor` ricevono
+  `forName` (sottotitolo del foglio giorno «Gli orari di Sara per ogni lunedì.»,
+  `publishDayStore.subtitle`).
+- **Eccezioni (per tutti):** elenco con «Non disponibile» (prima «Assente»), «N in
+  programma» in testa, le prime 5 poi «Altre N». Il foglio
+  `role/availability-exception` sceglie **più giorni insieme** in «Una volta»
+  (`ScrollableMonthsCalendar.selectedDates`), salvati uno per uno con la rotta
+  dell'eccezione singola («Salva 3 eccezioni»).
+- **Assenze** (`src/components/availability/AbsencesSection.tsx`, solo «per conto
+  di»): «Segna malattia» e «Segna ferie» aprono `sick-leave` (con
+  `sickLeaveSheetStore.kind`, `vacation` → `instructor-vacation`, niente
+  termometro, riga «Periodo» sempre). Sotto i «Periodi registrati»:
+  `useInstructorAbsences` legge i blocchi `sick_leave` e `ferie` e
+  `utils/absencePeriods` li raggruppa (un blocco per giorno → un periodo).
+  Trascinato a sinistra, un periodo chiede conferma e si elimina blocco per blocco
+  (`instructor-blocks/[id]`); le guide già annullate restano annullate.
+- **Cache:** lasciando la schermata si invalidano `school-availability` e
+  `out-of-availability` (Oggi e l'agenda rileggono); malattia, ferie ed
+  eliminazioni invalidano `instructor-absences` e `agenda-bootstrap`.
+- **Fluidità:** le Assenze si montano dopo l'animazione del push
+  (`InteractionManager`), righe dei periodi in memo, nessun fetch al tocco
+  (nome e telefono arrivano come parametri).
+- Backend: B1+B2 (`fix/reg-794-availability-owner`) devono essere in prod prima
+  dell'OTA: senza la rotta della modalità la schermata mostra «Disponibilità non
+  caricata».

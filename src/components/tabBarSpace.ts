@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInstructorTabs } from '../hooks/useInstructorTabs';
+import { useSession } from '../context/SessionContext';
+import { isOwner } from '../utils/roles';
 
 /**
  * Tab bar «B · vetro a tutta larghezza» (Tiziano 28/10): la barra sta SOPRA
@@ -40,6 +42,8 @@ export function useTabBarHeight(): number {
 /** Spazio da lasciare in fondo nelle radici che scorrono sotto il vetro (0 se la scena ha già lo spazio). */
 export function useTabBarOverlap(): number {
   const { instructorApp } = useInstructorTabs();
+  // REG-794: anche le radici dei titolari (Oggi, Agenda, Allievi, Tu) stanno sotto il vetro.
+  const { autoscuolaRole } = useSession();
   const h = useTabBarHeight();
-  return instructorApp ? h : 0;
+  return instructorApp || isOwner(autoscuolaRole) ? h : 0;
 }

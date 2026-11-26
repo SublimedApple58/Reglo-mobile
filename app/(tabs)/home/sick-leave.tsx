@@ -14,6 +14,7 @@ import { timePickerStore } from '../../../src/stores/timePickerStore';
 import { dayPickerStore } from '../../../src/stores/dayPickerStore';
 import { dateRangeStore } from '../../../src/stores/dateRangeStore';
 import { regloApi } from '../../../src/services/regloApi';
+import { useStackBase } from '../../../src/hooks/useStackBase';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const toYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -27,6 +28,9 @@ const sameYMD = (a: Date, b: Date) => toYMD(a) === toYMD(b);
 export default function SickLeaveScreen() {
   const router = useRouter();
   const data = useSyncExternalStore(sickLeaveSheetStore.subscribe, sickLeaveSheetStore.get);
+  // REG-794: il foglio vive negli stack di Agenda e di Oggi; i selettori si aprono nello stesso.
+  const stackBase = useStackBase('home');
+  const vacation = data?.kind === 'vacation';
 
   const [startDate, setStartDate] = useState<Date>(() => new Date());
   const [endDate, setEndDate] = useState<Date>(() => new Date());
@@ -41,7 +45,8 @@ export default function SickLeaveScreen() {
     const t = new Date(); t.setHours(14, 0, 0, 0);
     setStartDate(d);
     setEndDate(d);
-    setMultiDay(false);
+    // Le ferie sono un periodo: la riga «Periodo» c'è sempre.
+    setMultiDay(data.kind === 'vacation');
     setHalfDay(false);
     setStartTime(t);
     setPending(false);
@@ -59,23 +64,23 @@ export default function SickLeaveScreen() {
       selectedDate: toYMD(current), markedDates: new Set(), monthsBack: 0, monthsCount: 4,
       allowPast: false, title: 'Seleziona data', onSelect: (ymd) => onSelect(fromYMD(ymd)),
     });
-    router.push('/(tabs)/home/select-date');
+    router.push(`/(tabs)/${stackBase}/select-date` as never);
   };
 
   const openTimePicker = () => {
     timePickerStore.set({ selectedTime: startTime, onConfirm: setStartTime });
-    router.push('/(tabs)/home/time-picker');
+    router.push(`/(tabs)/${stackBase}/time-picker` as never);
   };
 
   const openRangePicker = () => {
     dateRangeStore.set({
       from: toYMD(startDate),
       to: toYMD(endDate),
-      title: 'Periodo di malattia',
+      title: vacation ? 'Periodo di ferie' : 'Periodo di malattia',
       minISO: toYMD(new Date()),
       onApply: (from, to) => { setStartDate(fromYMD(from)); setEndDate(fromYMD(to)); },
     });
-    router.push('/(tabs)/home/select-date-range');
+    router.push(`/(tabs)/${stackBase}/select-date-range` as never);
   };
 
   const setMulti = (val: boolean) => {
@@ -94,17 +99,21 @@ export default function SickLeaveScreen() {
     setPending(true);
     void (async () => {
       try {
-        const result = await regloApi.createInstructorSickLeave({
+        const input = {
+          ...(data.forInstructorName ? { instructorId: data.instructorId } : {}),
           startDate: toYMD(startDate),
           endDate: toYMD(multiDay ? endDate : startDate),
           ...(halfDay ? { startTime: fmtTime(startTime) } : {}),
-        });
+        };
+        const result = vacation
+          ? await regloApi.createInstructorVacation(input)
+          : await regloApi.createInstructorSickLeave(input);
         await data.onApplied();
-        data.onDone(`Malattia registrata. ${result.appointmentsCancelled} guide cancellate.`);
+        data.onDone(`${vacation ? 'Ferie registrate' : 'Malattia registrata'}. ${result.appointmentsCancelled} guide cancellate.`);
         router.back();
       } catch (err) {
         setPending(false);
-        Alert.alert('Errore', err instanceof Error ? err.message : 'Errore nella registrazione malattia');
+        Alert.alert('Errore', err instanceof Error ? err.message : `Errore nella registrazione ${vacation ? 'ferie' : 'malattia'}`);
       }
     })();
   };
@@ -119,14 +128,14 @@ export default function SickLeaveScreen() {
 
   return (
     <FormSheet
-      title="Malattia"
+      title={`${vacation ? 'Ferie' : 'Malattia'}${data.forInstructorName ? ` di ${data.forInstructorName.trim().split(/\s+/)[0]}` : ''}`}
       subtitle={`${summaryMain} · ${summarySub}`}
       onClose={() => { if (!pending) router.back(); }}
       busy={pending}
       testID="sick-leave-sheet"
       cta={
         <ClayButton
-          title="Conferma malattia"
+          title={vacation ? 'Conferma ferie' : 'Conferma malattia'}
           loading={pending}
           disabled={pending || invalidRange}
           onPress={confirm}
@@ -134,11 +143,17 @@ export default function SickLeaveScreen() {
         />
       }
     >
-      {/* REG-639 «vita»: il termometro 3D e una frase gentile. */}
-      <View style={s.hero}>
-        <Image source={VITA_ART.termometro} style={s.heroArt} />
-        <Text style={s.lead}>Riguardati. Le guide in conflitto vengono annullate e gli allievi avvisati.</Text>
-      </View>
+      {/* REG-639 «vita»: il termometro 3D e una frase gentile. Le ferie (REG-794): solo la frase. */}
+      {vacation ? (
+        <Text style={s.leadPlain}>Le guide in conflitto vengono annullate e gli allievi avvisati.</Text>
+      ) : (
+        <View style={s.hero}>
+          <Image source={VITA_ART.termometro} style={s.heroArt} />
+          <Text style={s.lead}>
+            {data.forInstructorName ? '' : 'Riguardati. '}Le guide in conflitto vengono annullate e gli allievi avvisati.
+          </Text>
+        </View>
+      )}
 
       {/* Date — singolo giorno o periodo (un solo calendario range) */}
       <ClayList>
@@ -158,11 +173,13 @@ export default function SickLeaveScreen() {
       </ClayList>
 
       <ClayList style={s.gap}>
-        <ClayListRow
-          title="Più giorni"
-          subtitle="Imposta un periodo di malattia"
-          trailing={<ClayToggle value={multiDay} onValueChange={setMulti} disabled={pending} accessibilityLabel="Più giorni" testID="sick-multi-toggle" />}
-        />
+        {vacation ? null : (
+          <ClayListRow
+            title="Più giorni"
+            subtitle="Imposta un periodo di malattia"
+            trailing={<ClayToggle value={multiDay} onValueChange={setMulti} disabled={pending} accessibilityLabel="Più giorni" testID="sick-multi-toggle" />}
+          />
+        )}
         <ClayListRow
           title="Mezza giornata"
           subtitle="Inizia a un orario specifico"
@@ -189,5 +206,6 @@ const s = StyleSheet.create({
   hero: { alignItems: 'center', marginBottom: 18 },
   heroArt: { width: 84, height: 84 },
   lead: { fontSize: 15.5, lineHeight: 21, color: CLAY.ink2, textAlign: 'center', marginTop: 8, paddingHorizontal: 12 },
+  leadPlain: { fontSize: 15.5, lineHeight: 21, color: CLAY.ink2, marginTop: -4, marginBottom: 18, paddingHorizontal: 2 },
   gap: { marginTop: 22 },
 });

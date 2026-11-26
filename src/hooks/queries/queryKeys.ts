@@ -92,6 +92,14 @@ export const queryKeys = {
   publicationWeek: (companyId: string | null, instructorId: string | null, weekStart: string) =>
     ['publication-week', companyId, instructorId, weekStart] as const,
 
+  // ── REG-794: disponibilità di un istruttore per conto del titolare ──
+  instructorAvailabilityMode: (companyId: string | null, instructorId: string | null) =>
+    ['instructor-availability-mode', companyId, instructorId] as const,
+
+  /** Malattie e ferie (blocchi raggruppati in periodi); `null` = tutta la scuola. */
+  instructorAbsences: (companyId: string | null, instructorId: string | null) =>
+    ['instructor-absences', companyId, instructorId] as const,
+
   // ── Giorno della scuola (REG-794): disponibilità di tutti gli istruttori, per settimana ──
   schoolAvailability: (companyId: string | null, weekStart: string) =>
     ['school-availability', companyId, weekStart] as const,

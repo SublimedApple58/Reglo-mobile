@@ -71,6 +71,15 @@ const INSTRUCTOR_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   more: 'person-circle-outline',
 };
 
+/**
+ * Titolare e titolare-istruttore (REG-794): Oggi · Agenda · [Road] · Allievi ·
+ * Tu, gli stessi glifi dell'istruttore più «Oggi».
+ */
+const OWNER_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  ...INSTRUCTOR_ICONS,
+  today: 'today-outline',
+};
+
 /* ── Tab Item ── */
 
 type TabItemProps = {
@@ -153,6 +162,8 @@ type ExtraProps = {
   showRoleTab: boolean;
   /** App istruttore (anche titolare-istruttore): icone della «T1 piatta». */
   instructorApp?: boolean;
+  /** Titolare o titolare-istruttore: «Oggi» e le icone dell'istruttore. */
+  ownerApp?: boolean;
 };
 
 export const AppTabBar = ({
@@ -166,6 +177,7 @@ export const AppTabBar = ({
   isStudentMoto,
   showRoleTab,
   instructorApp,
+  ownerApp,
 }: BottomTabBarProps & ExtraProps) => {
   const insets = useSafeAreaInsets();
   const unreadCount = useUnreadNotifications();
@@ -246,7 +258,7 @@ export const AppTabBar = ({
           // moto student gets a moto-flavoured Home icon. Ionicons has no
           // "motorcycle", so we reuse the instructor-side moto proxy.
           let tabIconOverride: keyof typeof Ionicons.glyphMap | undefined =
-            instructorApp ? INSTRUCTOR_ICONS[route.name] : isStudent ? STUDENT_ICONS[route.name] : undefined;
+            ownerApp ? OWNER_ICONS[route.name] : instructorApp ? INSTRUCTOR_ICONS[route.name] : isStudent ? STUDENT_ICONS[route.name] : undefined;
           if (isStudentTeoria && route.name === 'home') {
             tabIconOverride = 'book-outline';
           } else if (isStudentMoto && route.name === 'home') {

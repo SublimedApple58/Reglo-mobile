@@ -13,8 +13,6 @@ export default function RoleLayout() {
       {/* REG-705c: «Luogo della fascia» dagli editor di disponibilità di questo stack. */}
       <Stack.Screen name="select-options" options={FORM_SHEET} />
       <Stack.Screen name="select-options-long" options={FORM_SHEET} />
-      <Stack.Screen name="instructor-invite" options={FORM_SHEET} />
-      <Stack.Screen name="instructor-availability" options={FORM_SHEET} />
     </Stack>
   );
 }
