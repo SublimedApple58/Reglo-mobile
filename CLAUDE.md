@@ -10,7 +10,7 @@ npx expo start -c      # Start with cache cleared
 ```
 
 **EAS:** `eas build --profile development|preview|production --platform ios|android`
-**OTA:** `eas update --platform ios --branch production --message "..."` then same for `--platform android` separately. **IMPORTANT:** Always use `--branch production` for prod deploys. Never use `--auto` (it targets `master` instead of `production`). Always run `--platform ios` and `--platform android` separately (never `--platform all`).
+**OTA:** prima SEMPRE `npx patch-package` (le patch in `patches/`, es. expo-router della tab bar iOS REG-800, si applicano solo all'install: senza, le icone della tab bar escono nere). Poi `eas update --platform ios --branch production --message "..."` then same for `--platform android` separately. **IMPORTANT:** Always use `--branch production` for prod deploys. Never use `--auto` (it targets `master` instead of `production`). Always run `--platform ios` and `--platform android` separately (never `--platform all`).
 
 No test runner or linter configured, except `npm run test:road`: pure Road logic tests in `tests/road/` (node:test via `npx tsx`, no extra dependency).
 
