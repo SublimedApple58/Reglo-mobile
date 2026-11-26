@@ -85,6 +85,9 @@ export default function QuickStudentSheet() {
   const start = data.presetStartMinutes ?? 0;
   const subtitle = `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${fmtMin(start)} – ${fmtMin(start + dur)}`;
 
+  // Guida di un collega (REG-794): il foglio chiede per lui.
+  const colleague = data.columnInstructorName?.trim().split(/\s+/)[0] ?? '';
+
   const q = query.trim();
   const shown = q ? everyone.filter((p) => matchesPersonSearch(p.name, q)) : everyone;
   const groups: Group[] = [];
@@ -105,7 +108,7 @@ export default function QuickStudentSheet() {
 
   return (
     <FormSheet
-      title="Con chi guidi?"
+      title={colleague ? `Con chi guida ${colleague}?` : 'Con chi guidi?'}
       subtitle={subtitle}
       testID="quick-student-sheet"
       list={{

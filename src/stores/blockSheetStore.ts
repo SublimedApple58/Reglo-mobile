@@ -35,6 +35,8 @@ export type BlockSheetData = {
   instructorId: string;
   /** REG-671: titolare senza profilo istruttore → sceglie per chi è il blocco. */
   instructorOptions?: { id: string; name: string }[];
+  /** REG-794: colonna dell'istruttore nel giorno della scuola → già scelto nel foglio. */
+  presetInstructorId?: string;
   /** After the create succeeds: refresh the parent's agenda from the BE. */
   onApplied: () => Promise<void>;
   /** Success toast. */

@@ -91,7 +91,7 @@ export function AgendaTodayCard({
       <Animated.Image
         key={done ? 'done' : count ? 'day' : 'free'}
         entering={FadeIn.duration(260).reduceMotion(ReduceMotion.Never)}
-        source={done ? MORALE_ART.espresso : count ? VITA_ART.calendario : VITA_ART.volante}
+        source={done ? MORALE_ART.espresso : count ? VITA_ART.orologio : VITA_ART.volante}
         style={s.art}
       />
       <View style={s.main}>

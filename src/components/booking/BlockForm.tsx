@@ -97,7 +97,7 @@ export function BlockForm({ variant = 'full' }: { variant?: 'full' | 'quick' }) 
     setRecurringWeeks(4);
     setPending(false);
     setTimesOpen(false);
-    setPickedInstructorId('');
+    setPickedInstructorId(data.presetInstructorId ?? '');
   }, [data]);
 
   const invalidRange = useMemo(() => {
