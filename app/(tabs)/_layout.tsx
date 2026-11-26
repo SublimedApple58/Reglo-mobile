@@ -169,14 +169,22 @@ export default function TabsLayout() {
   // niente barra; su iOS la barra di sistema (Liquid Glass), su Android la
   // nostra barra JS con le stesse icone.
   const visibleTabs = TAB_ORDER.filter((name) => !hiddenTabs.has(name));
-  const barKind: TabBarKind = visibleTabs.length <= 1 ? 'none' : Platform.OS === 'ios' ? 'native' : 'js';
+  const wantedKind: TabBarKind = visibleTabs.length <= 1 ? 'none' : Platform.OS === 'ios' ? 'native' : 'js';
+  // La barra nativa, una volta montata, resta fino al prossimo avvio: smontarla
+  // ad app aperta (es. allievo che passa in attesa) manda react-native-screens
+  // in errore («Expected exactly 1 focused tab», REG-800). Con una voce sola
+  // resta la sola Home finché l'app non si riapre.
+  const nativeShown = React.useRef(false);
+  if (wantedKind === 'native') nativeShown.current = true;
+  const barKind: TabBarKind = nativeShown.current && wantedKind === 'none' ? 'native' : wantedKind;
   // iOS: radici che scorrono sotto il vetro (si tengono lo spazio da sé con
-  // `useTabBarOverlap`). La Home dell'allievo in teoria (Quiz) no.
+  // `useTabBarOverlap`).
   const sceneInfo = React.useMemo(() => {
     const underGlass = new Set(['today', 'drive', 'notes', 'more', 'guide', 'swaps']);
-    if (!isStudentInTeoria) underGlass.add('home');
+    // La Home dell'allievo in teoria (Quiz), in attesa o patentato non ci scorre sotto.
+    if (!isStudentInTeoria && !isStudentAwaiting && !isStudentLicensed) underGlass.add('home');
     return { kind: barKind, underGlass };
-  }, [barKind, isStudentInTeoria]);
+  }, [barKind, isStudentInTeoria, isStudentAwaiting, isStudentLicensed]);
   const staffApp = instructorApp || ownerApp;
   const titleFor = (name: (typeof TAB_ORDER)[number]): string => {
     switch (name) {
@@ -242,8 +250,8 @@ export default function TabsLayout() {
                   <NativeTabs.Trigger key={name} name={name}>
                     <Icon src={{ default: icon.off, selected: icon.on }} />
                     <Label>{titleFor(name)}</Label>
-                    {name === 'inbox' ? (
-                      <Badge hidden={unreadCount <= 0}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Badge>
+                    {name === 'inbox' && unreadCount > 0 ? (
+                      <Badge>{unreadCount > 9 ? '9+' : String(unreadCount)}</Badge>
                     ) : null}
                   </NativeTabs.Trigger>
                 );
