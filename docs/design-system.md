@@ -60,13 +60,13 @@ almeno un elemento caldo (un numero protagonista, una frase umana, un oggetto
 
 | Peso | Dove | Cosa ricevono |
 |---|---|---|
-| Alto | Agenda, foglio «Nuovo», Disponibilità, «Tu», dettaglio allievo | saluto con l'ora, card «Oggi» col calendario 3D, cartina Road + auto nel colore del veicolo, foto della sede in copertina, ore del mese con le barre delle settimane, statistiche con oggetti 3D |
+| Alto | Agenda, foglio «Nuovo», Disponibilità, «Tu», dettaglio allievo | saluto con l'ora, card «Oggi» con l'orologio 3D (REG-794; era il calendario «JUNE»), cartina Road + auto nel colore del veicolo, foto della sede in copertina, ore del mese con le barre delle settimane, statistiche con oggetti 3D |
 | Medio | Il mio gruppo, Allievi, Pagamenti, Ore di guida | icone 3D sulle righe principali (gruppo), un numero grande («3 guide da pagare»), sezioni per mese |
 | Basso | impostazioni, sottopagine, fogli di modifica | testata pulita, righe native; il calore sta negli stati vuoti (`MORALE_ART`) e nelle frasi |
 
 Dove sta oggi:
 - **Agenda**: saluto con l'ora (`greetingFor`: Buongiorno <13, Buon pomeriggio
-  <18, Buonasera) sopra il titolo; `AgendaTodayCard` (calendario 3D, «Oggi N
+  <18, Buonasera) sopra il titolo; `AgendaTodayCard` (orologio 3D, «Oggi N
   guide», la prima/la prossima, la pausa; giornata vuota = volante); campanella
   3D sull'avviso «fuori disponibilità».
 - **Foglio «Nuovo»**: card clay «Guida» con `cartina-road` e auto
@@ -1298,7 +1298,7 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 - **iOS:** usa token deprecati `glass*` + `BlurView` nativo per effetto vetro.
 - **Android:** tab bar custom con `bg: #FFFFFF`, highlight navy.
 
-### 6.20 Agenda istruttore / titolare (clay v2, REG-639)
+### 6.20 Agenda istruttore / titolare (clay v2, REG-639; giorno della scuola REG-794)
 
 Feature doc completo: [features/agenda-istruttore.md](features/agenda-istruttore.md).
 Schermata: `IstruttoreHomeScreen` (anche `TitolareHomeScreen` = `ownerMode`).
@@ -1346,6 +1346,17 @@ da Tiziano il 29/10 ed eliminata.
   - **«Cosa vuoi creare?»**: form sheet adattivo (X, niente grabber), righe
     alte 76 con l'oggetto 3D in una scatola 52×46, nome 17/600 + spiegazione
     14 grigia, spunta nera sul tipo scelto; il tocco applica e chiude.
+- **«La mia · Tutti» (REG-794, 26/11/2026)**: il titolare-istruttore ha il
+  segmentato nativo iOS a due voci sotto il titolo (`NativeSegmented`); «Tutti»
+  (e il titolare puro) è il **giorno della scuola**: una colonna per istruttore
+  da 132 pt che scorre in orizzontale, ora 60 pt, colonna delle ore 44 pt e fila
+  dei volti (volto 28 + «Sara B.» 13.5/600 + «9 guide» 11.5) ferme; striscia
+  della settimana con il giorno a parole 19/600 e il giorno scelto nel cerchio
+  nero 30. Blocchi: nome 12.5/600, orario 11/500, mezzo se acceso. Stessi
+  colori della settimana. Dettagli: [features/giorno-della-scuola.md](features/giorno-della-scuola.md).
+  La settimana con tutti gli istruttori nella stessa colonna è stata tolta.
+- **Icona della card «Oggi»**: l'orologio 3D (`VITA_ART.orologio`); il
+  calendario 3D con la scritta «JUNE» non si usa più nell'app istruttore/titolare.
 - **FAB «+»**: cerchio nero 56 col volume della CTA primaria
   (`CLAY_CTA.primary`). Apre il foglio **«Nuovo»** (`home/add-action`,
   FORM_SHEET + `<FormSheet>`): `ClayList` di solo testo (Guida, Guida di

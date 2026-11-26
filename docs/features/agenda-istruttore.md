@@ -1,4 +1,4 @@
-# Agenda istruttore / titolare (clay v2, REG-639)
+# Agenda istruttore / titolare (clay v2, REG-639; «La mia · Tutti» REG-794)
 
 La prima tab dell'app istruttore e titolare: guide, esami, guide di gruppo,
 blocchi e disponibilità in **una sola vista, la Settimana** (la griglia oraria
@@ -60,43 +60,14 @@ l'agenda si apre e resta sulla Settimana.
 (`CLAY_CTA.primary`, `testID="agenda-fab"`) → foglio «Nuovo». Si nasconde mentre
 è attiva la CTA del blocco fantasma (`onGhostActiveChange`).
 
-## Quale agenda e guide affiancate (09/11/2026)
+## Quale agenda (REG-794, 26/11/2026)
 
-Segnalazioni Gabriele («non vedo le guide di tutti gli istruttori dallo
-smartphone») e Macchiavello. Decisione di Tiziano: **niente vista Giorno**, si
-sistema la Settimana.
-
-- **Selettore** (titolare e titolare-istruttore; l'istruttore vede solo le sue):
-  `INSTRUCTOR_OWNER` = voce di testo «Le mie guide» + seconda voce con chi si
-  guarda («Tutti gli istruttori» o il nome) e chevron; il titolare puro ha solo
-  la seconda. La seconda voce apre il form sheet `home/agenda-scope` «Quale
-  agenda?» (`agendaScopeSheetStore`): «Le mie guide», «Tutti gli istruttori»,
-  poi gli istruttori (volto + nome, spunta sulla scelta), ricerca da 7
-  istruttori, lettere oltre 20. FlatList del foglio, righe memo.
-- **Nessuna chiamata al tocco**: gli istruttori vengono dal bootstrap
-  dell'agenda (`instructors`, sempre tutti quelli attivi). Un singolo istruttore
-  si ottiene filtrando in memoria i dati di «Tutti» (`focusInstructorId` →
-  `gridAppointments`/`gridBlocks`); il fetch cambia solo fra «Le mie» e il resto.
-  Il cambio di agenda è una dissolvenza della griglia (0.35 → 1, 240 ms).
-- **Corsie** (`src/utils/agendaLanes.ts`, `layoutLanes`): nella colonna di un
-  giorno gli impegni che si sovrappongono negli orari reali (guide, esami,
-  gruppi, blocchi) si dividono la larghezza come nel calendario iOS. Corsie
-  minime 16pt (`LANE_MIN_W`): se non ci stanno, l'ultima corsia è la cella «+N»
-  (bianca clay, niente badge) che apre `home/agenda-slot` con tutti gli impegni
-  della fascia (volto e nome dell'istruttore, allievo e orario); il tocco chiude
-  e apre l'impegno. Con più istruttori (`showInstructor`): corsie strette
-  (< 44pt) = iniziali dell'istruttore e sotto il cognome dell'allievo se ci sta;
-  corsia piena = allievo e «Mario R.». Su iPhone ~3 corsie, su iPad di più.
-- Creazione dal fantasma invariata: in «Tutti» o con un istruttore scelto il
-  fantasma non si ferma sugli eventi e l'istruttore lo sceglie il foglio
-  (titolare) come prima.
-- **Mai guide mancanti**: il server dà al massimo `limit` (400) impegni per
-  richiesta, in ordine di inizio. `getAgendaBootstrapComplete`
-  (`src/services/agendaBootstrapPaged.ts`) chiede le pagine successive
-  dall'ultimo inizio ricevuto finché una pagina non torna piena (doppioni
-  scartati, max 15 pagine): la finestra caricata, e quindi la settimana
-  visibile, è sempre completa. Usato da `useAgendaBootstrap` e da `loadData`
-  (stessa chiave di cache). Verificato su staging con 5 per pagina: 27/27.
+- **Titolare-istruttore**: segmentato nativo **«La mia · Tutti»** (`NativeSegmented`) sotto il titolo. «La mia» = questa settimana; «Tutti» = il **giorno della scuola** a colonne-istruttore → [giorno-della-scuola.md](giorno-della-scuola.md).
+- **Titolare puro**: sempre il giorno della scuola.
+- Il tocco sul nome di una colonna apre la **settimana di quell'istruttore** (questa griglia, filtrata in memoria, con la sua disponibilità). In testata c'è l'indietro tondo, il volto, il nome e «N guide in questa settimana».
+- La vecchia settimana «Tutti gli istruttori» (tutti nella colonna del giorno, iniziali nelle corsie) e il foglio «Quale agenda?» (`home/agenda-scope`) sono stati **tolti**. `agendaLanes` e `home/agenda-slot` («+N») restano, li usano entrambe le griglie.
+- Il fantasma vive in `src/components/agenda/ghost.tsx`, condiviso col giorno della scuola. Nella settimana di un collega crea per quel collega.
+- **Mai guide mancanti** (09/11): il server dà al massimo `limit` (400) impegni per richiesta; `getAgendaBootstrapComplete` (`src/services/agendaBootstrapPaged.ts`) chiede le pagine successive finché una pagina non torna piena (max 15 pagine).
 
 ## Flusso dati
 
@@ -125,8 +96,9 @@ IstruttoreHomeScreen
 
 ## Regole / gotcha
 
-- Il titolare puro (`ownerMode`) è in sola lettura: niente FAB, niente blocco
-  fantasma, blocchi non tappabili, fogli in `readOnly`.
+- Il titolare puro (`ownerMode`) è in sola lettura sui fogli: niente FAB,
+  blocchi non tappabili, fogli in `readOnly`. Crea però dal fantasma (REG-671),
+  scegliendo l'istruttore o, nel giorno della scuola, per la colonna toccata.
 - Il colore dei blocchi passa SOLO da `agendaLook` (non duplicare la logica
   nella griglia).
 - **Colori = «Aspetto agenda»**: i blocchi usano **esattamente il colore scelto in «Aspetto agenda»** dall'autoscuola (anche blu/azzurro), a fondo pastello pieno — decisione di Tiziano del 29/10 («i colori devono rispettare i setting Aspetto agenda»). La regola `NEUTRAL_BLUE` provata la notte del 28/10 è stata eliminata.
