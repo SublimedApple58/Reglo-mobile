@@ -415,7 +415,7 @@ export function BookingForm({ variant = 'full' }: { variant?: 'full' | 'quick' }
     const st = studentOptions.find((o) => o.value === v);
     if (st) presetVehiclesForStudent(st);
     // Titolare: la guida va all'istruttore dell'allievo, se ce l'ha (come il web).
-    if (pickInstructor && st?.assignedInstructorId && instructorOptions.some((i) => i.id === st.assignedInstructorId)) {
+    if (pickInstructor && !data?.instructorFromColumn && st?.assignedInstructorId && instructorOptions.some((i) => i.id === st.assignedInstructorId)) {
       setPickedInstructorId(st.assignedInstructorId);
     }
     // Luogo di default dell'allievo (REG-392): alla selezione precompila il

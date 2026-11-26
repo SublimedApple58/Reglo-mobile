@@ -492,7 +492,7 @@ export default function SlotOfferSheet() {
             expiresAt={state.slot.expiresAt}
           />
           <ClaySurface padded={false} style={[s.gap, s.warn]}>
-            <Icon3D source={VITA_ART.calendario} size={44} />
+            <Icon3D source={VITA_ART.orologio} size={44} />
             <Text style={s.warnTx}>{text}</Text>
           </ClaySurface>
         </View>

@@ -37,7 +37,7 @@ export default function AddActionScreen() {
     { key: 'group', title: 'Guida di gruppo', sub: 'Più allievi insieme', art: PERSONE, run: data.onGroupLesson, show: data.canGroupLesson },
     { key: 'exam', title: 'Esame', sub: 'Una sessione con i tuoi allievi', art: VITA_ART.esame, run: data.onExam, show: true },
     { key: 'theory', title: 'Lezione teorica', sub: 'In sede, occupa l’orario', art: VITA_ART.edificio, run: data.onTheory, show: true },
-    { key: 'block', title: 'Blocca un orario', sub: 'Nessuno può prenotarlo', art: VITA_ART.calendario, run: data.onBlock, show: true },
+    { key: 'block', title: 'Blocca un orario', sub: 'Nessuno può prenotarlo', art: VITA_ART.orologio, run: data.onBlock, show: true },
     { key: 'sick', title: 'Malattia', sub: 'Uno o più giorni di assenza', art: VITA_ART.termometro, run: data.onSick, show: true },
   ].filter((r) => r.show);
 

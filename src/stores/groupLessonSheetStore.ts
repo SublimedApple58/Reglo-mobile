@@ -13,6 +13,8 @@ export type GroupLessonSheetData = {
   presetDurationMinutes?: number;
   /** REG-671: titolare senza profilo istruttore → sceglie l'istruttore. */
   instructorOptions?: { id: string; name: string }[];
+  /** REG-794: colonna dell'istruttore nel giorno della scuola → già scelto. */
+  presetInstructorId?: string;
   /** After the create succeeds: refresh the parent's agenda from the BE. */
   onApplied: () => Promise<void>;
   /** Success toast after the group lesson is created. */

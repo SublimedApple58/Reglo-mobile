@@ -73,9 +73,9 @@ export const CreateGroupLessonScreen = () => {
       ]);
       setVehicles(veh.filter((v) => v.status === 'active'));
       if (settings) {
-        // This sheet is opened from the instructor home → the group lesson is
-        // always for the creating instructor (no instructor picker).
-        setInstructorId(settings.instructorId ?? null);
+        // Dall'agenda: per chi la crea; nel giorno della scuola (REG-794) per
+        // l'istruttore della colonna toccata (resta sceglibile dal titolare).
+        setInstructorId((cur) => cur ?? settings.instructorId ?? null);
         setStudents((settings.students ?? []) as unknown as AutoscuolaStudent[]);
         setFollowCarRules(
           (settings as { followCarRules?: Record<string, { enabled: boolean }> }).followCarRules ?? {},
@@ -93,6 +93,7 @@ export const CreateGroupLessonScreen = () => {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!data) return;
+    if (data.presetInstructorId) setInstructorId(data.presetInstructorId);
     setStartAt(new Date(data.initialDate));
     // REG-671: dal fantasma dell'agenda, la durata intera più vicina (1–4 ore).
     const want = data.presetDurationMinutes;

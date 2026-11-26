@@ -829,7 +829,8 @@ export const createRegloApi = (baseUrl?: string) => {
       }),
     getAvailabilitySlots: async (params: {
       ownerType: string;
-      ownerId: string;
+      // Senza ownerId (REG-794): gli slot di TUTTI gli istruttori dell'autoscuola.
+      ownerId?: string;
       date?: string;
       // Inclusive date range — when both are set the backend returns slots for
       // every day in [from, to] in one response (one round-trip for a week).

@@ -9,8 +9,11 @@ import type { ImageSourcePropType } from 'react-native';
  * come velo grigio semitrasparente e su bianco l'icona è identica a prima.
  */
 export const VITA_ART = {
-  /** REG-672: icone che esistono già nella web app → stesso PNG (`assets/web/`, design-system §0.9). */
-  calendario: require('../../assets/web/nav/agenda-3d.png') as ImageSourcePropType,
+  /**
+   * REG-672: icone che esistono già nella web app → stesso PNG (`assets/web/`, design-system §0.9).
+   * REG-794: il calendario 3D (`agenda-3d`, con la scritta «JUNE») non si usa più
+   * nell'app istruttore/titolare: al suo posto l'orologio 3D (`orologio`).
+   */
   volante: require('../../assets/vita/volante.png') as ImageSourcePropType,
   esame: require('../../assets/vita/esame.png') as ImageSourcePropType,
   edificio: require('../../assets/web/settings/sede-autoscuola.png') as ImageSourcePropType,

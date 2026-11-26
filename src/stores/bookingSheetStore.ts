@@ -34,6 +34,11 @@ export type BookingSheetData = {
   suggestions?: BookingSuggestion[];
   outsideAvailability?: boolean;
   instructorOptions?: { id: string; name: string }[];
+  /**
+   * REG-794: guida creata nella colonna di un istruttore (giorno della scuola):
+   * resta a lui anche se l'allievo scelto è assegnato a un altro istruttore.
+   */
+  instructorFromColumn?: boolean;
   /** '' when no vehicle / vehicles disabled. */
   defaultVehicleId: string;
   /** `color` (REG-639): l'auto 3D in testa al foglio è nel colore del veicolo. */

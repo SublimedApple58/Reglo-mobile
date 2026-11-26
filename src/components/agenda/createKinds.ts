@@ -33,7 +33,7 @@ export const createArt = (kind: AgendaCreateKind, carColor: string | null | unde
     case 'group': return PERSONE_ART;
     case 'exam': return VITA_ART.esame;
     case 'theory': return VITA_ART.edificio;
-    default: return VITA_ART.calendario;
+    default: return VITA_ART.orologio;
   }
 };
 

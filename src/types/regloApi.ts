@@ -1119,6 +1119,11 @@ export type AutoscuolaSettings = {
   // REG-633: nome del veicolo nei blocchi guida del calendario (spento di
   // default; conta solo col modulo veicoli attivo).
   agendaShowVehicle?: boolean;
+  /**
+   * REG-449 (web «Aspetto»): ordine delle colonne istruttore. Parziale: chi
+   * non c'è va in coda in ordine alfabetico. Usato dal giorno della scuola (REG-794).
+   */
+  agendaInstructorOrder?: string[];
 };
 
 // ── Aspetto / colori agenda ──────────────────────────────────────────────────

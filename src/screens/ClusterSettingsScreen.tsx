@@ -346,7 +346,7 @@ export const ClusterSettingsScreen = () => {
 
         <ClayList style={styles.list}>
           {row(PERSONE_ART, 'Allievi del gruppo', studentsSummary, openStudentsSheet, 'cluster-students')}
-          {row(VITA_ART.calendario, 'Prenotazione guide', bookingSummary, () => router.push('/(tabs)/notes/booking-rules' as never), 'cluster-booking')}
+          {row(VITA_ART.orologio, 'Prenotazione guide', bookingSummary, () => router.push('/(tabs)/notes/booking-rules' as never), 'cluster-booking')}
           {row(VITA_ART.orologio, 'Limiti e orari', limitsSummary, () => router.push('/(tabs)/notes/limits' as never), 'cluster-limits')}
           {row(SCAMBIO_ART, 'Funzionalità extra', extrasSummary, () => router.push('/(tabs)/notes/extras' as never), 'cluster-extras')}
         </ClayList>
