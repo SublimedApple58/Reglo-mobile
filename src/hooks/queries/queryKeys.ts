@@ -89,8 +89,10 @@ export const queryKeys = {
   publishedWeeks: (companyId: string | null, instructorId: string | null, params?: Record<string, unknown>) =>
     ['published-weeks', companyId, instructorId, params] as const,
 
+  // `v2` (REG-799): da «ogni settimana a sé»; le righe persistite prima
+  // contenevano giorni ereditati dalla settimana prima e non vanno riusate.
   publicationWeek: (companyId: string | null, instructorId: string | null, weekStart: string) =>
-    ['publication-week', companyId, instructorId, weekStart] as const,
+    ['publication-week', companyId, instructorId, weekStart, 'v2'] as const,
 
   // ── REG-794: disponibilità di un istruttore per conto del titolare ──
   instructorAvailabilityMode: (companyId: string | null, instructorId: string | null) =>
