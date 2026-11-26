@@ -1290,14 +1290,14 @@ Stili: `flex: 1`, `backgroundColor: colors.background`, `paddingTop: insets.top`
 >
 > - **iOS = barra di sistema.** `NativeTabs` di expo-router (`expo-router/unstable-native-tabs`, `UITabBar` di react-native-screens 4.16) in `app/(tabs)/_layout.tsx`: su iOS 26 è il vetro Liquid Glass del sistema (capsula che galleggia, lente grigia sotto la voce attiva: è di sistema, non un nostro badge). Niente build nativa: il nativo c'era già, passa con l'OTA.
 > - **Android = `AppTabBar`** (barra JS «B · vetro» di prima) con le stesse icone, disegnate in SVG (`SvgXml`).
-> - **Set icone Reglo** — sorgente unica `src/theme/tabIconArt.ts` (griglia 28, tratto 1,8, terminali e giunti tondi, grammatica SF Symbols). Spenta: tratto grigio `#8E8E93`. Accesa: la stessa sagoma con i suoi colori realistici, piatti (niente 3D, niente sfumature), pochi colori condivisi: rosso `#E5484D` (tetto, intestazione calendario, pin, biglietto, segnalibro), giallo sole `#FFC21A`, oro campanella `#F5B400`, mattone `#C9966A`, rosa patente `#F59BBE`, nero volante `#1C1C1E`, asfalto `#48484A`. Il rosa qui è il colore della patente dentro l'icona, non un colore della UI.
+> - **Set icone Reglo** — sorgente unica `src/theme/tabIconArt.ts` (griglia 28, tratto 1,8, terminali e giunti tondi, grammatica SF Symbols). Spenta: tratto grigio `#8E8E93`. Accesa: la stessa sagoma con i suoi colori realistici, piatti (niente 3D, niente sfumature), pochi colori condivisi: rosso `#E5484D` (tetto, intestazione calendario, biglietto, segnalibro), verde `#2FA65A` (pin Road), giallo sole `#FFC21A`, oro campanella `#F5B400`, mattone `#C9966A`, rosa patente `#F59BBE`, nero volante `#1C1C1E`, asfalto `#48484A`. Il rosa qui è il colore della patente dentro l'icona, non un colore della UI; il blu notte delle maglie Allievi l'ha chiesto Tiziano (26/11) ed è solo dentro l'icona.
 >
 > | Voce | Icona | Accesa |
 > |---|---|---|
 > | Oggi (titolare) | sole | sole giallo, raggi arancio |
 > | Agenda (istruttore, titolare) | calendario | foglio bianco, intestazione rossa, oggi in rosso |
-> | Road (istruttore) | percorso con pin | strada asfalto, pin rosso |
-> | Allievi | due persone | maglie arancio e verde |
+> | Road (istruttore) | percorso con pin | strada asfalto, pin verde `#2FA65A` |
+> | Allievi | due persone | visi rosa carne (quello dietro un filo più scuro), maglie blu notte `#1F2D4F` e grigio scuro `#48484A` |
 > | Tu / Profilo (tutti) | patente | tessera rosa |
 > | Home (allievo) | casetta | tetto rosso, corpo mattone |
 > | Guide (allievo) | volante | nero |

@@ -98,9 +98,10 @@ const K = {
   bookText: '#D9B98C',
   pink: '#F59BBE',
   pinkDark: '#B8406F',
-  skin: '#F2C29B',
-  skinDark: '#B9825A',
-  orange: '#F28C28',
+  skin: '#F6C9B4',
+  skinBack: '#EDBBA4',
+  shirtGrey: '#48484A',
+  shirtNavy: '#1F2D4F',
   green: '#2FA65A',
 };
 
@@ -131,10 +132,10 @@ export const TAB_ICON_COLOR: Record<TabIconKey, string> = {
   road: svg(
     stroke(ROUTE, K.asphalt, 2.4) +
       `<path d="${C(6.4, 21.6, 2.2)}" fill="${K.paper}" stroke="${K.asphalt}" stroke-width="1.9"/>` +
-      solid(PIN, K.red) +
+      solid(PIN, K.green) +
       flat(C(20.5, 7.3, 1.75), K.paper),
   ),
-  allievi: svg(solid(HEAD2, K.skinDark) + solid(BODY2_FULL, K.green) + solid(HEAD1, K.skin) + solid(BODY1, K.orange)),
+  allievi: svg(solid(HEAD2, K.skinBack) + solid(BODY2_FULL, K.shirtGrey) + solid(HEAD1, K.skin) + solid(BODY1, K.shirtNavy)),
   tu: svg(solid(IDCARD, K.pink) + flat(ID_HEAD, K.pinkDark) + flat(ID_SHOULDERS_FULL, K.pinkDark) + stroke(ID_LINES, K.pinkDark, 1.8)),
   home: svg(solid(HOUSE, K.brick) + flat(DOOR, K.brickDark) + stroke(ROOF, K.red, 3.2)),
   guide: svg(
