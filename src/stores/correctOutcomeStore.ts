@@ -7,8 +7,8 @@
 export type CorrectOutcomeData = {
   /** Esito corrente, per marcare "attuale" sull'opzione giusta. */
   currentOutcome: 'checked_in' | 'no_show' | null;
-  /** Applica il nuovo esito (correzione). */
-  onPick: (action: 'checked_in' | 'no_show') => void;
+  /** Applica il nuovo esito (correzione); `true` = fatto, i fogli si chiudono. */
+  onPick: (action: 'checked_in' | 'no_show') => Promise<boolean>;
 };
 
 let _data: CorrectOutcomeData | null = null;

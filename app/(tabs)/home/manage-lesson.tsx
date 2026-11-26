@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
@@ -222,10 +222,12 @@ export default function ManageLessonScreen() {
   const roadEligible = useRoadSelector((st) => st.eligible);
   const roadPhase = useRoadSelector((st) => st.phase);
   const data = useSyncExternalStore(manageLessonStore.subscribe, manageLessonStore.get);
+  const mountedRef = useRef(true);
 
   // Tell the parent when this route is dismissed (popped), then clear the store.
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       manageLessonStore.get()?.onClosed?.();
       manageLessonStore.clear();
     };
@@ -355,10 +357,11 @@ export default function ManageLessonScreen() {
     setTimeout(() => onMenu(key), 350);
   };
 
-  const handleStatus = (action: 'checked_in' | 'no_show') => {
+  // REG-798: spinner sul bottone → BE → agenda ricaricata → poi si chiude.
+  const handleStatus = async (action: 'checked_in' | 'no_show') => {
     if (isPending) return;
-    router.back();
-    setTimeout(() => onStatus(action), 300);
+    const ok = await onStatus(action);
+    if (ok && mountedRef.current) router.back();
   };
 
   // Correzione guida passata: apre il form sheet nativo "Correggi esito".
@@ -445,6 +448,7 @@ export default function ManageLessonScreen() {
   return (
     <FormSheet
       testID="manage-lesson-sheet"
+      busy={isPending}
       title={
         // Nome tappabile → modal dettaglio allievo (storico, pagamenti, esami)
         <Pressable
@@ -474,8 +478,8 @@ export default function ManageLessonScreen() {
             allowPresente={allowPresente}
             pendingAction={pendingAction}
             menuOptions={menuOptions}
-            onPresente={() => handleStatus('checked_in')}
-            onAssente={() => handleStatus('no_show')}
+            onPresente={() => void handleStatus('checked_in')}
+            onAssente={() => void handleStatus('no_show')}
             onCorrect={openCorrect}
             onAction={runMenu}
             onRoad={startRoad}
