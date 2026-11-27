@@ -4,20 +4,20 @@ import type { Href } from "expo-router";
 import Animated from "react-native-reanimated";
 import { ClayList, ClayListRow } from "../clay";
 import { CLAY } from "../../theme/clay";
-import { SettingCheckRow } from "../SettingsRows";
+import { StudentDayChoice } from "./StudentDayChoice";
 import { StudentAvailabilityEditor } from "./StudentAvailabilityEditor";
 import { StudentWeekStrip } from "./StudentWeekStrip";
 import { fadeIn } from "../../screens/firstAccess/FirstAccessStepScreen";
 import type {
   StudentAvailabilityBand,
-  StudentBandKey,
-  StudentBandsByDay,
+  StudentRangeRules,
+  StudentRangesByDay,
 } from "../../types/regloApi";
 import {
+  DEFAULT_RULES,
   WEEK,
-  bandHours,
-  hasAnyBand,
-  orderBands,
+  hasAnyRange,
+  sameForAll,
   type DayKey,
 } from "../../utils/studentAvailability";
 
@@ -32,7 +32,8 @@ const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
  * Si parte dai GIORNI, perché ogni giorno è diverso (Tiziano, 27/11):
  *
  * - una domanda per giorno, da lunedì a domenica: «Di solito il lunedì sei
- *   libero…» con mattina, pomeriggio e sera da spuntare;
+ *   libero…» con mattina, pomeriggio e sera da spuntare, più «Un orario
+ *   preciso» con le rotelle (REG-813, `StudentDayChoice`);
  * - la CTA dello step fa sempre avanzare: «Avanti» con una scelta, «Il lunedì
  *   non posso» senza (il salto rapido);
  * - in alto la settimana compatta si riempie man mano, cerchia il giorno della
@@ -49,13 +50,16 @@ const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 export function useGuidedAvailability({
   days,
   bands,
+  rules = DEFAULT_RULES,
   onChange,
   dayHref,
   ready = true,
 }: {
-  days: StudentBandsByDay;
+  days: StudentRangesByDay;
   bands: StudentAvailabilityBand[];
-  onChange: (days: StudentBandsByDay) => void;
+  /** REG-813 — regole di «Un orario preciso». */
+  rules?: StudentRangeRules;
+  onChange: (days: StudentRangesByDay) => void;
   /** Rotta del foglio del giorno (per i ritocchi alla fine). */
   dayHref: Href;
   /** Falso finché le disponibilità salvate non sono arrivate. */
@@ -63,29 +67,21 @@ export function useGuidedAvailability({
 }) {
   // 0–6 = domanda del giorno, WEEK.length = «La tua settimana».
   const [index, setIndex] = useState(() =>
-    ready && hasAnyBand(days) ? WEEK.length : 0,
+    ready && hasAnyRange(days) ? WEEK.length : 0,
   );
   const started = useRef(ready);
   useEffect(() => {
     if (!ready || started.current) return;
     started.current = true;
-    if (hasAnyBand(days)) setIndex(WEEK.length);
+    if (hasAnyRange(days)) setIndex(WEEK.length);
   }, [ready, days]);
 
   const overview = index >= WEEK.length;
   const day = overview ? null : WEEK[index];
-  const selected = day ? orderBands(days[day.key], bands) : [];
+  const selected = day ? (days[day.key] ?? []) : [];
 
   // «Uguale per tutti i giorni» ha senso solo con una scelta e dei giorni davanti.
   const shortcut = !overview && selected.length > 0 && index < WEEK.length - 1;
-
-  const toggle = (key: StudentBandKey) => {
-    if (!day) return;
-    const next = selected.includes(key)
-      ? selected.filter((k) => k !== key)
-      : [...selected, key];
-    onChange({ ...days, [day.key]: orderBands(next, bands) });
-  };
 
   const jumpTo = (key: DayKey) =>
     setIndex(WEEK.findIndex((d) => d.key === key));
@@ -95,6 +91,7 @@ export function useGuidedAvailability({
       <StudentAvailabilityEditor
         days={days}
         bands={bands}
+        rules={rules}
         onChange={onChange}
         dayHref={dayHref}
       />
@@ -118,18 +115,15 @@ export function useGuidedAvailability({
       >
         Di solito {withArticle(day!)} sei libero…
       </Animated.Text>
-      <ClayList>
-        {bands.map((band) => (
-          <SettingCheckRow
-            key={band.key}
-            title={band.label}
-            subtitle={bandHours(band)}
-            checked={selected.includes(band.key)}
-            onPress={() => toggle(band.key)}
-            testID={`guided-band-${band.key}`}
-          />
-        ))}
-      </ClayList>
+      {/* Una `key` per giorno: la via scelta (fasce o orario preciso) nasce dagli orari di QUEL giorno. */}
+      <StudentDayChoice
+        key={day!.key}
+        ranges={selected}
+        bands={bands}
+        rules={rules}
+        onChange={(next) => onChange({ ...days, [day!.key]: next })}
+        testPrefix="guided"
+      />
       {shortcut ? (
         <Animated.View entering={fadeIn}>
           <ClayList style={s.gap}>
@@ -137,11 +131,7 @@ export function useGuidedAvailability({
               title="Uguale per tutti i giorni"
               subtitle="Copia su tutta la settimana"
               onPress={() => {
-                onChange(
-                  Object.fromEntries(
-                    WEEK.map((d) => [d.key, selected]),
-                  ) as StudentBandsByDay,
-                );
+                onChange(sameForAll(selected));
                 setIndex(WEEK.length);
               }}
               testID="guided-same-all"

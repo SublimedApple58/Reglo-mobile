@@ -54,3 +54,14 @@ Allievi di prova da `../reglo/scripts/seed-reg802.ts` (Sara: mai entrata, in pra
 ## REG-812 — step `license` (27/11/2026)
 
 Il server può mandare anche lo step `license` (allievo registrato da solo senza patente scelta), sempre **prima** di `availability`. In app sono due schermate (`OnboardingLicenseSteps.tsx`: «Che patente fai?» → `/onboarding/transmission` «Cambio manuale o automatico?»); la bozza ha `licenseCategory` e `transmission` e `submit` chiama `setLicensePath` prima di `completeOnboarding`. Sostituisce il blocco `LicensePathGateScreen` delle tab. Vedi [registrazione.md](registrazione.md).
+
+## REG-813 — «Un orario preciso» e header del Profilo (27/11)
+
+- **Orari veri**: lo stato dell'app non sono più le fasce ma gli orari in minuti per giorno (`StudentRangesByDay`, `payload.ranges`). Le tre fasce restano come scorciatoia: un giorno «è a fasce» quando i suoi orari coincidono con fasce intere (`bandsOf`), altrimenti è un orario preciso e si legge dalle ore («15–17»). Con un backend senza `ranges` si ricavano dalle fasce (`payloadRanges`).
+- **`StudentDayChoice`** (`src/components/studentAvailability/`): le scelte di un giorno, uguali nella domanda guidata e nel foglio del giorno. Tre fasce + «Un orario preciso»: toccandola compaiono le rotelle «Dalle» / «Alle» (`TimeWheel`, passi da 30 minuti fra le 6 e le 22) già sull'orario scelto (o 15–17), poi «Aggiungi un altro orario» (massimo due, «Togli» sul secondo). Le due vie si escludono: toccare una fascia torna alle fasce. Una rotella trascina l'altra per tenere l'intervallo lungo almeno una guida (`moveRange`); gli orari che si toccano si fondono al salvataggio (`mergeRanges`).
+- **Regole** dal server (`payload.rules`, `DEFAULT_RULES` finché non arrivano e nel Primo accesso): passate a `useGuidedAvailability`, `StudentAvailabilityEditor` e al foglio tramite `studentDayStore`.
+- **Settimana disegnata** (`StudentWeekStrip`): le barre seguono gli orari veri; la scala resta 8–21 e si allarga solo se un orario esce (`weekScale`).
+- **Testi** (`src/utils/studentAvailability.ts`): `dayText` («Pomeriggio» o «15–17»), `dayTextWithHours` per lo staff («Mattina · 8–13» o solo le ore), `summaryText` («Lun 15–17:30 · Mar mattina · +2»).
+- **Salvataggio**: `saveMyAvailability(ranges)`, `completeOnboarding` e `firstAccessComplete` mandano `{ ranges }`. Serve il backend REG-813 in produzione PRIMA dell'OTA.
+- **Header di Profilo › Disponibilità**: la pagina sommava `insets.top` a quello che `ClayNavBar` aggiunge già (spazio doppio sopra il pulsante indietro); tolto. Più aria fra sottotitolo e settimana.
+- Prove (simulatore + backend dev del worktree, allievo `reg802.teoria`): catture in `/tmp/hiro-anteprime/reg-813/finale/`.

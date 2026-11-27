@@ -6,7 +6,7 @@ import { useGuidedAvailability } from '../../components/studentAvailability/Stud
 import { useSession } from '../../context/SessionContext';
 import { regloApi } from '../../services/regloApi';
 import { VITA_ART } from '../../theme/vitaArt';
-import { DEFAULT_BANDS, hasAnyBand } from '../../utils/studentAvailability';
+import { DEFAULT_BANDS, DEFAULT_RULES, hasAnyRange } from '../../utils/studentAvailability';
 import { FirstAccessStepScreen, fadeIn } from '../firstAccess/FirstAccessStepScreen';
 import { OnboardingExit } from './OnboardingExit';
 import { errorText, useOnboarding } from './OnboardingContext';
@@ -53,6 +53,7 @@ export function OnboardingAvailabilityStep() {
   const guided = useGuidedAvailability({
     days,
     bands,
+    rules: draft.rules ?? DEFAULT_RULES,
     onChange: (nextDays) => update({ days: nextDays }),
     dayHref: '/onboarding/student-day',
     ready: loaded,
@@ -89,7 +90,7 @@ export function OnboardingAvailabilityStep() {
       subtitle="Non è un impegno: puoi sempre prenotare anche in altri orari. Ci serve per avvisarti quando si libera un posto adatto a te."
       cta={guided.ctaTitle ?? 'Continua'}
       revealKey={guided.revealKey}
-      ctaDisabled={!loaded || snoozing || (guided.overview && !hasAnyBand(days))}
+      ctaDisabled={!loaded || snoozing || (guided.overview && !hasAnyRange(days))}
       loading={submitting}
       onCta={() => {
         if (!guided.overview) return guided.advance();

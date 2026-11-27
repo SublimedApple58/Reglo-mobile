@@ -17,7 +17,7 @@ import { FirstAccessStepScreen, fadeIn, useFocusAfterPush } from './FirstAccessS
 import { PhoneField, phoneIsComplete, phoneSubmitValue, usePhoneValue } from '../../components/PhoneField';
 import { useGuidedAvailability } from '../../components/studentAvailability/StudentAvailabilityGuided';
 import { VITA_ART } from '../../theme/vitaArt';
-import { DEFAULT_BANDS, activeDays, daysListText, hasAnyBand } from '../../utils/studentAvailability';
+import { DEFAULT_BANDS, activeDays, daysListText, hasAnyRange } from '../../utils/studentAvailability';
 
 const KEY_ART = require('../../../assets/web/3d/chiave-3d.png');
 const CAR_ART = require('../../../assets/icons3d-ai/auto.png');
@@ -310,7 +310,7 @@ export function FirstAccessAvailabilityStep() {
       subtitle="Non è un impegno: puoi sempre prenotare anche in altri orari. Ci serve per avvisarti quando si libera un posto adatto a te."
       cta={guided.ctaTitle ?? 'Continua'}
       revealKey={guided.revealKey}
-      ctaDisabled={guided.overview && !hasAnyBand(days)}
+      ctaDisabled={guided.overview && !hasAnyRange(days)}
       onCta={() => (guided.overview ? router.push('/(auth)/first-access/confirm') : guided.advance())}
       below={
         <ClayButton
@@ -349,7 +349,7 @@ export function FirstAccessConfirmStep() {
         email: draft.email.trim(),
         password: draft.password,
         birthDate: draft.birthDate,
-        ...(draft.days && hasAnyBand(draft.days) ? { availability: { days: draft.days } } : {}),
+        ...(draft.days && hasAnyRange(draft.days) ? { availability: { ranges: draft.days } } : {}),
       });
       // Il momento caldo: un attimo di benvenuto, poi l'app.
       setWelcome(true);

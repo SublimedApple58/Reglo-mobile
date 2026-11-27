@@ -6,8 +6,8 @@ import { CLAY } from '../../theme/clay';
 import { SettingToggleRow } from '../SettingsRows';
 import { StudentWeekStrip } from './StudentWeekStrip';
 import { studentDayStore } from '../../stores/studentDayStore';
-import type { StudentAvailabilityBand, StudentBandsByDay } from '../../types/regloApi';
-import { WEEK, bandsText, everyBand, isEveryBand, type DayKey } from '../../utils/studentAvailability';
+import type { StudentAvailabilityBand, StudentRangeRules, StudentRangesByDay } from '../../types/regloApi';
+import { DEFAULT_RULES, WEEK, dayText, everyBand, isEveryBand, sameForAll, type DayKey } from '../../utils/studentAvailability';
 
 /**
  * REG-802 — l'editor delle disponibilità dell'allievo: la settimana in alto
@@ -18,12 +18,15 @@ import { WEEK, bandsText, everyBand, isEveryBand, type DayKey } from '../../util
 export const StudentAvailabilityEditor = memo(function StudentAvailabilityEditor({
   days,
   bands,
+  rules = DEFAULT_RULES,
   onChange,
   dayHref,
 }: {
-  days: StudentBandsByDay;
+  days: StudentRangesByDay;
   bands: StudentAvailabilityBand[];
-  onChange: (days: StudentBandsByDay) => void;
+  /** REG-813 — regole di «Un orario preciso». */
+  rules?: StudentRangeRules;
+  onChange: (days: StudentRangesByDay) => void;
   /** Rotta del foglio del giorno nello stack corrente. */
   dayHref: Href;
 }) {
@@ -31,7 +34,7 @@ export const StudentAvailabilityEditor = memo(function StudentAvailabilityEditor
   const latest = useRef(days);
   latest.current = days;
   // «Qualsiasi orario» spento torna alle scelte di prima.
-  const beforeAll = useRef<StudentBandsByDay | null>(null);
+  const beforeAll = useRef<StudentRangesByDay | null>(null);
   const all = isEveryBand(days, bands);
 
   const openDay = useCallback(
@@ -40,18 +43,17 @@ export const StudentAvailabilityEditor = memo(function StudentAvailabilityEditor
       studentDayStore.set({
         dayLabel: meta.full,
         bands,
-        selected: latest.current[day] ?? [],
-        onDone: (selected, applyAll) => {
-          const next: StudentBandsByDay = applyAll
-            ? (Object.fromEntries(WEEK.map((d) => [d.key, selected])) as StudentBandsByDay)
-            : { ...latest.current, [day]: selected };
+        rules,
+        ranges: latest.current[day] ?? [],
+        onDone: (ranges, applyAll) => {
+          const next: StudentRangesByDay = applyAll ? sameForAll(ranges) : { ...latest.current, [day]: ranges };
           beforeAll.current = null;
           onChange(next);
         },
       });
       router.push(dayHref);
     },
-    [bands, dayHref, onChange, router],
+    [bands, rules, dayHref, onChange, router],
   );
 
   return (
@@ -79,7 +81,7 @@ export const StudentAvailabilityEditor = memo(function StudentAvailabilityEditor
           <ClayListRow
             key={d.key}
             title={d.full}
-            subtitle={bandsText(days[d.key], bands) ?? <NotAvailable />}
+            subtitle={dayText(days[d.key], bands) ?? <NotAvailable />}
             onPress={() => openDay(d.key)}
             testID={`student-availability-day-${d.key}`}
           />

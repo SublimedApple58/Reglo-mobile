@@ -6,12 +6,13 @@ import { fadeIn } from "../../screens/firstAccess/FirstAccessStepScreen";
 import { CLAY } from "../../theme/clay";
 import type {
   StudentAvailabilityBand,
-  StudentBandsByDay,
+  StudentRangesByDay,
 } from "../../types/regloApi";
 import {
   WEEK,
   countText,
-  mergedRanges,
+  daySegments,
+  weekScale,
   type DayKey,
 } from "../../utils/studentAvailability";
 
@@ -19,9 +20,10 @@ const TRACK_FULL = 118;
 
 /**
  * REG-802 — la settimana dell'allievo a colpo d'occhio: una colonna per giorno
- * (lun → dom) su una scala fissa dalla prima all'ultima fascia (8–21), con le
- * linee dove una fascia finisce e l'altra comincia. Due fasce attaccate sono
- * una barra sola, con un taglio bianco sottile al confine. È il protagonista
+ * (lun → dom) su una scala dalla prima all'ultima fascia (8–21), con le linee
+ * dove una fascia finisce e l'altra comincia. Due fasce attaccate sono una
+ * barra sola, con un taglio bianco sottile al confine; «un orario preciso»
+ * (REG-813) è una barra lunga quanto le sue ore. È il protagonista
  * dello step Disponibilità; lo staff la vede uguale, in sola lettura.
  */
 export const StudentWeekStrip = memo(function StudentWeekStrip({
@@ -33,7 +35,7 @@ export const StudentWeekStrip = memo(function StudentWeekStrip({
   compact = false,
   pressLabel,
 }: {
-  days: StudentBandsByDay;
+  days: StudentRangesByDay;
   bands: StudentAvailabilityBand[];
   title?: string;
   /** Tocco su una colonna (apre il giorno); assente = sola lettura. */
@@ -46,8 +48,9 @@ export const StudentWeekStrip = memo(function StudentWeekStrip({
   pressLabel?: (day: string) => string;
 }) {
   const TRACK_H = compact ? 44 : TRACK_FULL;
-  const from = bands[0]?.startMinutes ?? 8 * 60;
-  const to = bands[bands.length - 1]?.endMinutes ?? 21 * 60;
+  // REG-813: la scala è quella delle fasce (8–21) e si allarga solo se un
+  // orario preciso esce (fino a 6–22).
+  const { from, to } = weekScale(days, bands);
   const span = Math.max(to - from, 60);
   const y = (m: number) => ((m - from) / span) * TRACK_H;
   const ticks = bands.slice(1).map((b) => b.startMinutes);
@@ -73,7 +76,7 @@ export const StudentWeekStrip = memo(function StudentWeekStrip({
         )}
         {WEEK.map((d) => {
           const on = (days[d.key]?.length ?? 0) > 0;
-          const segs = mergedRanges(days[d.key], bands);
+          const segs = daySegments(days[d.key], bands);
           const col = (
             <>
               <Text style={[s.day, (on || d.key === current) && s.dayOn]}>

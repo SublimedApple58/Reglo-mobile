@@ -10,13 +10,14 @@ import type {
   OnboardingStep,
   OnboardingStepKey,
   StudentAvailabilityBand,
-  StudentBandsByDay,
   Transmission,
+  StudentRangeRules,
+  StudentRangesByDay,
 } from '../../types/regloApi';
 import { ITALY } from '../../utils/phoneCountries';
 import { phoneSubmitValue, phoneValueFrom, type PhoneValue } from '../../components/PhoneField';
 import { onboardingHref } from '../../utils/onboarding';
-import { DEFAULT_BANDS } from '../../utils/studentAvailability';
+import { DEFAULT_BANDS, payloadRanges } from '../../utils/studentAvailability';
 
 /**
  * REG-802 — onboarding dell'allievo a sessione aperta: «primo accesso normale»
@@ -31,12 +32,14 @@ export type OnboardingDraft = {
   lastName: string;
   phone: PhoneValue;
   /** null = non scelte (o rimandate con «Configura in seguito»). */
-  days: StudentBandsByDay | null;
+  days: StudentRangesByDay | null;
   /** Le fasce possibili, dal server (lette dallo step Disponibilità). */
   bands: StudentAvailabilityBand[] | null;
   /** REG-812 — percorso patente scelto dall'allievo (step `license`). */
   licenseCategory: LicenseCategory | null;
   transmission: Transmission | null;
+  /** REG-813 — regole di «Un orario preciso», dal server. */
+  rules: StudentRangeRules | null;
 };
 
 type Ctx = {
@@ -92,6 +95,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     bands: null,
     licenseCategory: null,
     transmission: null,
+    rules: null,
   }));
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -116,7 +120,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     regloApi
       .getMyAvailability()
       .then((data) => {
-        if (alive) update({ bands: data.bands, days: draftRef.current.days ?? data.days });
+        if (alive) update({ bands: data.bands, rules: data.rules ?? null, days: draftRef.current.days ?? payloadRanges(data) });
       })
       .catch(() => {
         if (alive) update({ bands: DEFAULT_BANDS, days: draftRef.current.days ?? {} });
@@ -151,7 +155,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         input.lastName = d.lastName.trim();
       }
       if (due.has('phone') && d.phone.text.trim()) input.phone = phoneSubmitValue(d.phone);
-      if (due.has('availability') && d.days) input.availability = { days: d.days };
+      if (due.has('availability') && d.days) input.availability = { ranges: d.days };
       setSubmitError(null);
       setSubmitting(true);
       try {

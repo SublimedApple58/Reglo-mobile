@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
-import type { FirstAccessStartResult, StudentBandsByDay } from '../../types/regloApi';
+import type { FirstAccessStartResult, StudentRangesByDay } from '../../types/regloApi';
 
 /**
  * Stato del «Primo accesso» (allievo creato dall'autoscuola col solo telefono):
@@ -16,7 +16,7 @@ export type FirstAccessDraft = {
   /** YYYY-MM-DD */
   birthDate: string | null;
   /** REG-802: disponibilità a fasce (null = «Configura in seguito»). */
-  days: StudentBandsByDay | null;
+  days: StudentRangesByDay | null;
 };
 
 const EMPTY: FirstAccessDraft = {
