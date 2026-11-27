@@ -1,5 +1,4 @@
 import React from 'react';
-import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { sheetScreenListeners } from '../../src/utils/sheetHaptics';
 import { FORM_SHEET } from '../../src/utils/sheetPresentation';
@@ -38,11 +37,8 @@ export default function AuthLayout() {
       <Stack.Screen name="country-picker" options={FORM_SHEET} />
       {/* Android: full navy inline password-reset screen. */}
       <Stack.Screen name="password-reset" options={{ headerShown: false }} />
-      {/* iOS: native page sheet for the (longer, scrollable) signup form. */}
-      <Stack.Screen
-        name="signup"
-        options={Platform.OS === 'ios' ? { presentation: 'modal', headerShown: false } : { headerShown: false }}
-      />
+      {/* REG-812 — registrazione a passi: stack a schermo intero come il Primo accesso. */}
+      <Stack.Screen name="signup" options={{ contentStyle: { backgroundColor: '#FFFFFF' } }} />
     </Stack>
   );
 }

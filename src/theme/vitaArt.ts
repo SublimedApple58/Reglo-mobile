@@ -35,6 +35,8 @@ export const VITA_ART = {
   tessera: require('../../assets/vita/tessera.png') as ImageSourcePropType,
   busta: require('../../assets/vita/busta.png') as ImageSourcePropType,
   cartellina: require('../../assets/vita/cartellina.png') as ImageSourcePropType,
+  /** REG-812 (Gemini, 27/11): lucchetto, passo «Scegli una password» della registrazione. */
+  lucchetto: require('../../assets/vita/lucchetto.png') as ImageSourcePropType,
   pagellino: require('../../assets/vita/esame.png') as ImageSourcePropType,
   /**
    * Giro «memorabile» (Gemini, 28/10): salvadanaio = guide da riscuotere

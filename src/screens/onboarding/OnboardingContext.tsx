@@ -6,10 +6,12 @@ import { regloApi } from '../../services/regloApi';
 import { useSession } from '../../context/SessionContext';
 import type {
   CompleteOnboardingInput,
+  LicenseCategory,
   OnboardingStep,
   OnboardingStepKey,
   StudentAvailabilityBand,
   StudentBandsByDay,
+  Transmission,
 } from '../../types/regloApi';
 import { ITALY } from '../../utils/phoneCountries';
 import { phoneSubmitValue, phoneValueFrom, type PhoneValue } from '../../components/PhoneField';
@@ -32,6 +34,9 @@ export type OnboardingDraft = {
   days: StudentBandsByDay | null;
   /** Le fasce possibili, dal server (lette dallo step Disponibilità). */
   bands: StudentAvailabilityBand[] | null;
+  /** REG-812 — percorso patente scelto dall'allievo (step `license`). */
+  licenseCategory: LicenseCategory | null;
+  transmission: Transmission | null;
 };
 
 type Ctx = {
@@ -85,6 +90,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     phone: user?.phone ? phoneValueFrom(user.phone) : { country: ITALY, text: '' },
     days: null,
     bands: null,
+    licenseCategory: null,
+    transmission: null,
   }));
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -148,6 +155,12 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setSubmitError(null);
       setSubmitting(true);
       try {
+        // REG-812: patente e cambio hanno la loro rotta (la stessa del vecchio
+        // blocco); ripeterla è innocuo, il server non sovrascrive.
+        if (due.has('license') && d.licenseCategory && d.transmission) {
+          await regloApi.setLicensePath({ licenseCategory: d.licenseCategory, transmission: d.transmission });
+          await queryClient.invalidateQueries({ queryKey: queryKeys.studentPhase(activeCompanyId) });
+        }
         const result = await regloApi.completeOnboarding(input);
         if (input.availability) {
           queryClient.invalidateQueries({ queryKey: queryKeys.studentAvailability(activeCompanyId) });

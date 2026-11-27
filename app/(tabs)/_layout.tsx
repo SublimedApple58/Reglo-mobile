@@ -11,7 +11,6 @@ import { QuizProvider } from '../../src/context/QuizContext';
 import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { AppTabBar } from '../../src/components/AppTabBar';
-import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { useInstructorTabs } from '../../src/hooks/useInstructorTabs';
 import { warmRoadFree } from '../../src/road/freeStartStore';
@@ -81,7 +80,7 @@ function NativeRoadMiniBar() {
 /* ── Layout ── */
 
 export default function TabsLayout() {
-  const { autoscuolaRole, status } = useSession();
+  const { autoscuolaRole, status, setOnboarding } = useSession();
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
@@ -204,12 +203,14 @@ export default function TabsLayout() {
   // REG-802: il cellulare mancante (era il PhoneGate) lo chiede l'onboarding
   // (`app/onboarding`), dove l'AuthGate porta finché `/me` ha degli step.
 
-  // Blocking gate: a student who registered in autonomy (self sign-up) must
-  // pick their own percorso patente at first access (REG-410). Shown after the
-  // onboarding (REG-802); same rules — replaces the tab tree, only exits are confirm/logout.
-  if (status === 'ready' && isStudent && needsLicensePath) {
-    return <LicensePathGateScreen />;
-  }
+  // REG-812: il percorso patente (era il blocco REG-410 qui dentro) è uno step
+  // dell'onboarding. Rete di sicurezza: se il server dice che manca ma `/me`
+  // non ha mandato lo step (backend precedente, errore), lo si apre da qui.
+  const licenseMissing = status === 'ready' && isStudent && needsLicensePath;
+  React.useEffect(() => {
+    if (licenseMissing) setOnboarding({ steps: [{ key: 'license', required: true }] });
+  }, [licenseMissing, setOnboarding]);
+  if (licenseMissing) return null;
 
   const overlay = (
     <NotificationOverlay

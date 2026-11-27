@@ -23,6 +23,9 @@ export default function OnboardingLayout() {
         <Stack.Screen name="name" />
         <Stack.Screen name="email" />
         <Stack.Screen name="phone" />
+        {/* REG-812: patente e cambio per chi si è registrato da solo. */}
+        <Stack.Screen name="license" />
+        <Stack.Screen name="transmission" />
         <Stack.Screen name="availability" />
         <Stack.Screen name="confirm" />
         {/* Foglio di un giorno delle disponibilità. */}

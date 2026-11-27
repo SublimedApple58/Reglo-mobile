@@ -110,7 +110,6 @@ const AuthGate = () => {
         'login',
         'login-sheet',
         'signup',
-        'invite',
         'password-reset',
         'password-reset-sheet',
         'first-access',

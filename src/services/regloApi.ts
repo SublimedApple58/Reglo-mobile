@@ -26,7 +26,6 @@ import {
   GroupLessonInvite,
   GroupLessonInvitee,
   CreateGroupLessonInput,
-  AcceptMobileInviteInput,
   CancelAppointmentResult,
   CreateAppointmentInput,
   CreateAvailabilitySlotsInput,
@@ -40,7 +39,6 @@ import {
   CreateVehicleInput,
   UpdateInstructorInput,
   LoginInput,
-  MobileInviteContext,
   LogoutPayload,
   MePayload,
   CompleteOnboardingInput,
@@ -71,6 +69,7 @@ import {
   DeleteAccountPayload,
   SelectCompanyInput,
   SelectCompanyPayload,
+  SignupSchool,
   StudentRegisterInput,
   PasswordResetRequestInput,
   PasswordResetVerifyInput,
@@ -167,6 +166,18 @@ export const createRegloApi = (baseUrl?: string) => {
       await authStorage.setActiveCompanyId(payload.activeCompanyId);
       return payload;
     },
+    /** REG-812: il codice di invito esiste? Torna l'autoscuola (e istruttore/luogo). */
+    checkSignupCode: async (schoolCode: string) =>
+      client.request<SignupSchool>('/api/mobile/auth/student-register/check', {
+        method: 'POST',
+        body: { schoolCode },
+      }),
+    /** REG-812: l'email è libera? */
+    checkSignupEmail: async (email: string) =>
+      client.request<{ emailAvailable: boolean }>('/api/mobile/auth/student-register/check', {
+        method: 'POST',
+        body: { email },
+      }),
     studentRegister: async (input: StudentRegisterInput) => {
       const payload = await client.request<AuthPayload>('/api/mobile/auth/student-register', {
         method: 'POST',
@@ -268,22 +279,6 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'POST',
         body: input,
       });
-      await authStorage.setActiveCompanyId(payload.activeCompanyId);
-      return payload;
-    },
-    createInvite: async (input: { email: string; autoscuolaRole?: 'INSTRUCTOR' | 'STUDENT' }) =>
-      client.request<{ message: string }>('/api/mobile/invites/create', {
-        method: 'POST',
-        body: input,
-      }),
-    getInviteContext: async (token: string) =>
-      client.request<MobileInviteContext>(`/api/mobile/invites/${token}/context`),
-    acceptInvite: async (token: string, input: AcceptMobileInviteInput) => {
-      const payload = await client.request<AuthPayload>(`/api/mobile/invites/${token}/accept`, {
-        method: 'POST',
-        body: input,
-      });
-      await authStorage.setToken(payload.token);
       await authStorage.setActiveCompanyId(payload.activeCompanyId);
       return payload;
     },

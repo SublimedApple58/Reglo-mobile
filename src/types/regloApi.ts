@@ -216,7 +216,8 @@ export type MePayload = {
 };
 
 /** REG-802 — step dell'onboarding dell'allievo, decisi dal server. */
-export type OnboardingStepKey = 'name' | 'email' | 'phone' | 'availability';
+/** `license` (REG-812): patente e cambio per chi si è registrato da solo. */
+export type OnboardingStepKey = 'name' | 'email' | 'phone' | 'license' | 'availability';
 export type OnboardingStep = { key: OnboardingStepKey; required: boolean };
 export type StudentOnboarding = { steps: OnboardingStep[] };
 
@@ -1038,6 +1039,17 @@ export type RescheduleAppointmentInput = {
 export type RescheduleAppointmentResult = AutoscuolaAppointment;
 
 export type LoginInput = { email: string; password: string };
+/** REG-812 — l'autoscuola di un codice di invito (`student-register/check`). */
+export type SignupSchool = {
+  company: { name: string; logoUrl: string | null };
+  /** Codice di un istruttore: l'allievo entra nel suo gruppo. */
+  instructorName: string | null;
+  /** Codice di un luogo. */
+  locationName: string | null;
+  /** false = l'autoscuola assegna lei la patente (REG-424). */
+  asksLicensePath: boolean;
+};
+
 export type StudentRegisterInput = {
   name: string;
   email: string;
@@ -1083,26 +1095,6 @@ export type PasswordResetConfirmResult =
 
 export type SelectCompanyInput = { companyId: Uuid };
 export type UpdateProfileInput = { name: string; phone?: string };
-export type MobileInviteContext = {
-  companyName: string;
-  companyId: Uuid;
-  email: string;
-  role: string;
-  expiresAt: IsoDate;
-  hasAccount: boolean;
-  alreadyMember: boolean;
-  autoscuolaActive: boolean;
-  requiresPhone: boolean;
-};
-
-export type AcceptMobileInviteInput = {
-  mode: 'existing' | 'register';
-  name?: string;
-  password: string;
-  confirmPassword?: string;
-  phone?: string;
-};
-
 export type AutoscuolaSettings = {
   availabilityWeeks: number;
   studentReminderMinutes: 120 | 60 | 30 | 20 | 15;

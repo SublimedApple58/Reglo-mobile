@@ -1,179 +1,84 @@
 import React from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { Screen } from '../components/Screen';
-import { PhaseTimeline } from '../components/PhaseTimeline';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClayList, ClayListRow, Icon3D } from '../components/clay';
 import { useSession } from '../context/SessionContext';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
+import { CLAY } from '../theme/clay';
+import { VITA_ART } from '../theme/vitaArt';
+import { fadeIn } from './firstAccess/FirstAccessStepScreen';
+import { OnboardingExit } from './onboarding/OnboardingExit';
+
+const NOTES_ART = require('../../assets/icons3d-ai/blocconote.png');
 
 /**
- * Home neutra mostrata agli allievi nello stato AWAITING: si sono registrati
- * con il codice autoscuola ma il titolare non ha ancora assegnato una licenza
- * quiz, quindi né la fase teoria né la fase pratica sono accessibili.
+ * Home dell'allievo in attesa (fase AWAITING): si è registrato con il codice
+ * ma l'autoscuola non l'ha ancora attivato, quindi né teoria né guide.
  *
- * Design: stile "Airbnb" — hero 3D clay (razzo, tinta navy) che fluttua,
- * titolo calmo, e il percorso come timeline verticale a itinerario. Nessuna
- * CTA: è l'autoscuola che deve attivare l'allievo dal web.
+ * REG-812: è il «primo ingresso» dopo la registrazione, rifatta con lo stesso
+ * tono dell'onboarding — bianco, titolo a sinistra, una sola cosa protagonista
+ * (il messaggio), sotto il percorso come lista clay. Niente pillola «In
+ * corso» né etichetta in maiuscolo: la tappa di adesso si riconosce perché è
+ * l'unica piena, le altre sono tenui. Nessuna CTA: tocca all'autoscuola.
  */
-const HERO = require('../../assets/icons-3d/rocket.png');
+const STEPS = [
+  { key: 'AWAITING', title: 'In attesa', now: 'Sei qui: stiamo attivando il tuo accesso', later: '', art: VITA_ART.orologio },
+  { key: 'TEORIA', title: 'Teoria', now: '', later: "Quiz e lezioni per l'esame di teoria", art: NOTES_ART },
+  { key: 'PRATICA', title: 'Foglio rosa', now: '', later: 'Cominci le guide', art: VITA_ART.volante },
+  { key: 'PATENTATO', title: 'Patente', now: '', later: "L'esame di guida, e ci sei", art: VITA_ART.esame },
+] as const;
 
 export const AllievoAwaitingScreen: React.FC = () => {
-  const { user, signOut } = useSession();
-  const firstName = user?.name?.split(' ')[0] ?? '';
-
-  const handleLogout = () => {
-    Alert.alert("Esci dall'account", 'Vuoi davvero uscire?', [
-      { text: 'Annulla', style: 'cancel' },
-      { text: 'Esci', style: 'destructive', onPress: () => signOut() },
-    ]);
-  };
+  const { user, companies, activeCompanyId } = useSession();
+  const insets = useSafeAreaInsets();
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
+  const school = companies.find((c) => c.id === activeCompanyId)?.name;
 
   return (
-    <Screen>
+    <View style={s.root}>
+      <StatusBar style="dark" />
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[s.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeIn.duration(400)} style={styles.heroWrap}>
-          <View style={styles.heroGlow} />
-          <View style={styles.heroShadow} />
-          <Image
-            source={HERO}
-            resizeMode="contain"
-            style={styles.heroIcon}
-            accessibilityLabel="Razzo: il tuo percorso sta per iniziare"
-          />
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInDown.delay(120).duration(400)}
-          style={styles.textBlock}
-        >
-          <Text style={styles.title}>
-            {firstName ? `Ci siamo quasi, ${firstName}` : 'Ci siamo quasi'}
+        <Animated.View entering={fadeIn}>
+          <Icon3D source={VITA_ART.edificio} size={64} style={s.hero} />
+          <Text style={s.title}>{firstName ? `Ci siamo quasi, ${firstName}` : 'Ci siamo quasi'}</Text>
+          <Text style={s.subtitle}>
+            {school ? `${school} deve solo attivare il tuo accesso.` : 'La tua autoscuola deve solo attivare il tuo accesso.'}{' '}
+            Ti avvisiamo appena è pronto.
           </Text>
-          <Text style={styles.subtitle}>
-            Stai per iniziare il tuo percorso. La tua autoscuola attiverà
-            l&apos;accesso a breve: ti avviseremo appena sarà pronto.
-          </Text>
-        </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(220).duration(400)}
-          style={styles.card}
-        >
-          <Text style={styles.caption}>IL TUO PERCORSO</Text>
-          <PhaseTimeline phase="AWAITING" />
-        </Animated.View>
+          <Text style={s.section}>Il tuo percorso</Text>
+          <ClayList>
+            {STEPS.map((step, i) => (
+              <ClayListRow
+                key={step.key}
+                leading={<Icon3D source={step.art} size={40} width={48} />}
+                title={step.title}
+                subtitle={i === 0 ? step.now : step.later}
+                dimmed={i !== 0}
+                chevron={false}
+              />
+            ))}
+          </ClayList>
 
-        <Animated.View entering={FadeInDown.delay(320).duration(400)}>
-          <Text style={styles.logout}>
-            Account sbagliato?{' '}
-            <Text style={styles.logoutLink} onPress={handleLogout}>
-              Esci
-            </Text>
-          </Text>
+          <View style={s.exit}>
+            <OnboardingExit />
+          </View>
         </Animated.View>
       </ScrollView>
-    </Screen>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroWrap: {
-    width: 200,
-    height: 184,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroGlow: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(17,17,17, 0.05)',
-  },
-  heroShadow: {
-    position: 'absolute',
-    bottom: 22,
-    width: 116,
-    height: 20,
-    borderRadius: 60,
-    backgroundColor: 'rgba(17,17,17, 0.12)',
-  },
-  heroIcon: {
-    width: 156,
-    height: 156,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-  },
-  textBlock: {
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  title: {
-    fontSize: 27,
-    fontWeight: '600',
-    letterSpacing: -0.5,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
-    lineHeight: 22,
-    maxWidth: 320,
-  },
-  card: {
-    width: '100%',
-    marginTop: spacing.xl,
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.navy[100],
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xs,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 24,
-    elevation: 2,
-  },
-  caption: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-    marginLeft: 2,
-  },
-  logout: {
-    textAlign: 'center',
-    marginTop: spacing.xl,
-    fontSize: 13.5,
-    color: colors.textMuted,
-  },
-  logoutLink: {
-    color: colors.primary,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: CLAY.bg },
+  content: { paddingHorizontal: 24 },
+  hero: { marginBottom: 18 },
+  title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.8 },
+  subtitle: { fontSize: 16, lineHeight: 22, color: CLAY.ink3, marginTop: 8 },
+  section: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.2, marginTop: 34, marginBottom: 12, paddingHorizontal: 2 },
+  exit: { marginTop: 28 },
 });
-
-export default AllievoAwaitingScreen;
