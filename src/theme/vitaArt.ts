@@ -29,6 +29,8 @@ export const VITA_ART = {
    */
   stella: require('../../assets/vita/stella.png') as ImageSourcePropType,
   orologio: require('../../assets/vita/orologio.png') as ImageSourcePropType,
+  /** REG-802 (Gemini, 27/11): telefono col fumetto ambra, passo «Il tuo numero di cellulare». */
+  telefono: require('../../assets/vita/telefono.png') as ImageSourcePropType,
   pagellino: require('../../assets/vita/esame.png') as ImageSourcePropType,
   /**
    * Giro «memorabile» (Gemini, 28/10): salvadanaio = guide da riscuotere

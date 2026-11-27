@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import type { TextInput } from 'react-native';
+import { Icon3D } from '../../components/clay';
 import { PhoneField, phoneIsComplete } from '../../components/PhoneField';
+import { VITA_ART } from '../../theme/vitaArt';
 import { FirstAccessStepScreen, useFocusAfterPush } from '../firstAccess/FirstAccessStepScreen';
 import { OnboardingExit } from './OnboardingExit';
 import { useOnboarding } from './OnboardingContext';
@@ -12,8 +14,9 @@ import { useOnboarding } from './OnboardingContext';
  * schermata ferma, il prefisso si sceglie dal foglio «Prefisso».
  *
  * Da solo (allievo senza cellulare) salva subito; dentro il primo accesso
- * normale passa al passo dopo e si salva tutto alla fine. L'icona 3D del
- * telefono arriverà con la generazione su Gemini (piano REG-802 §5).
+ * normale passa al passo dopo e si salva tutto alla fine. Sopra il titolo il
+ * telefono 3D (`VITA_ART.telefono`, Gemini 27/11), come l'orologio del passo
+ * Disponibilità.
  */
 export function OnboardingPhoneStep() {
   const { steps, hasConfirm, draft, update, next, positionOf, isFirst, submitting, submitError, clearSubmitError } =
@@ -29,6 +32,7 @@ export function OnboardingPhoneStep() {
     <FirstAccessStepScreen
       progress={positionOf('phone')}
       leading={isFirst('phone') ? 'none' : 'back'}
+      hero={<Icon3D source={VITA_ART.telefono} size={56} />}
       title="Il tuo numero di cellulare"
       subtitle="Serve alla tua autoscuola per avvisarti delle guide e dei posti che si liberano."
       cta="Continua"

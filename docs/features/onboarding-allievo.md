@@ -21,7 +21,7 @@ Con un backend senza il campo (`onboarding` assente) vale la regola del vecchio 
 - Scheletro: `FirstAccessStepScreen` generalizzato (`progress` esplicito o assente, `leading: 'none'` sul primo passo bloccante, `onClose` = X dei passi rimandabili, `below` sotto la CTA). CTA che sale con la tastiera, fuoco a schermata ferma (`useFocusAfterPush`).
 
 ## Schermate
-- **Cellulare** (`OnboardingPhoneStep`): «Il tuo numero di cellulare», `PhoneField` col foglio «Prefisso» dello stack onboarding (`pickerHref`), «Esci». Con +39 servono 9 cifre (anche lato server) e il numero si legge a gruppi («347 123 4567», `formatNational`). L'icona 3D del telefono arriverà con la generazione su Gemini.
+- **Cellulare** (`OnboardingPhoneStep`): «Il tuo numero di cellulare», `PhoneField` col foglio «Prefisso» dello stack onboarding (`pickerHref`), «Esci». Con +39 servono 9 cifre (anche lato server) e il numero si legge a gruppi («347 123 4567», `formatNational`). Sopra il titolo il telefono 3D `VITA_ART.telefono` (Gemini, 27/11).
 - **Nome** («Ciao Sara») ed **email** («La tua email», riga in sola lettura col lucchetto; «Scrivici su WhatsApp» apre `wa.me/393477756855` col messaggio già scritto, `mailto:support@reglo.it` se WhatsApp non c'è) — `OnboardingProfileSteps.tsx`.
 - **Disponibilità** (`OnboardingAvailabilityStep`): orologio 3D (`VITA_ART.orologio`), «Quando puoi fare guida?», editor. Bloccante: «Esci» se è l'unico passo. Rimandabile: «Configura in seguito» (e la X se è l'unico passo) → `POST me/availability/snooze`.
 - **Riepilogo** «Tutto giusto?» (righe che riportano allo step) e «Eccoti».

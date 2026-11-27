@@ -351,7 +351,7 @@ ha un equivalente sul web.
 
 | Set | File | Registro | Dove |
 |---|---|---|---|
-| «Vita» | `assets/vita/` volante, esame (= pagellino), stella, orologio, **salvadanaio** e **salvadanaio-pieno** (76 pt); foto `cartina-road.jpg`, `sede-foto.jpg` | `src/theme/vitaArt.ts` (`VITA_ART`) | Agenda, foglio «Nuovo», Il mio gruppo, dettaglio allievo, Ore di guida, Pagellino, malattia, dettaglio guida («Com'è andata?», stella); **Pagamenti** (hero) e riga Pagamenti del dettaglio allievo (46 pt): salvadanaio = da riscuotere, pieno = tutto saldato |
+| «Vita» | `assets/vita/` volante, esame (= pagellino), stella, orologio, **salvadanaio** e **salvadanaio-pieno** (76 pt), **telefono** (REG-802, passo del cellulare dell'onboarding, 56 pt); foto `cartina-road.jpg`, `sede-foto.jpg` | `src/theme/vitaArt.ts` (`VITA_ART`) | Agenda, foglio «Nuovo», Il mio gruppo, dettaglio allievo, Ore di guida, Pagellino, malattia, dettaglio guida («Com'è andata?», stella); **Pagamenti** (hero) e riga Pagamenti del dettaglio allievo (46 pt): salvadanaio = da riscuotere, pieno = tutto saldato |
 | Road | `assets/road/` 12 segnalazioni, auto 3/4 e dall'alto per colore (le stesse del web); emblema da `assets/web/` | `src/road/markerArt.ts` | mappa, griglia segnalazioni, briefing, «Parti con» |
 | Allievo / Allievi | `assets/icons3d-ai/` auto, moto, esame, persone, scambio, blocconote, pin | `require` diretto, `src/utils/lessonArt.ts` | home allievo, gruppi, scambi, dettaglio allievo |
 | Morale | `assets/morale/` espresso, piantina, trofeo, esame (84 pt); aeroplanino da `assets/web/` | `src/theme/moraleArt.ts` (`MORALE_ART`) | SOLO stati vuoti (`ClayEmpty`), traguardo ore, testata del foglio esame |
