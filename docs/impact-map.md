@@ -96,7 +96,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 
 ### Settings
 - → **Session & Auth**: «Esci» (`signOut`) per istruttore/titolare sta nella tab «Tu» (`MoreScreen`), non più nelle Impostazioni staff (che tengono solo «Elimina account»); l'allievo lo tiene nel Profilo (REG-639).
-- → **Auth/Signup**: card "Codice di invito" in ClusterSettingsScreen; lo stesso codice è accettato dal campo signup (`SignupScreen`, wire field `schoolCode`) e assegna l'allievo all'istruttore
+- → **Auth/Signup**: card "Codice di invito" in ClusterSettingsScreen; lo stesso codice è accettato dalla registrazione (`SignupSteps`, passo «Codice di invito», wire field `schoolCode`; REG-812) e assegna l'allievo all'istruttore
 - → **Availability Editor**: availabilityMode toggle
 - → **Instructor Manage**: cluster settings (durations, booking actors, limits)
 - → **Backend**: `getAutoscuolaSettings()`, `updateInstructorSettings()`
@@ -223,7 +223,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
   ⚠️ **Era documentato (ed era scritto) su `/api/autoscuole/instructor-settings`, che quella schermata NON legge.** Il tipo mobile dichiarava il campo, il backend non lo mandava, TypeScript non poteva accorgersene: la riga è rimasta vuota **per tutti** dal rilascio (8/10) al fix (9/10). Lo stesso fatto esce da tre endpoint diversi (`/me` per l'allievo, `/students` per l'istruttore, i server action per il web): **prima di aggiungere un campo, verifica quale dei tre legge la schermata.**
   E non sono «tutte le conseguite» ma `licensesObtainedBeforeCurrent()`: in produzione 71 patentati su 72 hanno un percorso solo, e mandare anche quello voleva dire scrivere «ha già la B» accanto al chip «B · Manuale». Legato da `../reglo/tests/e2e/reg458-students-obtained.spec.ts`.
 - Nuovo kind di notifica **`license_path_started`** (inbox + push). NON riusare `student_phase_change` per un riavvio: direbbe «le tue **prime** guide» a un patentato.
-- ⚠️ `PhaseTimeline` è usata solo da `AllievoAwaitingScreen` con fase fissa: chi riparte non la vede. Se un domani comparisse in PRATICA va resa consapevole dello storico, altrimenti regredisce in silenzio.
+- REG-812: `PhaseTimeline` e le icone `assets/icons-3d/` sono state tolte; il percorso in `AllievoAwaitingScreen` è una `ClayList` con le icone del set attuale (fase fissa AWAITING).
 - **Il filtro per percorso vive su quattro superfici** e il bug è ricomparso identico a ogni superficie dimenticata: web (`AutoscuoleStudentsPage`, `ConsorzioStudentDrawer`), app allievo (`LessonsOverview`), app istruttore (`StudentNotesDetailScreen`). Regola unica: `lessonsPathFilterId()` — gemello mobile in `src/utils/licensePaths.ts`, **da tenere allineato** col web (i test stanno solo lì).
 - ⚠️ **Il movimento è parte del filtro, non una rifinitura.** In entrambe le liste la dissolvenza dipende da una **chiave** che deve contenere il percorso: in `LessonsOverview` la chiave della lista conteneva il tab ma non il percorso, e «Vedi tutte» faceva comparire le guide vecchie di scatto. Un solo movimento (l'altezza che scorre, `duration` + `easing`, **mai `springify()`**) e per il resto solo opacità: la versione con molle e cascate è stata bocciata a schermo. Dettagli e curve in `features/guide-annullate.md`.
 - Backend: `../reglo/docs/features/license-paths.md`.
@@ -266,7 +266,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: `POST /api/mobile/auth/first-access/{start,complete}`, login che accetta il telefono nel campo `email`. OTA-safe.
 
 ### Password Reset
-- **`PasswordResetScreen`** (sheet iOS / inline Android): 3 step email o telefono→codice (sempre via email)→password, riusa `AuthField` + `ToastNotice` + pattern code-input di `SignupScreen`.
+- **`PasswordResetScreen`** (sheet iOS / inline Android): 3 step email o telefono→codice (sempre via email)→password, riusa `AuthField` + `ToastNotice` + un suo campo codice (la registrazione usa `CodeBoxes`, REG-812).
 - → **Session & Auth**: usa `SessionContext.applyAuthPayload` per l'auto-login; se cambia la shape di `AuthPayload` aggiorna login + reset insieme.
 - → **LoginScreen**: `onForgot` apre la route per piattaforma (`password-reset-sheet` / `password-reset`); entrambe in `allowedAuthLeaves` (`app/_layout.tsx`).
 - → **Backend**: 3 route `POST /api/mobile/auth/password-reset/*`. OTA-safe (nessun modulo nativo nuovo).
@@ -281,7 +281,7 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **Backend**: `GET /api/mobile/me` (`onboarding`), `POST /api/autoscuole/me/onboarding`, `GET|PUT /api/autoscuole/me/availability`, `POST .../snooze`, `GET /api/autoscuole/students/:id/availability`. Vedi [features/onboarding-allievo.md](features/onboarding-allievo.md).
 
 ### License Path Gate (REG-410)
-- **`LicensePathGateScreen`** — gate bloccante per allievi self-registered senza percorso patente; early-return in `(tabs)/_layout.tsx` (dopo l'onboarding REG-802, che sta fuori dalle tab), quando `status==='ready' && isStudent && needsLicensePath`.
+- **Percorso patente** (REG-812): non più `LicensePathGateScreen` nelle tab ma step `license` dell'onboarding (`OnboardingLicenseSteps`, salvato in `OnboardingContext.submit`); `(tabs)/_layout.tsx` tiene solo la rete di sicurezza che apre lo step se `needsLicensePath` arriva senza step.
 - → **Student Phase**: `needsLicensePath` viaggia su `StudentPhasePayload` (`useStudentPhase`). Ortogonale alla fase: precede la home per-fase. Chi cambia `StudentPhasePayload`/`useStudentPhase`/`_layout.tsx` deve preservarlo.
 - → **Session & Auth**: legge `activeCompanyId`, salva con `regloApi.setLicensePath` poi `invalidateQueries(studentPhase)` + `refreshMe()`; "Esci" usa `signOut`.
 - → **Onboarding allievo (REG-802)**: viene prima (l'AuthGate porta in `app/onboarding` finché ci sono step). Vedi [features/license-path-gate.md](features/license-path-gate.md).

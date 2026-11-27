@@ -143,8 +143,11 @@ export function SignupNameStep() {
       ctaDisabled={!ok}
       onCta={go}
     >
+      {/* Affiancati: con l'icona sopra e la tastiera aperta, in colonna il cognome finiva sotto la CTA. */}
+      <View style={s.nameRow}>
       <ClayField
         ref={firstRef}
+        style={s.nameField}
         label="Nome"
         value={draft.firstName}
         onChangeText={(firstName) => update({ firstName })}
@@ -157,6 +160,7 @@ export function SignupNameStep() {
       />
       <ClayField
         ref={lastRef}
+        style={s.nameField}
         label="Cognome"
         value={draft.lastName}
         onChangeText={(lastName) => update({ lastName })}
@@ -167,6 +171,7 @@ export function SignupNameStep() {
         onSubmitEditing={go}
         testID="signup-last-name"
       />
+      </View>
     </FirstAccessStepScreen>
   );
 }
@@ -257,7 +262,7 @@ export function SignupPhoneStep() {
       progress={signupProgress('phone')}
       hero={<Icon3D source={VITA_ART.telefono} size={64} />}
       title="Il tuo numero di cellulare"
-      subtitle="Lo userai per entrare nell'app. La tua autoscuola ti avvisa lì delle guide e dei posti che si liberano."
+      subtitle="Lo userai per entrare nell'app e per ricevere gli avvisi sulle guide."
       cta="Continua"
       ctaDisabled={!phoneIsComplete(draft.phone)}
       onCta={() => router.push('/(auth)/signup/password')}
@@ -270,8 +275,7 @@ export function SignupPhoneStep() {
         testID="signup-phone"
       />
       <Text style={s.note}>
-        Continuando accetti di ricevere su WhatsApp gli avvisi sulle tue guide. Puoi smettere quando vuoi dal profilo
-        o rispondendo STOP.
+        Continuando accetti di riceverli su WhatsApp. Puoi smettere quando vuoi dal profilo o rispondendo STOP.
       </Text>
     </FirstAccessStepScreen>
   );
@@ -382,6 +386,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: { width: 56, height: 56, borderRadius: 12 },
+  nameRow: { flexDirection: 'row', gap: 12 },
+  nameField: { flex: 1 },
   note: { fontSize: 13.5, lineHeight: 19, color: CLAY.ink3, paddingHorizontal: 2 },
   reveal: { position: 'absolute', right: 16, top: 38, height: 34, justifyContent: 'center' },
   revealText: { fontSize: 14, fontWeight: '600', color: CLAY.ink },

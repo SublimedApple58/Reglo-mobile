@@ -12,7 +12,7 @@ la parte di consenso.
 | `src/components/WhatsAppAlertsRow.tsx` | Riga «Avvisi su WhatsApp» con interruttore. Legge e scrive `/api/mobile/me/whatsapp`. Niente aggiornamento ottimistico: spinner → risposta → rilettura. |
 | `app/(tabs)/settings/profile-edit.tsx` | Profilo allievo: la riga sta sotto il cellulare. |
 | `app/(tabs)/more/profile-edit.tsx` | Profilo istruttore/titolare: stessa riga. |
-| `src/screens/SignupScreen.tsx` | Frase di consenso sotto il modulo; manda `whatsappConsent: true` alla registrazione. |
+| `src/screens/signup/SignupSteps.tsx` | Frase di consenso sotto il campo del cellulare (REG-812); `SignupContext.submit` manda `whatsappConsent: true` alla registrazione |
 | `src/services/regloApi.ts` | `getWhatsAppPreference`, `setWhatsAppPreference`. |
 | `src/types/regloApi.ts` | `WhatsAppPreference`, `StudentRegisterInput.whatsappConsent`. |
 

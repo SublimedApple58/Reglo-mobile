@@ -145,3 +145,7 @@ morto. Se un giorno la timeline comparisse anche in PRATICA, allora sì: senza,
 regredirebbe da «Patente» a «Foglio rosa» come se la prima non fosse successa.
 
 Backend e modello: `../reglo/docs/features/license-paths.md`.
+
+## REG-812 (27/11/2026) — home in attesa rifatta
+
+`AllievoAwaitingScreen` è stata ridisegnata come «primo ingresso» dopo la registrazione: titolo a sinistra come l'onboarding, percorso in una `ClayList` (orologio, blocconote, volante, esame del set attuale), tappa di adesso piena e le altre tenui. `PhaseTimeline`, la pillola «In corso», l'etichetta «IL TUO PERCORSO» e `assets/icons-3d/` non esistono più: i riferimenti qui sopra sono storici. Vedi [registrazione.md](registrazione.md).
