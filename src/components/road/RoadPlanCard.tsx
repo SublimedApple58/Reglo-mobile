@@ -2,17 +2,19 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { FadeOut, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { RoadPlanStop } from '../../types/regloApi';
 import { CLAY } from '../../theme/clay';
 import { ClaySurface } from '../clay/ClaySurface';
 import { ClayToggle } from '../clay/ClayToggle';
 import { SkeletonBlock } from '../Skeleton';
-import { SOFT } from '../../utils/motion';
+import { ROAD_FADE_IN, SOFT } from '../../utils/motion';
 
 /** Dissolvenza della miniatura: 240 ms, senza rimbalzo, mai spenta da «Riduci movimento». */
 const THUMB_FADE = { duration: 240, easing: SOFT, reduceMotion: ReduceMotion.Never } as const;
+/** REG-811: la riga entra (180 ms) ed esce (150 ms) in dissolvenza: skeleton → giro, errore o niente. */
+const ROW_FADE_OUT = FadeOut.duration(150).easing(SOFT).reduceMotion(ReduceMotion.Never);
 import {
   hasPlanOverride,
   planMinutesFor,
@@ -119,21 +121,23 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   if (res === undefined) return studentId ? <PlanSkeleton style={style} /> : null;
   if (failed && studentId) {
     return (
-      <ClaySurface padded={false} style={[s.rowCard, style]} testID={`${testID}-error`}>
-        <Pressable
-          onPress={() => retryPlan(studentId, durationMin)}
-          style={({ pressed }) => [s.rowMain, pressed && s.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Riprova a caricare il giro"
-          testID={`${testID}-retry`}
-        >
-          <View style={s.rowText}>
-            <Text style={s.title}>Giro non caricato</Text>
-            <Text style={s.rowStop}>Si parte senza giro. Tocca per riprovare.</Text>
-          </View>
-          <Ionicons name="refresh" size={17} color={CLAY.ink3} />
-        </Pressable>
-      </ClaySurface>
+      <Animated.View entering={ROAD_FADE_IN} exiting={ROW_FADE_OUT} style={[s.rowCard, style]}>
+        <ClaySurface padded={false} testID={`${testID}-error`}>
+          <Pressable
+            onPress={() => retryPlan(studentId, durationMin)}
+            style={({ pressed }) => [s.rowMain, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Riprova a caricare il giro"
+            testID={`${testID}-retry`}
+          >
+            <View style={s.rowText}>
+              <Text style={s.title}>Giro non caricato</Text>
+              <Text style={s.rowStop}>Si parte senza giro. Tocca per riprovare.</Text>
+            </View>
+            <Ionicons name="refresh" size={17} color={CLAY.ink3} />
+          </Pressable>
+        </ClaySurface>
+      </Animated.View>
     );
   }
   if (!plan?.stops.length) return null;
@@ -147,53 +151,57 @@ export const RoadPlanRow = React.memo(function RoadPlanRow({
   };
   const editable = !!appointmentId;
   return (
-    <ClaySurface padded={false} style={[s.rowCard, style]} testID={testID}>
-      <Pressable
-        onPress={open}
-        disabled={!editable}
-        style={({ pressed }) => [s.rowMain, pressed && s.pressed]}
-        accessibilityRole={editable ? 'button' : undefined}
-        accessibilityLabel={editable ? 'Apri il giro' : undefined}
-        testID={`${testID}-open`}
-      >
-        <PlanThumb line={route?.line} stops={ordered} start={start} lineReady={route !== undefined} dimmed={!on} />
-        <View style={[s.rowText, !on && s.dim]}>
-          <Text style={s.title} numberOfLines={1}>
-            Il giro <Text style={s.titleMeta}>· circa {minutes} min</Text>
-          </Text>
-          {ordered.map((st, i) => (
-            <Text key={st.key} style={s.rowStop} numberOfLines={1}>
-              {i + 1}  {planStopLabel(st)}
+    <Animated.View entering={ROAD_FADE_IN} exiting={ROW_FADE_OUT} style={[s.rowCard, style]}>
+      <ClaySurface padded={false} testID={testID}>
+        <Pressable
+          onPress={open}
+          disabled={!editable}
+          style={({ pressed }) => [s.rowMain, pressed && s.pressed]}
+          accessibilityRole={editable ? 'button' : undefined}
+          accessibilityLabel={editable ? 'Apri il giro' : undefined}
+          testID={`${testID}-open`}
+        >
+          <PlanThumb line={route?.line} stops={ordered} start={start} lineReady={route !== undefined} dimmed={!on} />
+          <View style={[s.rowText, !on && s.dim]}>
+            <Text style={s.title} numberOfLines={1}>
+              Il giro <Text style={s.titleMeta}>· circa {minutes} min</Text>
             </Text>
-          ))}
+            {ordered.map((st, i) => (
+              <Text key={st.key} style={s.rowStop} numberOfLines={1}>
+                {i + 1}  {planStopLabel(st)}
+              </Text>
+            ))}
+          </View>
+          {editable ? <Ionicons name="chevron-forward" size={17} color="#B9B9B9" /> : null}
+        </Pressable>
+        <View style={s.rowToggle}>
+          <Text style={s.toggleTx}>Segui il giro</Text>
+          <ClayToggle value={on} onValueChange={setOn} accessibilityLabel="Segui il giro" testID={`${testID}-toggle`} />
         </View>
-        {editable ? <Ionicons name="chevron-forward" size={17} color="#B9B9B9" /> : null}
-      </Pressable>
-      <View style={s.rowToggle}>
-        <Text style={s.toggleTx}>Segui il giro</Text>
-        <ClayToggle value={on} onValueChange={setOn} accessibilityLabel="Segui il giro" testID={`${testID}-toggle`} />
-      </View>
-    </ClaySurface>
+      </ClaySurface>
+    </Animated.View>
   );
 });
 
 /** Stessa forma della riga (miniatura, titolo, due tappe, interruttore): all'arrivo non salta niente. */
 function PlanSkeleton({ style }: { style?: object }) {
   return (
-    <ClaySurface padded={false} style={[s.rowCard, style]} testID="road-plan-skeleton">
-      <View style={s.rowMain}>
-        <SkeletonBlock width={92} height={92} radius={16} />
-        <View style={[s.rowText, { gap: 8 }]}>
-          <SkeletonBlock width="58%" height={15} radius={5} />
-          <SkeletonBlock width="74%" height={13} radius={5} />
-          <SkeletonBlock width="66%" height={13} radius={5} />
+    <Animated.View exiting={ROW_FADE_OUT} style={[s.rowCard, style]}>
+      <ClaySurface padded={false} testID="road-plan-skeleton">
+        <View style={s.rowMain}>
+          <SkeletonBlock width={92} height={92} radius={16} />
+          <View style={[s.rowText, { gap: 8 }]}>
+            <SkeletonBlock width="58%" height={15} radius={5} />
+            <SkeletonBlock width="74%" height={13} radius={5} />
+            <SkeletonBlock width="66%" height={13} radius={5} />
+          </View>
         </View>
-      </View>
-      <View style={s.rowToggle}>
-        <SkeletonBlock width={96} height={15} radius={5} />
-        <SkeletonBlock width={50} height={30} radius={15} />
-      </View>
-    </ClaySurface>
+        <View style={s.rowToggle}>
+          <SkeletonBlock width={96} height={15} radius={5} />
+          <SkeletonBlock width={50} height={30} radius={15} />
+        </View>
+      </ClaySurface>
+    </Animated.View>
   );
 }
 

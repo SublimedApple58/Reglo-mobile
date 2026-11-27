@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { regloApi } from '../services/regloApi';
 import { FALLBACK_BASE_CATALOG } from './markerArt';
 import type { RoadLesson, RoadPlan, RoadPlanResponse, RoadPlanRouteResponse, RoadPlanStop, SavedRoadPlan } from '../types/regloApi';
@@ -167,6 +167,12 @@ export function useSavedPlan(appointmentId: string | null | undefined): SavedRoa
  * Il giro di allievo + durata: `undefined` = in arrivo, `null` = non c'è. Con
  * `appointmentId` vince il giro salvato per quella guida (e si aspetta anche
  * lui, così non si vede prima il proposto e poi quello salvato).
+ *
+ * REG-811: se nessuno l'ha scaricato prima (es. allievo scelto da «Tutti gli
+ * allievi» in «Avvia guida», fuori dai suggeriti) lo chiede lui: senza, la
+ * riga restava in skeleton per sempre. `prefetchPlan` non richiede se il giro
+ * è fresco o già in arrivo; la richiesta ha il timeout del client (15 s) e
+ * l'errore diventa «Giro non caricato · Riprova».
  */
 export function usePlan(
   studentId: string | null | undefined,
@@ -174,6 +180,9 @@ export function usePlan(
   appointmentId?: string | null,
 ): RoadPlanResponse | null | undefined {
   const key = studentId ? planKey(studentId, durationMin) : '';
+  useEffect(() => {
+    if (studentId) prefetchPlan(studentId, durationMin);
+  }, [studentId, durationMin]);
   const get = useCallback(() => {
     const entry = key ? entries.get(key) : undefined;
     if (!entry) return undefined;
