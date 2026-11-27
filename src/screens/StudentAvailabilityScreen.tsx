@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { ClayLargeTitleScroll } from '../components/ClayLargeTitle';
 import { ClayButton } from '../components/clay';
@@ -28,7 +27,6 @@ import { fadeIn } from './firstAccess/FirstAccessStepScreen';
  */
 export function StudentAvailabilityScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { activeCompanyId } = useSession();
   const query = useMyStudentAvailability();
@@ -65,7 +63,7 @@ export function StudentAvailabilityScreen() {
   };
 
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
+    <View style={s.root}>
       <ClayLargeTitleScroll
         title="Disponibilità"
         subtitle="Quando puoi fare guida. Puoi sempre prenotare anche altri orari: queste servono per avvisarti dei posti adatti a te."
