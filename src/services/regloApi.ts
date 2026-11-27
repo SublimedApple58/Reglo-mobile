@@ -251,6 +251,9 @@ export const createRegloApi = (baseUrl?: string) => {
         method: 'PUT',
         body: { days },
       }),
+    /** REG-802 — disponibilità a fasce di un allievo, per istruttore e titolare (sola lettura). */
+    getStudentAvailability: async (studentId: string) =>
+      client.request<StudentAvailabilityPayload>(`/api/autoscuole/students/${studentId}/availability`),
     /** «Configura in seguito» (solo prima della fase guide: in fase guide il server risponde 409). */
     snoozeMyAvailability: async () =>
       client.request<{ snoozedUntil: string }>('/api/autoscuole/me/availability/snooze', { method: 'POST' }),

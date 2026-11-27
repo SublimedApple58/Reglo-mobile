@@ -50,10 +50,12 @@ import { LessonHistoryRow } from '../components/student/LessonHistoryRow';
 import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { openRoadPercorso } from '../road/openRoadPercorso';
 import { studentSheetHref, studentSheetStack } from '../utils/studentSheetRoute';
+import { studentAvailabilitySheetStore } from '../stores/studentAvailabilitySheetStore';
+import { DEFAULT_BANDS, summaryText } from '../utils/studentAvailability';
 
 import { forgetRoadStudent, prefetchRoadStudent } from '../road/avvioFlow';
 import { ROAD_ASSETS } from '../road/markerArt';
-import type { RoadStudentItem } from '../types/regloApi';
+import type { RoadStudentItem, StudentAvailabilityPayload } from '../types/regloApi';
 import { REQUIRED_DRIVING_MINUTES, creditedMinutes, formatDrivingHours, lessonMinutes } from '../utils/mandatoryLessons';
 
 // Sentinella per "Sede dell'autoscuola" nel picker (= nessun default -> sede).
@@ -194,6 +196,7 @@ export const StudentNotesDetailScreen = () => {
   const [defaultLocationName, setDefaultLocationName] = useState<string | null>(null);
   const [locSaving, setLocSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [studentAvailability, setStudentAvailability] = useState<StudentAvailabilityPayload | null>(null);
   /**
    * Niente toast in un foglio (Tiziano 28/10: compariva in mezzo, sopra il
    * contenuto): il risultato si vede già sulla riga o sull'interruttore, gli
@@ -204,13 +207,16 @@ export const StudentNotesDetailScreen = () => {
   const loadData = useCallback(async () => {
     if (!studentId) return;
     try {
-      const [appts, allCases, students, settings, locs] = await Promise.all([
+      const [appts, allCases, students, settings, locs, availability] = await Promise.all([
         regloApi.getAppointments({ studentId, limit: 500 }),
         regloApi.getCases().catch(() => [] as AutoscuolaCase[]),
         regloApi.getStudents(typeof name === 'string' ? name : undefined).catch(() => []),
         regloApi.getAutoscuolaSettings().catch(() => null),
         regloApi.getLocations().catch(() => []),
+        // REG-802: disponibilità a fasce (sola lettura), pronte prima del tocco.
+        regloApi.getStudentAvailability(studentId).catch(() => null),
       ]);
+      setStudentAvailability(availability);
       const byRecent = [...appts].sort(
         (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
       );
@@ -440,6 +446,13 @@ export const StudentNotesDetailScreen = () => {
     const stack = studentSheetStack(segments);
     router.push(studentSheetHref(stack, 'student-locations') as never);
   }, [name, locations, locationIds, defaultLocationId, studentId, router, segments, showError]);
+
+  // REG-802: «Disponibilità di …», sola lettura, coi dati già caricati.
+  const openAvailability = useCallback(() => {
+    const first = (typeof name === 'string' ? name : '').trim().split(/\s+/)[0] || 'allievo';
+    studentAvailabilitySheetStore.set({ firstName: first, payload: studentAvailability });
+    router.push(studentSheetHref(studentSheetStack(segments), 'student-availability') as never);
+  }, [name, studentAvailability, router, segments]);
 
   const locationsLabel = useMemo(() => {
     if (!locationIds.length) return 'Tutti i luoghi';
@@ -791,7 +804,7 @@ export const StudentNotesDetailScreen = () => {
             </View>
           ))}
         </ClaySurface>
-      ) : email || phone || obtained.length > 0 || defaultLocationName ? (
+      ) : email || phone || obtained.length > 0 || defaultLocationName || studentAvailability ? (
         <Animated.View entering={LIST_DISSOLVE} style={upcomingExam ? s.listGap : s.firstBlock}>
           <ClayList>
             {phone ? <ClayListRow title="Telefono" subtitle={phone} onPress={() => Linking.openURL(`tel:${phone}`)} /> : null}
@@ -800,6 +813,17 @@ export const StudentNotesDetailScreen = () => {
               <ClayListRow
                 title={obtained.length === 1 ? 'Patente già conseguita' : 'Patenti già conseguite'}
                 subtitle={obtained.map(obtainedLabel).filter(Boolean).join(' · ')}
+              />
+            ) : null}
+            {studentAvailability ? (
+              <ClayListRow
+                title="Disponibilità"
+                subtitle={
+                  summaryText(studentAvailability.days, studentAvailability.bands.length ? studentAvailability.bands : DEFAULT_BANDS) ??
+                  'Non ancora indicate'
+                }
+                onPress={openAvailability}
+                testID="student-detail-availability"
               />
             ) : null}
             {defaultLocationName ? <ClayListRow title="Luogo abituale" subtitle={defaultLocationName} /> : null}

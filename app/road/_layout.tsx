@@ -55,6 +55,8 @@ export default function RoadLayout() {
         <Stack.Screen name="manage-lesson-details" options={FORM_SHEET} />
         <Stack.Screen name="student-settings" options={DAY_HUG_SHEET} />
         <Stack.Screen name="student-payments" options={FORM_SHEET} />
+        {/* REG-802: disponibilità dell'allievo, sola lettura per lo staff. */}
+        <Stack.Screen name="student-availability" options={FORM_SHEET} />
         <Stack.Screen name="payment-history" options={FORM_SHEET} />
         <Stack.Screen name="student-locations" options={FORM_SHEET} />
         <Stack.Screen name="select-options" options={FORM_SHEET} />
