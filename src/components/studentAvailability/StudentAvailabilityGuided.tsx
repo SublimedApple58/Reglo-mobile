@@ -1,225 +1,183 @@
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
-import Animated from 'react-native-reanimated';
-import { ClayList, ClayListRow } from '../clay';
-import { CLAY } from '../../theme/clay';
-import { SettingCheckRow, SettingToggleRow } from '../SettingsRows';
-import { StudentWeekStrip } from './StudentWeekStrip';
-import { fadeIn, fadeOut } from '../../screens/firstAccess/FirstAccessStepScreen';
-import { studentDayStore } from '../../stores/studentDayStore';
-import type { StudentAvailabilityBand, StudentBandKey, StudentBandsByDay } from '../../types/regloApi';
+import React, { useEffect, useRef, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import type { Href } from "expo-router";
+import Animated from "react-native-reanimated";
+import { ClayList, ClayListRow } from "../clay";
+import { CLAY } from "../../theme/clay";
+import { SettingCheckRow } from "../SettingsRows";
+import { StudentAvailabilityEditor } from "./StudentAvailabilityEditor";
+import { StudentWeekStrip } from "./StudentWeekStrip";
+import { fadeIn } from "../../screens/firstAccess/FirstAccessStepScreen";
+import type {
+  StudentAvailabilityBand,
+  StudentBandKey,
+  StudentBandsByDay,
+} from "../../types/regloApi";
 import {
   WEEK,
-  activeDays,
   bandHours,
-  bandsText,
-  everyBand,
-  hoursText,
-  isEveryBand,
+  hasAnyBand,
   orderBands,
   type DayKey,
-} from '../../utils/studentAvailability';
+} from "../../utils/studentAvailability";
 
-
-const sameKeys = (a: readonly StudentBandKey[] | undefined, b: readonly StudentBandKey[], bands: StudentAvailabilityBand[]) =>
-  orderBands(a, bands).join() === orderBands(b, bands).join();
-
-/** Le fasce «di solito» già scelte: quelle del giorno più ricorrente. */
-function usualFrom(days: StudentBandsByDay, bands: StudentAvailabilityBand[]): StudentBandKey[] {
-  const counts = new Map<string, { keys: StudentBandKey[]; n: number }>();
-  for (const d of activeDays(days)) {
-    const keys = orderBands(days[d.key], bands);
-    const id = keys.join();
-    counts.set(id, { keys, n: (counts.get(id)?.n ?? 0) + 1 });
-  }
-  let best: StudentBandKey[] = [];
-  let max = 0;
-  counts.forEach(({ keys, n }) => {
-    if (n > max) {
-      best = keys;
-      max = n;
-    }
-  });
-  return best;
-}
+/** «il lunedì», «la domenica». */
+const withArticle = (day: (typeof WEEK)[number]) =>
+  `${day.key === "0" ? "la" : "il"} ${day.full.toLowerCase()}`;
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /**
- * REG-802 giro 2 — la scelta GUIDATA delle disponibilità nell'onboarding (nel
- * Profilo resta `StudentAvailabilityEditor`). Una domanda alla volta, sulla
- * stessa schermata:
+ * REG-802 giro 3 — la scelta GUIDATA delle disponibilità, uguale
+ * nell'onboarding e nel Primo accesso (il Profilo tiene l'editor completo).
+ * Si parte dai GIORNI, perché ogni giorno è diverso (Tiziano, 27/11):
  *
- * 1. «Di solito sei libero…» — mattina / pomeriggio / sera con la spunta (o
- *    «Va bene qualsiasi orario»).
- * 2. «In quali giorni?» — compare dopo la prima fascia: la settimana diventa il
- *    comando, i giorni vuoti mostrano le fasce in trasparenza e un tocco le
- *    riempie (un altro le toglie).
- * 3. «Un giorno è diverso?» — i giorni scelti, uno per riga: il tocco apre il
- *    foglio del giorno per le eccezioni.
+ * - una domanda per giorno, da lunedì a domenica: «Di solito il lunedì sei
+ *   libero…» con mattina, pomeriggio e sera da spuntare;
+ * - la CTA dello step fa sempre avanzare: «Avanti» con una scelta, «Il lunedì
+ *   non posso» senza (il salto rapido);
+ * - in alto la settimana compatta si riempie man mano, cerchia il giorno della
+ *   domanda e si tocca per tornare su un giorno;
+ * - dopo la prima scelta, «Uguale per tutti i giorni» copia e va alla fine;
+ * - dopo la domenica: «La tua settimana», l'editor completo, per ritoccare.
  *
- * Cambiare le fasce «di solito» aggiorna i giorni che le seguivano; quelli
- * cambiati a mano restano come sono.
+ * Chi arriva con delle fasce già scelte (ritorno dal riepilogo, disponibilità
+ * già salvate) parte dalla fine.
+ *
+ * Hook e non componente perché la CTA sta nello scheletro dello step: chi lo
+ * usa mette `body` nella schermata e collega `ctaTitle` / `advance`.
  */
-export const StudentAvailabilityGuided = memo(function StudentAvailabilityGuided({
+export function useGuidedAvailability({
   days,
   bands,
   onChange,
   dayHref,
-  onNextQuestion,
+  ready = true,
 }: {
   days: StudentBandsByDay;
   bands: StudentAvailabilityBand[];
   onChange: (days: StudentBandsByDay) => void;
+  /** Rotta del foglio del giorno (per i ritocchi alla fine). */
   dayHref: Href;
-  /** Compare «In quali giorni?»: chi lo monta la porta in vista. */
-  onNextQuestion?: () => void;
+  /** Falso finché le disponibilità salvate non sono arrivate. */
+  ready?: boolean;
 }) {
-  const router = useRouter();
-  const latest = useRef(days);
-  latest.current = days;
-  const [usual, setUsual] = useState<StudentBandKey[]>(() => usualFrom(days, bands));
-  const usualRef = useRef(usual);
-  usualRef.current = usual;
-  const beforeAll = useRef<{ days: StudentBandsByDay; usual: StudentBandKey[] } | null>(null);
-  const all = isEveryBand(days, bands);
-  const chosen = activeDays(days);
-  const askDays = usual.length > 0 || chosen.length > 0;
-  const asked = useRef(askDays);
-  useEffect(() => {
-    if (askDays && !asked.current) onNextQuestion?.();
-    asked.current = askDays;
-  }, [askDays, onNextQuestion]);
-
-  const setUsualBands = (next: StudentBandKey[]) => {
-    const prev = usualRef.current;
-    const ordered = orderBands(next, bands);
-    // I giorni che seguivano le fasce «di solito» le seguono ancora.
-    const updated: StudentBandsByDay = { ...latest.current };
-    for (const d of activeDays(latest.current)) {
-      if (sameKeys(latest.current[d.key], prev, bands)) updated[d.key] = ordered;
-    }
-    beforeAll.current = null;
-    setUsual(ordered);
-    onChange(updated);
-  };
-
-  const openDay = useCallback(
-    (day: DayKey) => {
-      const meta = WEEK.find((d) => d.key === day)!;
-      studentDayStore.set({
-        dayLabel: meta.full,
-        bands,
-        selected: latest.current[day] ?? [],
-        onDone: (selected, applyAll) => {
-          beforeAll.current = null;
-          if (applyAll) {
-            setUsual(orderBands(selected, bands));
-            onChange(Object.fromEntries(WEEK.map((d) => [d.key, selected])) as StudentBandsByDay);
-          } else {
-            onChange({ ...latest.current, [day]: selected });
-          }
-        },
-      });
-      router.push(dayHref);
-    },
-    [bands, dayHref, onChange, router],
+  // 0–6 = domanda del giorno, WEEK.length = «La tua settimana».
+  const [index, setIndex] = useState(() =>
+    ready && hasAnyBand(days) ? WEEK.length : 0,
   );
+  const started = useRef(ready);
+  useEffect(() => {
+    if (!ready || started.current) return;
+    started.current = true;
+    if (hasAnyBand(days)) setIndex(WEEK.length);
+  }, [ready, days]);
 
-  const toggleDay = (day: DayKey) => {
-    const on = (latest.current[day]?.length ?? 0) > 0;
-    beforeAll.current = null;
-    if (on) {
-      onChange({ ...latest.current, [day]: [] });
-    } else if (usualRef.current.length) {
-      onChange({ ...latest.current, [day]: usualRef.current });
-    } else {
-      openDay(day);
-    }
+  const overview = index >= WEEK.length;
+  const day = overview ? null : WEEK[index];
+  const selected = day ? orderBands(days[day.key], bands) : [];
+
+  // «Uguale per tutti i giorni» ha senso solo con una scelta e dei giorni davanti.
+  const shortcut = !overview && selected.length > 0 && index < WEEK.length - 1;
+
+  const toggle = (key: StudentBandKey) => {
+    if (!day) return;
+    const next = selected.includes(key)
+      ? selected.filter((k) => k !== key)
+      : [...selected, key];
+    onChange({ ...days, [day.key]: orderBands(next, bands) });
   };
 
-  return (
+  const jumpTo = (key: DayKey) =>
+    setIndex(WEEK.findIndex((d) => d.key === key));
+
+  const body = overview ? (
+    <Animated.View entering={fadeIn}>
+      <StudentAvailabilityEditor
+        days={days}
+        bands={bands}
+        onChange={onChange}
+        dayHref={dayHref}
+      />
+    </Animated.View>
+  ) : (
     <View>
-      <Text style={s.question}>Di solito sei libero…</Text>
+      <StudentWeekStrip
+        days={days}
+        bands={bands}
+        compact
+        current={day!.key}
+        onPressDay={jumpTo}
+        pressLabel={(name) => `${name}, vai a questo giorno`}
+      />
+      {/* Solo la domanda si rimonta (dissolvenza): le righe restano le stesse. */}
+      <Animated.Text
+        key={day!.key}
+        entering={fadeIn}
+        style={s.question}
+        testID="guided-question"
+      >
+        Di solito {withArticle(day!)} sei libero…
+      </Animated.Text>
       <ClayList>
         {bands.map((band) => (
           <SettingCheckRow
             key={band.key}
             title={band.label}
             subtitle={bandHours(band)}
-            checked={usual.includes(band.key)}
-            onPress={() =>
-              setUsualBands(usual.includes(band.key) ? usual.filter((k) => k !== band.key) : [...usual, band.key])
-            }
+            checked={selected.includes(band.key)}
+            onPress={() => toggle(band.key)}
             testID={`guided-band-${band.key}`}
           />
         ))}
       </ClayList>
-      <ClayList style={s.gap}>
-        <SettingToggleRow
-          title="Va bene qualsiasi orario"
-          subtitle="Tutti i giorni, dalle 8 alle 21"
-          value={all}
-          onValueChange={(on) => {
-            if (on) {
-              beforeAll.current = { days: latest.current, usual: usualRef.current };
-              setUsual(bands.map((b) => b.key));
-              onChange(everyBand(bands));
-            } else {
-              const back = beforeAll.current;
-              beforeAll.current = null;
-              setUsual(back?.usual ?? []);
-              onChange(back?.days ?? {});
-            }
-          }}
-          testID="student-availability-any"
-        />
-      </ClayList>
-
-      {askDays ? (
+      {shortcut ? (
         <Animated.View entering={fadeIn}>
-          <Text style={[s.question, s.next]}>In quali giorni?</Text>
-          <Text style={s.hint}>
-            {chosen.length
-              ? 'Tocca un giorno per aggiungerlo o toglierlo.'
-              : usual.length
-                ? `Tocca i giorni in cui puoi: si riempiono con ${bandsText(usual, bands)!.toLowerCase()}.`
-                : 'Tocca un giorno per scegliere le fasce.'}
-          </Text>
-          <StudentWeekStrip
-            days={days}
-            bands={bands}
-            ghost={usual}
-            quietEmpty
-            onPressDay={toggleDay}
-            pressLabel={(day, on) => `${day}, ${on ? 'togli' : 'aggiungi'}`}
-          />
-        </Animated.View>
-      ) : null}
-
-      {chosen.length ? (
-        <Animated.View entering={fadeIn} exiting={fadeOut}>
-          <Text style={[s.question, s.next]}>Un giorno è diverso?</Text>
-          <Text style={s.hint}>Toccalo per cambiare le fasce solo per quel giorno.</Text>
-          <ClayList>
-            {chosen.map((d) => (
-              <ClayListRow
-                key={d.key}
-                title={d.full}
-                subtitle={`${bandsText(days[d.key], bands)} · ${hoursText(days[d.key], bands)}`}
-                onPress={() => openDay(d.key)}
-                testID={`student-availability-day-${d.key}`}
-              />
-            ))}
+          <ClayList style={s.gap}>
+            <ClayListRow
+              title="Uguale per tutti i giorni"
+              subtitle="Copia su tutta la settimana"
+              onPress={() => {
+                onChange(
+                  Object.fromEntries(
+                    WEEK.map((d) => [d.key, selected]),
+                  ) as StudentBandsByDay,
+                );
+                setIndex(WEEK.length);
+              }}
+              testID="guided-same-all"
+            />
           </ClayList>
         </Animated.View>
       ) : null}
     </View>
   );
-});
+
+  return {
+    body,
+    /** Per `revealKey` dello scheletro: porta in vista la scorciatoia, torna in cima alla fine. */
+    revealKey: overview ? "top" : shortcut ? `same-${index}` : undefined,
+    /** Vero su «La tua settimana»: la CTA è quella dello step («Continua»). */
+    overview,
+    /** Titolo della CTA durante le domande. */
+    ctaTitle: overview
+      ? null
+      : selected.length
+        ? "Avanti"
+        : `${capital(withArticle(day!))} non posso`,
+    /** Passa al giorno dopo (o a «La tua settimana»). */
+    advance: () => setIndex((i) => Math.min(i + 1, WEEK.length)),
+  };
+}
 
 const s = StyleSheet.create({
-  question: { fontSize: 17, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.3, marginBottom: 10, paddingHorizontal: 2 },
-  next: { marginTop: 28, marginBottom: 4 },
-  hint: { fontSize: 14.5, lineHeight: 20, color: CLAY.ink3, marginBottom: 12, paddingHorizontal: 2 },
+  question: {
+    fontSize: 19,
+    fontWeight: "600",
+    color: CLAY.ink,
+    letterSpacing: -0.4,
+    marginTop: 20,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
   gap: { marginTop: 14 },
 });

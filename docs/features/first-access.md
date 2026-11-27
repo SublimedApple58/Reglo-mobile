@@ -49,3 +49,5 @@ Senza codice, chi conosce il numero di un allievo non ancora attivato può attiv
 - Passo 1 allineato alla schermata del cellulare dell'onboarding («Numero di cellulare», un numero solo; +39 a 9 cifre, a gruppi mentre si scrive).
 - Lo scheletro `FirstAccessStepScreen` è condiviso con l'onboarding a sessione aperta: vedi [onboarding-allievo.md](onboarding-allievo.md).
 - Foglio `student-day` registrato nello stack `(auth)/first-access`.
+
+- **REG-802 giro 3**: il passo `availability` usa la scelta guidata un giorno alla volta dell'onboarding (`useGuidedAvailability`, vedi `onboarding-allievo.md`).

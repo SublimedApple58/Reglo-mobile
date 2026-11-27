@@ -15,7 +15,7 @@ import {
 } from './FirstAccessContext';
 import { FirstAccessStepScreen, fadeIn, useFocusAfterPush } from './FirstAccessStepScreen';
 import { PhoneField, phoneIsComplete, phoneSubmitValue, usePhoneValue } from '../../components/PhoneField';
-import { StudentAvailabilityEditor } from '../../components/studentAvailability/StudentAvailabilityEditor';
+import { useGuidedAvailability } from '../../components/studentAvailability/StudentAvailabilityGuided';
 import { VITA_ART } from '../../theme/vitaArt';
 import { DEFAULT_BANDS, activeDays, daysListText, hasAnyBand } from '../../utils/studentAvailability';
 
@@ -286,8 +286,8 @@ export function FirstAccessBirthStep() {
 
 /** 6 · Riepilogo, poi si entra. */
 /**
- * 6 · REG-802 · Quando puoi fare guida? Le fasce per giorno, con lo stesso
- * editor dell'onboarding. Prima del login non si sa se l'allievo è già in fase
+ * 6 · REG-802 · Quando puoi fare guida? Le fasce per giorno, con la stessa
+ * scelta guidata dell'onboarding (`useGuidedAvailability`, un giorno alla volta). Prima del login non si sa se l'allievo è già in fase
  * guide: lo step si può rimandare, e se in fase guide servono le chiede
  * l'onboarding subito dopo l'ingresso. Le fasce sono quelle della V1 (le
  * stesse che il server manda a sessione aperta).
@@ -296,15 +296,22 @@ export function FirstAccessAvailabilityStep() {
   const router = useRouter();
   const { draft, update } = useFirstAccess();
   const days = draft.days ?? {};
+  const guided = useGuidedAvailability({
+    days,
+    bands: DEFAULT_BANDS,
+    onChange: (next) => update({ days: next }),
+    dayHref: '/(auth)/first-access/student-day',
+  });
   return (
     <FirstAccessStepScreen
       step="availability"
-      hero={<Icon3D source={VITA_ART.orologio} size={56} />}
+      hero={<Icon3D source={VITA_ART.orologio} size={64} />}
       title="Quando puoi fare guida?"
       subtitle="Non è un impegno: puoi sempre prenotare anche in altri orari. Ci serve per avvisarti quando si libera un posto adatto a te."
-      cta="Continua"
-      ctaDisabled={!hasAnyBand(days)}
-      onCta={() => router.push('/(auth)/first-access/confirm')}
+      cta={guided.ctaTitle ?? 'Continua'}
+      revealKey={guided.revealKey}
+      ctaDisabled={guided.overview && !hasAnyBand(days)}
+      onCta={() => (guided.overview ? router.push('/(auth)/first-access/confirm') : guided.advance())}
       below={
         <ClayButton
           title="Configura in seguito"
@@ -317,12 +324,7 @@ export function FirstAccessAvailabilityStep() {
         />
       }
     >
-      <StudentAvailabilityEditor
-        days={days}
-        bands={DEFAULT_BANDS}
-        onChange={(next) => update({ days: next })}
-        dayHref="/(auth)/first-access/student-day"
-      />
+      {guided.body}
     </FirstAccessStepScreen>
   );
 }

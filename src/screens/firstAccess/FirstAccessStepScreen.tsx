@@ -167,7 +167,14 @@ export function FirstAccessStepScreen({
   const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
     if (!revealKey && !error) return;
-    const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 60);
+    // 'top' = il contenuto è cambiato del tutto (scelta guidata → riepilogo): si riparte dall'alto.
+    const t = setTimeout(
+      () =>
+        revealKey === 'top' && !error
+          ? scrollRef.current?.scrollTo({ y: 0, animated: true })
+          : scrollRef.current?.scrollToEnd({ animated: true }),
+      60,
+    );
     return () => clearTimeout(t);
   }, [revealKey, error]);
 
