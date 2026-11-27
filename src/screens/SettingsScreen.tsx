@@ -27,7 +27,7 @@ import { regloApi } from '../services/regloApi';
 import { AutoscuolaStudent } from '../types/regloApi';
 import { settingsStore } from '../stores/settingsStore';
 import { useMyStudentAvailability } from '../hooks/queries/useMyStudentAvailability';
-import { DEFAULT_BANDS, summaryText } from '../utils/studentAvailability';
+import { DEFAULT_BANDS, payloadRanges, summaryText } from '../utils/studentAvailability';
 import { instructorSettingsStore } from '../stores/instructorSettingsStore';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
@@ -381,7 +381,7 @@ export const SettingsScreen = () => {
                 availabilityQ.isLoading ? (
                   <SkeletonBlock width={130} height={11} radius={6} />
                 ) : (
-                  summaryText(availabilityQ.data?.days ?? {}, availabilityQ.data?.bands ?? DEFAULT_BANDS) ??
+                  summaryText(payloadRanges(availabilityQ.data), availabilityQ.data?.bands ?? DEFAULT_BANDS) ??
                   'Non ancora indicate'
                 )
               }

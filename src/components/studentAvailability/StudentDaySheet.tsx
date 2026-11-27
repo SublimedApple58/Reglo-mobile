@@ -3,26 +3,25 @@ import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FormSheet } from '../SheetScaffold';
 import { ClayButton, ClayList } from '../clay';
-import { SettingCheckRow, SettingToggleRow } from '../SettingsRows';
+import { SettingToggleRow } from '../SettingsRows';
+import { StudentDayChoice } from './StudentDayChoice';
 import { studentDayStore } from '../../stores/studentDayStore';
-import type { StudentBandKey } from '../../types/regloApi';
-import { bandHours } from '../../utils/studentAvailability';
+import type { StudentTimeRange } from '../../types/regloApi';
 
 /**
  * REG-802 — foglio di un giorno delle disponibilità dell'allievo: le tre fasce
- * con la spunta nera, «Uguale per tutti i giorni», «Fatto». Form sheet nativo
- * ad altezza adattiva, X in alto, niente maniglia. Registrato negli stack che
- * lo aprono (onboarding, Profilo) come rotta `student-day` con `FORM_SHEET`.
+ * con la spunta nera e, dal REG-813, «Un orario preciso» con le rotelle
+ * (`StudentDayChoice`), poi «Uguale per tutti i giorni» e «Fatto». Form sheet
+ * nativo ad altezza adattiva, X in alto, niente maniglia. Registrato negli
+ * stack che lo aprono (onboarding, Profilo, Primo accesso) come rotta
+ * `student-day` con `FORM_SHEET`.
  */
 export function StudentDaySheet() {
   const router = useRouter();
   const data = useSyncExternalStore(studentDayStore.subscribe, studentDayStore.get);
-  const [selected, setSelected] = useState<StudentBandKey[]>(() => data?.selected ?? []);
+  const [ranges, setRanges] = useState<StudentTimeRange[]>(() => data?.ranges ?? []);
   const [applyAll, setApplyAll] = useState(false);
   if (!data) return <View style={s.empty} />;
-
-  const toggle = (key: StudentBandKey) =>
-    setSelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   return (
     <FormSheet
@@ -33,28 +32,20 @@ export function StudentDaySheet() {
         <ClayButton
           title="Fatto"
           onPress={() => {
-            data.onDone(
-              data.bands.map((b) => b.key).filter((k) => selected.includes(k)),
-              applyAll,
-            );
+            data.onDone(ranges, applyAll);
             router.back();
           }}
           testID="student-day-done"
         />
       }
     >
-      <ClayList>
-        {data.bands.map((band) => (
-          <SettingCheckRow
-            key={band.key}
-            title={band.label}
-            subtitle={bandHours(band)}
-            checked={selected.includes(band.key)}
-            onPress={() => toggle(band.key)}
-            testID={`student-day-${band.key}`}
-          />
-        ))}
-      </ClayList>
+      <StudentDayChoice
+        ranges={ranges}
+        bands={data.bands}
+        rules={data.rules}
+        onChange={setRanges}
+        testPrefix="student-day"
+      />
       <ClayList style={s.gap}>
         <SettingToggleRow
           title="Uguale per tutti i giorni"

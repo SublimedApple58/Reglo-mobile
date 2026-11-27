@@ -6,7 +6,7 @@ import { StudentWeekStrip } from './StudentWeekStrip';
 import { NotAvailable } from './StudentAvailabilityEditor';
 import { studentAvailabilitySheetStore } from '../../stores/studentAvailabilitySheetStore';
 import { CLAY } from '../../theme/clay';
-import { DEFAULT_BANDS, WEEK, bandsText, hoursText } from '../../utils/studentAvailability';
+import { DEFAULT_BANDS, WEEK, dayTextWithHours, payloadRanges } from '../../utils/studentAvailability';
 
 const confirmedLabel = (iso: string) =>
   new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', timeZone: 'Europe/Rome' });
@@ -21,7 +21,7 @@ export function StudentAvailabilityStaffSheet() {
   if (!data) return <View style={s.empty} />;
   const { firstName, payload } = data;
   const bands = payload?.bands?.length ? payload.bands : DEFAULT_BANDS;
-  const days = payload?.days ?? {};
+  const days = payloadRanges(payload);
   const has = Boolean(payload?.hasAvailability);
   const subtitle = !has
     ? 'Non ancora indicate'
@@ -34,12 +34,12 @@ export function StudentAvailabilityStaffSheet() {
       <StudentWeekStrip days={days} bands={bands} title={`La settimana di ${firstName}`} />
       <ClayList style={s.gap}>
         {WEEK.map((d) => {
-          const label = bandsText(days[d.key], bands);
+          const label = dayTextWithHours(days[d.key], bands);
           return (
             <ClayListRow
               key={d.key}
               title={d.full}
-              subtitle={label ? `${label} · ${hoursText(days[d.key], bands)}` : <NotAvailable />}
+              subtitle={label ?? <NotAvailable />}
             />
           );
         })}

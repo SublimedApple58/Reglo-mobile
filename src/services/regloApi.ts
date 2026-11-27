@@ -45,7 +45,7 @@ import {
   MePayload,
   CompleteOnboardingInput,
   StudentAvailabilityPayload,
-  StudentBandsByDay,
+  StudentRangesByDay,
   StudentOnboarding,
   GetAppointmentsParams,
   UpdateProfileInput,
@@ -246,10 +246,10 @@ export const createRegloApi = (baseUrl?: string) => {
     /** REG-802 — le disponibilità a fasce dell'allievo (sempre le sue). */
     getMyAvailability: async () =>
       client.request<StudentAvailabilityPayload>('/api/autoscuole/me/availability'),
-    saveMyAvailability: async (days: StudentBandsByDay) =>
+    saveMyAvailability: async (ranges: StudentRangesByDay) =>
       client.request<StudentAvailabilityPayload>('/api/autoscuole/me/availability', {
         method: 'PUT',
-        body: { days },
+        body: { ranges },
       }),
     /** REG-802 — disponibilità a fasce di un allievo, per istruttore e titolare (sola lettura). */
     getStudentAvailability: async (studentId: string) =>

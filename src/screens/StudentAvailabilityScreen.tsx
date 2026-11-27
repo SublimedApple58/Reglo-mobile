@@ -13,9 +13,9 @@ import { useMyStudentAvailability } from '../hooks/queries/useMyStudentAvailabil
 import { queryKeys } from '../hooks/queries/queryKeys';
 import { regloApi } from '../services/regloApi';
 import { CLAY } from '../theme/clay';
-import type { StudentBandsByDay } from '../types/regloApi';
+import type { StudentRangesByDay } from '../types/regloApi';
 import { SOFT_SWAP_IN, SOFT_SWAP_OUT } from '../utils/motion';
-import { DEFAULT_BANDS, hasAnyBand, sameDays } from '../utils/studentAvailability';
+import { DEFAULT_BANDS, DEFAULT_RULES, hasAnyRange, payloadRanges, sameDays } from '../utils/studentAvailability';
 import { fadeIn } from './firstAccess/FirstAccessStepScreen';
 
 /**
@@ -31,7 +31,7 @@ export function StudentAvailabilityScreen() {
   const { activeCompanyId } = useSession();
   const query = useMyStudentAvailability();
   const bands = query.data?.bands ?? DEFAULT_BANDS;
-  const [days, setDays] = useState<StudentBandsByDay | null>(null);
+  const [days, setDays] = useState<StudentRangesByDay | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ text: string; tone: ToastTone } | null>(null);
 
@@ -40,12 +40,13 @@ export function StudentAvailabilityScreen() {
   useEffect(() => {
     if (seeded.current || !query.data) return;
     seeded.current = true;
-    setDays(query.data.days);
+    setDays(payloadRanges(query.data));
   }, [query.data]);
 
-  const saved = query.data?.days ?? {};
-  const dirty = days !== null && !sameDays(days, saved, bands);
-  const canSave = dirty && hasAnyBand(days);
+  const rules = query.data?.rules ?? DEFAULT_RULES;
+  const saved = payloadRanges(query.data);
+  const dirty = days !== null && !sameDays(days, saved);
+  const canSave = dirty && hasAnyRange(days);
 
   const save = async () => {
     if (!days || saving) return;
@@ -53,7 +54,7 @@ export function StudentAvailabilityScreen() {
     try {
       const data = await regloApi.saveMyAvailability(days);
       queryClient.setQueryData(queryKeys.studentAvailability(activeCompanyId), data);
-      setDays(data.days);
+      setDays(payloadRanges(data));
       setToast({ text: 'Disponibilità salvate', tone: 'success' });
     } catch (err) {
       setToast({ text: err instanceof Error ? err.message : 'Non siamo riusciti a salvare', tone: 'danger' });
@@ -71,19 +72,20 @@ export function StudentAvailabilityScreen() {
         contentContainerStyle={[s.scroll, dirty && s.scrollWithCta]}
       >
         {days ? (
-          <Animated.View entering={fadeIn}>
+          <Animated.View entering={fadeIn} style={s.body}>
             <StudentAvailabilityEditor
               days={days}
               bands={bands}
+              rules={rules}
               onChange={setDays}
               dayHref="/(tabs)/settings/student-day"
             />
-            {!hasAnyBand(days) ? (
-              <Text style={s.note}>Scegli almeno una fascia per salvare.</Text>
+            {!hasAnyRange(days) ? (
+              <Text style={s.note}>Scegli almeno un orario per salvare.</Text>
             ) : null}
           </Animated.View>
         ) : (
-          <View style={s.skeleton}>
+          <View style={[s.skeleton, s.body]}>
             <SkeletonBlock height={190} radius={28} />
             <SkeletonBlock height={62} radius={28} />
             <SkeletonBlock height={320} radius={28} />
@@ -103,6 +105,8 @@ export function StudentAvailabilityScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   scroll: { paddingHorizontal: 20, paddingBottom: 32 },
+  // REG-813: un po' d'aria fra il sottotitolo e la settimana.
+  body: { marginTop: 16 },
   scrollWithCta: { paddingBottom: 110 },
   skeleton: { gap: 14 },
   note: { fontSize: 13.5, lineHeight: 19, color: CLAY.ink3, marginTop: 12, paddingHorizontal: 4 },

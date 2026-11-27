@@ -197,7 +197,7 @@ export type FirstAccessCompleteInput = {
   /** YYYY-MM-DD */
   birthDate: string;
   /** REG-802 — disponibilità scelte nello step prima del riepilogo. */
-  availability?: { days: StudentBandsByDay };
+  availability?: { ranges: StudentRangesByDay };
 };
 
 export type MePayload = {
@@ -225,9 +225,25 @@ export type StudentBandKey = 'morning' | 'afternoon' | 'evening';
 export type StudentAvailabilityBand = { key: StudentBandKey; label: string; startMinutes: number; endMinutes: number };
 /** "0"=Dom … "6"=Sab → fasce scelte (solo i giorni con almeno una fascia). */
 export type StudentBandsByDay = Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', StudentBandKey[]>>;
+/** REG-813 — un orario in minuti dalla mezzanotte. */
+export type StudentTimeRange = { startMinutes: number; endMinutes: number };
+/** REG-813 — "0"=Dom … "6"=Sab → orari veri del giorno (fasce o «un orario preciso»). */
+export type StudentRangesByDay = Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', StudentTimeRange[]>>;
+/** REG-813 — regole di «Un orario preciso» (`minDurationMinutes` = guida più breve dell'autoscuola). */
+export type StudentRangeRules = {
+  minMinutes: number;
+  maxMinutes: number;
+  stepMinutes: number;
+  maxPerDay: number;
+  minDurationMinutes: number;
+};
 export type StudentAvailabilityPayload = {
   bands: StudentAvailabilityBand[];
+  /** Solo fasce (app fino al REG-802): un orario preciso qui è arrotondato. Usare `ranges`. */
   days: StudentBandsByDay;
+  /** REG-813 — gli orari veri; assente con un backend precedente. */
+  ranges?: StudentRangesByDay;
+  rules?: StudentRangeRules;
   /** Quando l'allievo le ha confermate dall'app (null = mai). */
   confirmedAt: string | null;
   hasAvailability: boolean;
@@ -238,7 +254,7 @@ export type CompleteOnboardingInput = {
   lastName?: string;
   /** E.164 */
   phone?: string;
-  availability?: { days: StudentBandsByDay };
+  availability?: { ranges: StudentRangesByDay };
 };
 
 export type LogoutPayload = { success: true };

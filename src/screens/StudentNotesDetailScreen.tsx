@@ -51,7 +51,7 @@ import { useRoadEnabled } from '../hooks/useRoadEnabled';
 import { openRoadPercorso } from '../road/openRoadPercorso';
 import { studentSheetHref, studentSheetStack } from '../utils/studentSheetRoute';
 import { studentAvailabilitySheetStore } from '../stores/studentAvailabilitySheetStore';
-import { DEFAULT_BANDS, summaryText } from '../utils/studentAvailability';
+import { DEFAULT_BANDS, payloadRanges, summaryText } from '../utils/studentAvailability';
 
 import { forgetRoadStudent, prefetchRoadStudent } from '../road/avvioFlow';
 import { ROAD_ASSETS } from '../road/markerArt';
@@ -819,7 +819,7 @@ export const StudentNotesDetailScreen = () => {
               <ClayListRow
                 title="Disponibilità"
                 subtitle={
-                  summaryText(studentAvailability.days, studentAvailability.bands.length ? studentAvailability.bands : DEFAULT_BANDS) ??
+                  summaryText(payloadRanges(studentAvailability), studentAvailability.bands.length ? studentAvailability.bands : DEFAULT_BANDS) ??
                   'Non ancora indicate'
                 }
                 onPress={openAvailability}
