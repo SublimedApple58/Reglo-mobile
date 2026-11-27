@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../hooks/queries/queryKeys';
 import { regloApi } from '../../services/regloApi';
 import { useSession } from '../../context/SessionContext';
 import type {
@@ -69,7 +71,8 @@ export const errorText = (error: unknown, fallback: string) =>
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { onboarding, user, setOnboarding } = useSession();
+  const { onboarding, user, setOnboarding, activeCompanyId } = useSession();
+  const queryClient = useQueryClient();
   // Gli step si fissano all'apertura: mentre l'allievo li percorre la sessione
   // può aggiornarsi, il flusso no.
   const [steps] = useState<OnboardingStep[]>(() => onboarding?.steps ?? []);
@@ -123,6 +126,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setSubmitting(true);
       try {
         const result = await regloApi.completeOnboarding(input);
+        if (input.availability) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.studentAvailability(activeCompanyId) });
+        }
         if (hasConfirm) {
           // Il riepilogo mostra «Eccoti, Sara» e poi chiude lui.
           setWelcomeName(input.firstName || d.firstName || null);
@@ -136,7 +142,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         setSubmitting(false);
       }
     },
-    [hasConfirm, keys, setOnboarding, update],
+    [activeCompanyId, hasConfirm, keys, queryClient, setOnboarding, update],
   );
 
   const next = useCallback(

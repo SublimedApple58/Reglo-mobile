@@ -1,5 +1,3 @@
-export type SlotTarget = 'morningStart' | 'morningEnd' | 'afternoonStart' | 'afternoonEnd';
-
 export type SettingsStoreData = {
   // profile
   name: string;
@@ -8,22 +6,6 @@ export type SettingsStoreData = {
   setName: (v: string) => void;
   setPhone: (v: string) => void;
   onSaveProfile: () => void;
-  // availability
-  hasProfile: boolean;
-  weeks: number;
-  availabilityDays: number[];
-  toggleDay: (d: number) => void;
-  morningActive: boolean;
-  afternoonActive: boolean;
-  toggleMorning: () => void;
-  toggleAfternoon: () => void;
-  morningStart: Date;
-  morningEnd: Date;
-  afternoonStart: Date;
-  afternoonEnd: Date;
-  onPickSlotTime: (target: SlotTarget, date: Date) => void;
-  availabilitySaving: boolean;
-  onSaveAvailability: () => void;
 };
 
 let _data: SettingsStoreData | null = null;

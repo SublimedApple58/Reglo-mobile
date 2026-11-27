@@ -80,6 +80,9 @@ export const queryKeys = {
     ['student-phase', companyId] as const,
 
   // ── Instructor availability editor ──
+  /** REG-802: disponibilità a fasce dell'allievo (le sue). */
+  studentAvailability: (companyId: string | null) => ['student-availability', companyId] as const,
+
   defaultAvailability: (companyId: string | null, instructorId: string | null) =>
     ['default-availability', companyId, instructorId] as const,
 

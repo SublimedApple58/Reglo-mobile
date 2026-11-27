@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { useTabStackOptions } from '../../../src/components/tabBarSpace';
 import { colors } from '../../../src/theme/colors';
 import { sheetScreenListeners } from '../../../src/utils/sheetHaptics';
-import { TALL_SHEET, HUG_SHEET, SCROLL_SHEET } from '../../../src/utils/sheetPresentation';
+import { FORM_SHEET, TALL_SHEET, HUG_SHEET, SCROLL_SHEET } from '../../../src/utils/sheetPresentation';
 
 // REG-800: su iOS (barra nativa) le pagine a schermo pieno si tengono lo spazio della barra.
 const STACK_OPTIONS = { headerShown: false, contentStyle: { backgroundColor: colors.background } };
@@ -17,7 +17,9 @@ export default function SettingsLayout() {
       <Stack.Screen name="signature" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       {/* REG-451: associazione all'istruttore (QR / codice a mano), a tutto schermo come il prototipo */}
       <Stack.Screen name="associa-istruttore" options={{ presentation: 'fullScreenModal', headerShown: false }} />
-      <Stack.Screen name="availability" options={TALL_SHEET} />
+      {/* REG-802: pagina piena col titolo grande (era un foglio alto). */}
+      <Stack.Screen name="availability" />
+      <Stack.Screen name="student-day" options={FORM_SHEET} />
       <Stack.Screen name="le-tue-guide" options={SCROLL_SHEET} />
       <Stack.Screen name="time-picker" options={HUG_SHEET} />
     </Stack>

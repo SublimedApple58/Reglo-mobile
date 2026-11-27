@@ -25,7 +25,9 @@ import { softStagger } from '../utils/motion';
 import { useSession } from '../context/SessionContext';
 import { regloApi } from '../services/regloApi';
 import { AutoscuolaStudent } from '../types/regloApi';
-import { settingsStore, SlotTarget } from '../stores/settingsStore';
+import { settingsStore } from '../stores/settingsStore';
+import { useMyStudentAvailability } from '../hooks/queries/useMyStudentAvailability';
+import { DEFAULT_BANDS, summaryText } from '../utils/studentAvailability';
 import { instructorSettingsStore } from '../stores/instructorSettingsStore';
 import * as Notifications from 'expo-notifications';
 import { sessionStorage } from '../services/sessionStorage';
@@ -34,24 +36,6 @@ import { useStudentPhase } from '../hooks/useStudentPhase';
 
 const reminderOptions = [120, 60, 30, 20, 15] as const;
 
-const dayLetters = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
-const pad = (value: number) => value.toString().padStart(2, '0');
-const toDateString = (value: Date) => {
-  const year = value.getFullYear();
-  const month = pad(value.getMonth() + 1);
-  const day = pad(value.getDate());
-  return `${year}-${month}-${day}`;
-};
-const buildTime = (hours: number, minutes: number) => {
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-  return date;
-};
-const addDays = (date: Date, amount: number) => {
-  const copy = new Date(date);
-  copy.setDate(copy.getDate() + amount);
-  return copy;
-};
 const normalize = (value: string | null | undefined) =>
   (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 const findLinkedStudent = (
@@ -78,6 +62,8 @@ export const SettingsScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, companies, activeCompanyId, refreshMe, signOut, autoscuolaRole } = useSession();
+  // REG-802: disponibilità a fasce (riga «Disponibilità» e la sua pagina, già piena all'apertura).
+  const availabilityQ = useMyStudentAvailability();
 
   const [name, setName] = useState(user?.name ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
@@ -94,24 +80,12 @@ export const SettingsScreen = () => {
     useState<'manual_full' | 'manual_engine'>('manual_engine');
   const [refreshing, setRefreshing] = useState(false);
   const [studentProfile, setStudentProfile] = useState<AutoscuolaStudent | null>(null);
-  const [availabilityDays, setAvailabilityDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [availabilityStart, setAvailabilityStart] = useState(buildTime(9, 0));
-  const [availabilityEnd, setAvailabilityEnd] = useState(buildTime(18, 0));
-  const [availabilitySaving, setAvailabilitySaving] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  // Loads after initialLoading (background) — gates only the availability hint.
-  const [availabilityLoading, setAvailabilityLoading] = useState(true);
   // Instructor/owner: gates only the settings-dependent row hints (Disponibilità
   // mode, Agenda weeks) while they load in the background. The screen renders
   // immediately from the session — never blocked on these network calls.
   const [settingsLoading, setSettingsLoading] = useState(true);
-  const [morningActive, setMorningActive] = useState(false);
-  const [afternoonActive, setAfternoonActive] = useState(false);
-  const [morningStart, setMorningStart] = useState(buildTime(8, 0));
-  const [morningEnd, setMorningEnd] = useState(buildTime(12, 0));
-  const [afternoonStart, setAfternoonStart] = useState(buildTime(14, 0));
-  const [afternoonEnd, setAfternoonEnd] = useState(buildTime(18, 0));
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const activeCompany = useMemo(
@@ -161,79 +135,6 @@ export const SettingsScreen = () => {
       await Linking.openSettings();
     }
   }, [notificationsEnabled]);
-
-  // Derive morningActive/afternoonActive + ranges from loaded availability
-  const deriveSlotsFromTime = useCallback((start: Date, end: Date) => {
-    const startHour = start.getHours();
-    const startMin = start.getMinutes();
-    const endHour = end.getHours();
-    const endMin = end.getMinutes();
-    const isMorning = startHour < 13;
-    const isAfternoon = endHour > 13;
-    setMorningActive(isMorning);
-    setAfternoonActive(isAfternoon);
-    if (isMorning) {
-      setMorningStart(buildTime(startHour, startMin));
-      setMorningEnd(isAfternoon ? buildTime(12, 0) : buildTime(endHour, endMin));
-    }
-    if (isAfternoon) {
-      setAfternoonStart(isMorning ? buildTime(14, 0) : buildTime(startHour, startMin));
-      setAfternoonEnd(buildTime(endHour, endMin));
-    }
-  }, []);
-
-  const loadStudentAvailabilityPreset = useCallback(async (studentId: string) => {
-    const anchor = new Date();
-    anchor.setHours(0, 0, 0, 0);
-    // Single range request for the whole week (was 7 separate per-day calls).
-    const slots = await regloApi.getAvailabilitySlots({
-      ownerType: 'student',
-      ownerId: studentId,
-      from: toDateString(anchor),
-      to: toDateString(addDays(anchor, 6)),
-    });
-
-    // Group the week's slots by calendar day.
-    const byDay = new Map<string, typeof slots>();
-    (slots ?? []).forEach((slot) => {
-      if (slot.status === 'cancelled') return;
-      const key = toDateString(new Date(slot.startsAt));
-      const arr = byDay.get(key);
-      if (arr) arr.push(slot);
-      else byDay.set(key, [slot]);
-    });
-
-    const ranges: Array<{ dayIndex: number; startMin: number; endMin: number }> = [];
-    byDay.forEach((daySlots) => {
-      if (!daySlots.length) return;
-      const sorted = daySlots
-        .slice()
-        .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-      const first = new Date(sorted[0].startsAt);
-      const last = new Date(sorted[sorted.length - 1].endsAt);
-      const startMin = first.getHours() * 60 + first.getMinutes();
-      const endMin = last.getHours() * 60 + last.getMinutes();
-      ranges.push({ dayIndex: first.getDay(), startMin, endMin });
-    });
-
-    if (!ranges.length) {
-      setAvailabilityDays([]);
-      setAvailabilityStart(buildTime(9, 0));
-      setAvailabilityEnd(buildTime(18, 0));
-      deriveSlotsFromTime(buildTime(9, 0), buildTime(18, 0));
-      return;
-    }
-
-    const daySet = Array.from(new Set(ranges.map((item) => item.dayIndex))).sort();
-    const minStart = Math.min(...ranges.map((item) => item.startMin));
-    const maxEnd = Math.max(...ranges.map((item) => item.endMin));
-    const newStart = buildTime(Math.floor(minStart / 60), minStart % 60);
-    const newEnd = buildTime(Math.floor(maxEnd / 60), maxEnd % 60);
-    setAvailabilityDays(daySet);
-    setAvailabilityStart(newStart);
-    setAvailabilityEnd(newEnd);
-    deriveSlotsFromTime(newStart, newEnd);
-  }, [deriveSlotsFromTime]);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -285,18 +186,8 @@ export const SettingsScreen = () => {
         const linkedStudent = findLinkedStudent(studentsList, user);
         setStudentProfile(linkedStudent);
         // Unblock the screen immediately: the profile card needs no network.
-        // The availability preset only feeds the Disponibilità sub-page + its
-        // summary row, so load it in the background instead of blocking the
-        // whole screen on 7 slot calls.
+        // REG-802: le disponibilità le legge `useMyStudentAvailability`.
         setInitialLoading(false);
-        if (linkedStudent?.id) {
-          setAvailabilityLoading(true);
-          loadStudentAvailabilityPreset(linkedStudent.id)
-            .catch(() => {})
-            .finally(() => setAvailabilityLoading(false));
-        } else {
-          setAvailabilityLoading(false);
-        }
       } else {
         setStudentProfile(null);
       }
@@ -305,7 +196,7 @@ export const SettingsScreen = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, [autoscuolaRole, loadStudentAvailabilityPreset, user]);
+  }, [autoscuolaRole, user]);
 
   useEffect(() => {
     loadSettings();
@@ -406,116 +297,6 @@ export const SettingsScreen = () => {
     }
   };
 
-  const toggleAvailabilityDay = (day: number) => {
-    setAvailabilityDays((prev) =>
-      prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day].sort()
-    );
-  };
-
-  // Compute availabilityStart/End from morning/afternoon toggles
-  const computeTimeFromSlots = useCallback(() => {
-    if (morningActive && afternoonActive) {
-      // Two separate ranges — primary is morning, secondary sent via startsAt2/endsAt2
-      setAvailabilityStart(morningStart);
-      setAvailabilityEnd(morningEnd);
-    } else if (morningActive) {
-      setAvailabilityStart(morningStart);
-      setAvailabilityEnd(morningEnd);
-    } else if (afternoonActive) {
-      setAvailabilityStart(afternoonStart);
-      setAvailabilityEnd(afternoonEnd);
-    } else {
-      setAvailabilityStart(buildTime(9, 0));
-      setAvailabilityEnd(buildTime(18, 0));
-    }
-  }, [morningActive, afternoonActive, morningStart, morningEnd, afternoonStart, afternoonEnd]);
-
-  const toggleMorning = () => {
-    setMorningActive((prev) => !prev);
-  };
-
-  const toggleAfternoon = () => {
-    setAfternoonActive((prev) => !prev);
-  };
-
-  // Recompute availability times when slots or ranges change
-  useEffect(() => {
-    computeTimeFromSlots();
-  }, [computeTimeFromSlots]);
-
-  const handleSaveStudentAvailability = async () => {
-    if (!studentProfile?.id) {
-      setError('Profilo allievo non collegato alla company attiva.');
-      return;
-    }
-    if (!availabilityDays.length) {
-      setError('Seleziona almeno un giorno disponibile.');
-      return;
-    }
-    if (availabilityEnd <= availabilityStart) {
-      setError('Intervallo orario non valido.');
-      return;
-    }
-
-    setAvailabilitySaving(true);
-    setError(null);
-    setToast(null);
-    try {
-      const anchor = new Date();
-      anchor.setHours(0, 0, 0, 0);
-      const start = new Date(anchor);
-      start.setHours(availabilityStart.getHours(), availabilityStart.getMinutes(), 0, 0);
-      const end = new Date(anchor);
-      end.setHours(availabilityEnd.getHours(), availabilityEnd.getMinutes(), 0, 0);
-      const resetStart = new Date(anchor);
-      resetStart.setHours(0, 0, 0, 0);
-      const resetEnd = new Date(anchor);
-      resetEnd.setHours(23, 59, 0, 0);
-
-      try {
-        await regloApi.deleteAvailabilitySlots({
-          ownerType: 'student',
-          ownerId: studentProfile.id,
-          startsAt: resetStart.toISOString(),
-          endsAt: resetEnd.toISOString(),
-          daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-          weeks: Number(availabilityWeeks) || 4,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!/nessuno slot/i.test(message)) {
-          throw err;
-        }
-      }
-
-      // Build second range if both morning and afternoon are active separately
-      const hasSecondRange = morningActive && afternoonActive;
-      const secondRange = hasSecondRange ? (() => {
-        const s2 = new Date(anchor);
-        s2.setHours(afternoonStart.getHours(), afternoonStart.getMinutes(), 0, 0);
-        const e2 = new Date(anchor);
-        e2.setHours(afternoonEnd.getHours(), afternoonEnd.getMinutes(), 0, 0);
-        return { startsAt2: s2.toISOString(), endsAt2: e2.toISOString() };
-      })() : {};
-
-      await regloApi.createAvailabilitySlots({
-        ownerType: 'student',
-        ownerId: studentProfile.id,
-        startsAt: start.toISOString(),
-        endsAt: end.toISOString(),
-        ...secondRange,
-        daysOfWeek: availabilityDays,
-        weeks: Number(availabilityWeeks) || 4,
-      });
-      setToast({ text: 'Disponibilità aggiornata', tone: 'success' });
-      await loadStudentAvailabilityPreset(studentProfile.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore aggiornando disponibilità');
-    } finally {
-      setAvailabilitySaving(false);
-    }
-  };
-
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setError(null);
@@ -531,17 +312,6 @@ export const SettingsScreen = () => {
   }, [loadSettings, refreshMe]);
 
   /* \u2500\u2500\u2500 Student-specific render \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
-  const availabilitySummary = availabilityDays.length > 0
-    ? availabilityDays.map((d) => dayLetters[d]).join(', ') + (morningActive && afternoonActive ? ' \u2022 Tutto il giorno' : morningActive ? ' \u2022 Mattina' : afternoonActive ? ' \u2022 Pomeriggio' : '')
-    : 'Non configurata';
-
-  const onPickSlotTime = (target: SlotTarget, date: Date) => {
-    if (target === 'morningStart') setMorningStart(date);
-    else if (target === 'morningEnd') setMorningEnd(date);
-    else if (target === 'afternoonStart') setAfternoonStart(date);
-    else if (target === 'afternoonEnd') setAfternoonEnd(date);
-  };
-
   // Publish edit state + handlers to the store so dedicated sub-pages
   // (profile-edit, availability, payment) can bind to them. Published for
   // every role: instructors/owners reach profile-edit from the "Altro" stack
@@ -549,11 +319,6 @@ export const SettingsScreen = () => {
   useEffect(() => {
     settingsStore.set({
       name, phone, saving, setName, setPhone, onSaveProfile: handleSaveProfile,
-      hasProfile: !!studentProfile, weeks: Number(availabilityWeeks) || 4,
-      availabilityDays, toggleDay: toggleAvailabilityDay,
-      morningActive, afternoonActive, toggleMorning, toggleAfternoon,
-      morningStart, morningEnd, afternoonStart, afternoonEnd,
-      onPickSlotTime, availabilitySaving, onSaveAvailability: handleSaveStudentAvailability,
     });
   });
 
@@ -613,9 +378,15 @@ export const SettingsScreen = () => {
             <ClayListRow
               title="Disponibilità"
               subtitle={
-                availabilityLoading ? <SkeletonBlock width={130} height={11} radius={6} /> : availabilitySummary
+                availabilityQ.isLoading ? (
+                  <SkeletonBlock width={130} height={11} radius={6} />
+                ) : (
+                  summaryText(availabilityQ.data?.days ?? {}, availabilityQ.data?.bands ?? DEFAULT_BANDS) ??
+                  'Non ancora indicate'
+                )
               }
               onPress={() => router.push('/(tabs)/settings/availability')}
+              testID="profile-availability"
             />
             {/* REG-451: "Scansiona QR" — associazione all'istruttore dalla sua card (la card stampata dice "tab Profilo → Scansiona QR") */}
             <ClayListRow
