@@ -54,10 +54,12 @@ export function StudentLocationsSheet() {
     setSaving(true);
     try {
       await data.onSave({ locationIds: picked, primaryId: picked.length ? primary : null });
+      // Riuscito: `saving` resta vero fino allo smontaggio, così `dirty` (legato
+      // a `!saving`, regola di FormSheet) è già falso quando il foglio si chiude
+      // e non compare «Vuoi uscire senza salvare?» su luoghi già salvati (REG-814).
       router.back();
     } catch {
       // L'errore lo mostra chi salva; il foglio resta aperto con le scelte.
-    } finally {
       setSaving(false);
     }
   };
@@ -70,7 +72,7 @@ export function StudentLocationsSheet() {
       subtitle={`${firstName ?? 'L’allievo'} vede solo le disponibilità dei luoghi scelti.`}
       testID="student-locations-sheet"
       busy={saving}
-      dirty={dirty}
+      dirty={dirty && !saving}
       cta={
         dirty ? (
           <ClayButton title="Salva" onPress={save} loading={saving} testID="student-locations-save" />
