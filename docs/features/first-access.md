@@ -14,8 +14,8 @@ Uno stack a schermo intero, un passo per schermata, push e swipe indietro nativi
 | `email` | Email (obbligatoria) | validazione al blur; unicità controllata dal server alla fine |
 | `password` | Password sua (obbligatoria, ≥ 6) | Mostra/Nascondi, `textContentType="newPassword"` |
 | `birth` | Data di nascita | iOS ruota nativa (`display="spinner"`), Android calendario nativo; 14–100 anni |
-| `availability` | REG-802: «Quando puoi fare guida?» (fasce per giorno, stesso editor dell'onboarding, `DEFAULT_BANDS`). Rimandabile con «Configura in seguito»: prima del login la fase non si sa; se in fase guide servono, le chiede l'onboarding dopo l'ingresso | 
-| `confirm` | «Tutto giusto?» riepilogo in `ClayList` (dal REG-802 anche la riga Disponibilità; `availability` nel `complete`) | righe premibili riportano al passo; `POST .../first-access/complete` → `AuthPayload`; momento caldo «Eccoti, Giulia» (auto 3D, dissolvenza 180 ms) per 1,4 s, poi `applyAuthPayload` e l'`AuthGate` porta nelle tab |
+| `availability` | Quando puoi fare guida? (REG-802) | fasce per giorno, stesso editor dell'onboarding (`DEFAULT_BANDS`); rimandabile con «Configura in seguito»: prima del login la fase non si sa, e se in fase guide servono le chiede l'onboarding dopo l'ingresso |
+| `confirm` | «Tutto giusto?» riepilogo in `ClayList` (dal REG-802 con la riga Disponibilità; `availability` nel `complete`) | righe premibili riportano al passo; `POST .../first-access/complete` → `AuthPayload`; momento caldo «Eccoti, Giulia» (auto 3D, dissolvenza 180 ms) per 1,4 s, poi `applyAuthPayload` e l'`AuthGate` porta nelle tab |
 
 ## File
 - `app/(auth)/first-access/_layout.tsx` + una rotta per passo (re-export).
