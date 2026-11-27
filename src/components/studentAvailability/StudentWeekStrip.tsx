@@ -55,13 +55,22 @@ export const StudentWeekStrip = memo(function StudentWeekStrip({
   const y = (m: number) => ((m - from) / span) * TRACK_H;
   const ticks = bands.slice(1).map((b) => b.startMinutes);
   const axis = [from, ...ticks, to];
+  const hasDays = WEEK.some((d) => (days[d.key]?.length ?? 0) > 0);
 
   return (
     <Wrap compact={compact}>
       {compact ? null : (
         <View style={s.head}>
-          <Text style={s.title}>{title}</Text>
-          <Text style={s.count}>{countText(days)}</Text>
+          <Text style={s.title} numberOfLines={1}>
+            {title}
+          </Text>
+          {/* L'invito «Tocca un giorno…» ha senso solo dove i giorni si toccano:
+              in sola lettura (foglio dello staff) con zero giorni non c'è nulla. */}
+          {hasDays || onPressDay ? (
+            <Text style={s.count} numberOfLines={1}>
+              {countText(days)}
+            </Text>
+          ) : null}
         </View>
       )}
       <View style={[s.strip, compact && s.stripCompact]}>
@@ -171,14 +180,24 @@ const s = StyleSheet.create({
     alignItems: "baseline",
     paddingLeft: 10,
     paddingRight: 4,
+    gap: 12,
   },
+  // Il titolo cede spazio (ellissi), il testo a destra resta intero e dentro la scheda.
   title: {
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: "600",
     color: CLAY.ink,
     letterSpacing: -0.2,
   },
-  count: { fontSize: 13.5, fontWeight: "500", color: CLAY.ink3 },
+  count: {
+    flexShrink: 0,
+    maxWidth: "70%",
+    fontSize: 13.5,
+    fontWeight: "500",
+    color: CLAY.ink3,
+    textAlign: "right",
+  },
   strip: { flexDirection: "row", marginTop: 12 },
   stripCompact: { marginTop: 0 },
   axis: { width: 24, marginTop: 23 },
