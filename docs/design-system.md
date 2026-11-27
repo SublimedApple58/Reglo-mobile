@@ -473,6 +473,16 @@ appoggiata in basso): l'auto cambia in tutta l'app senza toccare il codice.
 
 Auto attuale: generata il 26/11 al primo tentativo con questo prompt.
 
+**Moto vista dall'alto (REG-753, 27/11/2026)** — segnaposto della mappa Road
+nelle guide moto: blocco STILE + le 2 reference + `assets/icons3d-ai/moto@3x.png`
+come terza immagine (regola 4b), `Subject:` «the SAME red motorcycle as the
+third attached image … seen from DIRECTLY ABOVE … points straight UP, front
+wheel at the top … no rider». Prompt completo in
+`plans/road/reg-753-road-moto.md`. Poi i 10 colori con
+`python3 scripts/moto-colori.py <moto-rossa.jpeg> assets/road/motos` (stessa
+maschera di `auto-colori.py`, tela 90×138 @3x come l'auto vista dall'alto, moto
+centrata). Generata al primo tentativo; ricolorazione pulita su tutti i colori.
+
 **Note operative** (25/11): con l'operatore del Mac UNA immagine per chiamata;
 dopo il download prendere solo il file di Download con l'orario di adesso
 (`ls -ltT`) e copiarlo con `cp`, mai `mv`. Dopo ~15 generazioni in un giorno
