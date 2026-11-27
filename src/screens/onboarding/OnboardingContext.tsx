@@ -74,7 +74,7 @@ export const errorText = (error: unknown, fallback: string) =>
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { onboarding, user, setOnboarding, activeCompanyId } = useSession();
+  const { onboarding, user, setOnboarding, refreshMe, activeCompanyId } = useSession();
   const queryClient = useQueryClient();
   // Gli step si fissano all'apertura: mentre l'allievo li percorre la sessione
   // può aggiornarsi, il flusso no.
@@ -152,12 +152,17 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         if (input.availability) {
           queryClient.invalidateQueries({ queryKey: queryKeys.studentAvailability(activeCompanyId) });
         }
+        // Si rilegge `/me`: nome e cellulare nuovi in sessione (card del
+        // Profilo, saluto della home) e gli step rimasti; se non risponde
+        // bastano quelli del salvataggio.
+        const close = () =>
+          refreshMe().catch(() => setOnboarding(result.onboarding ?? null));
         if (hasConfirm) {
           // Il riepilogo mostra «Eccoti, Sara» e poi chiude lui.
           setWelcomeName(input.firstName || d.firstName || null);
-          setTimeout(() => setOnboarding(result.onboarding ?? null), 1400);
+          setTimeout(close, 1400);
         } else {
-          setOnboarding(result.onboarding ?? null);
+          await close();
         }
       } catch (error) {
         setSubmitError(errorText(error, 'Non siamo riusciti a salvare. Riprova.'));
@@ -165,7 +170,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         setSubmitting(false);
       }
     },
-    [activeCompanyId, hasConfirm, keys, queryClient, setOnboarding, update],
+    [activeCompanyId, hasConfirm, keys, queryClient, refreshMe, setOnboarding, update],
   );
 
   const next = useCallback(
