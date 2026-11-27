@@ -21,6 +21,9 @@ export default function OnboardingLayout() {
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="phone" />
+        <Stack.Screen name="availability" />
+        {/* Foglio di un giorno delle disponibilità. */}
+        <Stack.Screen name="student-day" options={FORM_SHEET} />
         {/* «Prefisso» del campo telefono: a sessione aperta deve stare in questo stack. */}
         <Stack.Screen name="country-picker" options={FORM_SHEET} />
       </Stack>

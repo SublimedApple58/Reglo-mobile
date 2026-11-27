@@ -29,7 +29,7 @@ export function resolveOnboarding(
  * del server che l'app non conosce viene saltato (il server lo richiederà a
  * un'app aggiornata).
  */
-export const ONBOARDING_SCREENS: OnboardingStepKey[] = ['phone'];
+export const ONBOARDING_SCREENS: OnboardingStepKey[] = ['phone', 'availability'];
 
 /** Rotta di uno step dentro `app/onboarding`. */
 export const onboardingHref = (key: OnboardingStepKey) => `/onboarding/${key}` as const;
