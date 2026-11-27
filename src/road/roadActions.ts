@@ -212,19 +212,22 @@ function messageOf(err: unknown, fallback: string) {
  * (chi chiama naviga su `/road`).
  */
 /**
- * REG-753: Road è per le guide moto «Strada». Una guida segnata «Birilli» non
- * blocca: conferma nativa e, se l'istruttore accetta, il tipo passa a «strada»
- * (stesso PATCH della guida usato dal web) e si parte. `null` = annullato o errore.
+ * REG-753: Road è pensata per le guide moto «Strada», ma una guida «Birilli» non
+ * blocca. Conferma nativa con tre scelte: passarla a «strada» (stesso PATCH
+ * della guida usato dal web) e partire, partire lasciandola «Birilli», annullare.
+ * `null` = annullato o errore.
  */
 export async function ensureMotoStrada(lesson: RoadLesson): Promise<RoadLesson | null> {
   if (lesson.motoLessonType !== 'birilli') return lesson;
-  const go = await new Promise<boolean>((resolve) =>
-    Alert.alert('Questa guida è segnata come Birilli', 'La passiamo a Strada e avviamo Road?', [
-      { text: 'Annulla', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Passa a Strada e avvia', onPress: () => resolve(true) },
-    ], { cancelable: true, onDismiss: () => resolve(false) }),
+  const choice = await new Promise<'strada' | 'birilli' | null>((resolve) =>
+    Alert.alert('Questa guida è segnata come Birilli', 'Vuoi passarla a Strada?', [
+      { text: 'Passa a Strada e avvia', onPress: () => resolve('strada') },
+      { text: 'Avvia come Birilli', onPress: () => resolve('birilli') },
+      { text: 'Annulla', style: 'cancel', onPress: () => resolve(null) },
+    ], { cancelable: true, onDismiss: () => resolve(null) }),
   );
-  if (!go) return null;
+  if (choice === 'birilli') return lesson;
+  if (choice !== 'strada') return null;
   try {
     await regloApi.updateAppointmentDetails(lesson.appointmentId, { motoLessonType: 'strada' });
   } catch (err) {

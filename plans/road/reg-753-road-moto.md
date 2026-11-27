@@ -75,3 +75,5 @@ Al tuo ok passo alle anteprime: ritagli in `/tmp/hiro-anteprime/reg-753/` con `H
 Blocco STILE di design-system §0.9 + allegati ref1, ref2, moto@3x, poi:
 
 Subject: the SAME red motorcycle as the third attached image (identical design, red body panels, dark grey seat, light grey wheels and engine, same clay material), but seen from DIRECTLY ABOVE (top-down view, straight overhead, like a map icon; ignore the three-quarter camera above). The motorcycle points straight UP: front wheel and handlebars at the top of the frame, rear wheel at the bottom, perfectly vertical and symmetric left-right. Visible from above: the red fuel tank and front fairing, the dark grey seat, the handlebars with small mirrors, the two tyres as narrow dark grey strips at the front and back. Whole motorcycle centered, filling about 85% of the frame height. Plain pure white background, no rider, no floor, no shadow, nothing else.
+
+- 27/11 (Tiziano, dopo le anteprime): passare a Strada NON è obbligatorio. Conferma: «Questa guida è segnata come Birilli» / «Vuoi passarla a Strada?» → «Passa a Strada e avvia» · «Avvia come Birilli» (tipo invariato) · «Annulla».
