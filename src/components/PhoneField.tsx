@@ -17,6 +17,7 @@ import { countryPickerStore } from '../stores/countryPickerStore';
 import {
   ITALY,
   flagOf,
+  formatNational,
   looksLikeEmail,
   nationalDigits,
   splitInternational,
@@ -34,7 +35,9 @@ export type PhoneValue = { country: PhoneCountry; text: string };
 /** Valore iniziale da un numero già scritto (es. `+39333…` o `333…`). */
 export function phoneValueFrom(raw?: string | null): PhoneValue {
   const split = raw ? splitInternational(raw) : null;
-  return split ? { country: split.country, text: split.national } : { country: ITALY, text: raw ?? '' };
+  return split
+    ? { country: split.country, text: formatNational(split.country, split.national) }
+    : { country: ITALY, text: formatNational(ITALY, raw ?? '') };
 }
 
 /** Il campo contiene un'email (solo con `allowEmail`). */
@@ -123,9 +126,11 @@ export const PhoneField = forwardRef<TextInput, Props>(function PhoneField(
     if (!looksLikeEmail(text)) {
       const split = splitInternational(text);
       if (split) {
-        onChange({ country: split.country, text: split.national });
+        onChange({ country: split.country, text: formatNational(split.country, split.national) });
         return;
       }
+      onChange({ ...latest.current, text: formatNational(latest.current.country, text) });
+      return;
     }
     onChange({ ...latest.current, text });
   };

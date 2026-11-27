@@ -95,3 +95,17 @@ export function toE164(country: PhoneCountry, national: string): string {
 
 /** Cifre nazionali significative (per abilitare «Continua»). */
 export const nationalDigits = (national: string) => national.replace(/\D/g, '').length;
+
+/**
+ * REG-802: il cellulare italiano si legge a gruppi mentre lo si scrive
+ * («347 123 4567»), come nell'anteprima approvata. Solo +39 e solo numeri che
+ * iniziano per 3 (i fissi e gli altri paesi restano come scritti). Mai spazi
+ * in fondo, così il tasto «cancella» toglie sempre una cifra.
+ */
+export function formatNational(country: PhoneCountry, text: string): string {
+  if (country.iso !== 'IT') return text;
+  if (!/^[\d\s]*$/.test(text)) return text;
+  const digits = text.replace(/\D/g, '');
+  if (!digits.startsWith('3')) return text;
+  return [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6)].filter(Boolean).join(' ');
+}
