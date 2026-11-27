@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated from 'react-native-reanimated';
-import { ClayField, ClayList, ClayListRow, Icon3D } from '../../components/clay';
+import { ClayButton, ClayField, ClayList, ClayListRow, Icon3D } from '../../components/clay';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
 import { regloApi } from '../../services/regloApi';
 import { useSession } from '../../context/SessionContext';
@@ -15,6 +15,9 @@ import {
 } from './FirstAccessContext';
 import { FirstAccessStepScreen, fadeIn, useFocusAfterPush } from './FirstAccessStepScreen';
 import { PhoneField, phoneIsComplete, phoneSubmitValue, usePhoneValue } from '../../components/PhoneField';
+import { StudentAvailabilityEditor } from '../../components/studentAvailability/StudentAvailabilityEditor';
+import { VITA_ART } from '../../theme/vitaArt';
+import { DEFAULT_BANDS, activeDays, daysListText, hasAnyBand } from '../../utils/studentAvailability';
 
 const KEY_ART = require('../../../assets/web/3d/chiave-3d.png');
 const CAR_ART = require('../../../assets/icons3d-ai/auto.png');
@@ -64,7 +67,7 @@ export function FirstAccessPhoneStep() {
     >
       <PhoneField
         ref={phoneRef}
-        label="Numero di telefono"
+        label="Numero di cellulare"
         value={phone.value}
         onChange={(v) => {
           phone.setValue(v);
@@ -238,7 +241,7 @@ export function FirstAccessBirthStep() {
       subtitle="La data di nascita serve all'autoscuola per la tua pratica."
       cta="Continua"
       ctaDisabled={!draft.birthDate}
-      onCta={() => router.push('/(auth)/first-access/confirm')}
+      onCta={() => router.push('/(auth)/first-access/availability')}
     >
       {Platform.OS === 'ios' ? (
         <View style={s.wheel}>
@@ -282,6 +285,48 @@ export function FirstAccessBirthStep() {
 }
 
 /** 6 · Riepilogo, poi si entra. */
+/**
+ * 6 · REG-802 · Quando puoi fare guida? Le fasce per giorno, con lo stesso
+ * editor dell'onboarding. Prima del login non si sa se l'allievo è già in fase
+ * guide: lo step si può rimandare, e se in fase guide servono le chiede
+ * l'onboarding subito dopo l'ingresso. Le fasce sono quelle della V1 (le
+ * stesse che il server manda a sessione aperta).
+ */
+export function FirstAccessAvailabilityStep() {
+  const router = useRouter();
+  const { draft, update } = useFirstAccess();
+  const days = draft.days ?? {};
+  return (
+    <FirstAccessStepScreen
+      step="availability"
+      hero={<Icon3D source={VITA_ART.orologio} size={56} />}
+      title="Quando puoi fare guida?"
+      subtitle="Non è un impegno: puoi sempre prenotare anche in altri orari. Ci serve per avvisarti quando si libera un posto adatto a te."
+      cta="Continua"
+      ctaDisabled={!hasAnyBand(days)}
+      onCta={() => router.push('/(auth)/first-access/confirm')}
+      below={
+        <ClayButton
+          title="Configura in seguito"
+          variant="secondary"
+          onPress={() => {
+            update({ days: null });
+            router.push('/(auth)/first-access/confirm');
+          }}
+          testID="first-access-availability-later"
+        />
+      }
+    >
+      <StudentAvailabilityEditor
+        days={days}
+        bands={DEFAULT_BANDS}
+        onChange={(next) => update({ days: next })}
+        dayHref="/(auth)/first-access/student-day"
+      />
+    </FirstAccessStepScreen>
+  );
+}
+
 export function FirstAccessConfirmStep() {
   const router = useRouter();
   const { applyAuthPayload } = useSession();
@@ -302,6 +347,7 @@ export function FirstAccessConfirmStep() {
         email: draft.email.trim(),
         password: draft.password,
         birthDate: draft.birthDate,
+        ...(draft.days && hasAnyBand(draft.days) ? { availability: { days: draft.days } } : {}),
       });
       // Il momento caldo: un attimo di benvenuto, poi l'app.
       setWelcome(true);
@@ -328,8 +374,14 @@ export function FirstAccessConfirmStep() {
     );
   }
 
-  const go = (path: '/(auth)/first-access/name' | '/(auth)/first-access/email' | '/(auth)/first-access/birth') =>
-    router.navigate(path);
+  const go = (
+    path:
+      | '/(auth)/first-access/name'
+      | '/(auth)/first-access/email'
+      | '/(auth)/first-access/birth'
+      | '/(auth)/first-access/availability',
+  ) => router.navigate(path);
+  const nDays = activeDays(draft.days ?? {}).length;
 
   return (
     <FirstAccessStepScreen
@@ -361,6 +413,11 @@ export function FirstAccessConfirmStep() {
           title={draft.birthDate ? formatBirthDate(draft.birthDate) : ''}
           subtitle="Data di nascita"
           onPress={() => go('/(auth)/first-access/birth')}
+        />
+        <ClayListRow
+          title={daysListText(draft.days ?? {}) ?? 'Da configurare'}
+          subtitle={nDays ? `Disponibilità · ${nDays} ${nDays === 1 ? 'giorno' : 'giorni'}` : 'Disponibilità'}
+          onPress={() => go('/(auth)/first-access/availability')}
         />
       </ClayList>
     </FirstAccessStepScreen>

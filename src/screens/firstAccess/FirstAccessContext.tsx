@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
-import type { FirstAccessStartResult } from '../../types/regloApi';
+import type { FirstAccessStartResult, StudentBandsByDay } from '../../types/regloApi';
 
 /**
  * Stato del «Primo accesso» (allievo creato dall'autoscuola col solo telefono):
@@ -15,6 +15,8 @@ export type FirstAccessDraft = {
   password: string;
   /** YYYY-MM-DD */
   birthDate: string | null;
+  /** REG-802: disponibilità a fasce (null = «Configura in seguito»). */
+  days: StudentBandsByDay | null;
 };
 
 const EMPTY: FirstAccessDraft = {
@@ -24,6 +26,7 @@ const EMPTY: FirstAccessDraft = {
   email: '',
   password: '',
   birthDate: null,
+  days: null,
 };
 
 type Ctx = {
@@ -49,7 +52,7 @@ export function useFirstAccess() {
 }
 
 /** Ordine dei passi: guida la barra di avanzamento. */
-export const FIRST_ACCESS_STEPS = ['index', 'name', 'email', 'password', 'birth', 'confirm'] as const;
+export const FIRST_ACCESS_STEPS = ['index', 'name', 'email', 'password', 'birth', 'availability', 'confirm'] as const;
 export type FirstAccessStep = (typeof FIRST_ACCESS_STEPS)[number];
 
 export const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());

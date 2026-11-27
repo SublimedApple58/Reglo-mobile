@@ -1,5 +1,6 @@
 import React from 'react';
 import { Stack } from 'expo-router';
+import { FORM_SHEET } from '../../../src/utils/sheetPresentation';
 import { FirstAccessProvider } from '../../../src/screens/firstAccess/FirstAccessContext';
 
 /**
@@ -16,6 +17,9 @@ export default function FirstAccessLayout() {
         <Stack.Screen name="email" />
         <Stack.Screen name="password" />
         <Stack.Screen name="birth" />
+        <Stack.Screen name="availability" />
+        {/* REG-802: foglio di un giorno delle disponibilità. */}
+        <Stack.Screen name="student-day" options={FORM_SHEET} />
         <Stack.Screen name="confirm" />
       </Stack>
     </FirstAccessProvider>
