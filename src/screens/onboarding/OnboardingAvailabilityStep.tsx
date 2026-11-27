@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ClayButton, Icon3D } from '../../components/clay';
@@ -20,8 +20,8 @@ import { errorText, useOnboarding } from './OnboardingContext';
  * - Prima della fase guide è rimandabile: «Configura in seguito» (e la X, se è
  *   l'unico passo) lo rinvia di qualche giorno lato server.
  *
- * All'apertura legge le disponibilità già salvate (le righe vecchie arrivano
- * già tradotte in fasce) e le fasce possibili dal server.
+ * Le disponibilità già salvate (le righe vecchie arrivano già tradotte in
+ * fasce) e le fasce possibili le legge il provider all'apertura dell'onboarding.
  */
 export function OnboardingAvailabilityStep() {
   const { setOnboarding } = useSession();
@@ -36,32 +36,14 @@ export function OnboardingAvailabilityStep() {
     stepOf,
     submitting,
     submitError,
+    availabilityLoaded,
   } = useOnboarding();
   const required = stepOf('availability')?.required ?? true;
   const only = steps.length === 1;
   const first = isFirst('availability');
-  const [loaded, setLoaded] = useState(draft.bands !== null);
+  const loaded = availabilityLoaded;
   const [snoozing, setSnoozing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (draft.bands) return;
-    let alive = true;
-    regloApi
-      .getMyAvailability()
-      .then((data) => {
-        if (!alive) return;
-        update({ bands: data.bands, days: draft.days ?? data.days });
-      })
-      .catch(() => {
-        if (alive) update({ bands: DEFAULT_BANDS, days: draft.days ?? {} });
-      })
-      .finally(() => alive && setLoaded(true));
-    return () => {
-      alive = false;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const days = draft.days ?? {};
   const bands = draft.bands ?? DEFAULT_BANDS;

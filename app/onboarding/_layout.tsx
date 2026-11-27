@@ -20,8 +20,11 @@ export default function OnboardingLayout() {
         screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}
       >
         <Stack.Screen name="index" />
+        <Stack.Screen name="name" />
+        <Stack.Screen name="email" />
         <Stack.Screen name="phone" />
         <Stack.Screen name="availability" />
+        <Stack.Screen name="confirm" />
         {/* Foglio di un giorno delle disponibilità. */}
         <Stack.Screen name="student-day" options={FORM_SHEET} />
         {/* «Prefisso» del campo telefono: a sessione aperta deve stare in questo stack. */}

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../hooks/queries/queryKeys';
@@ -14,6 +14,7 @@ import type {
 import { ITALY } from '../../utils/phoneCountries';
 import { phoneSubmitValue, phoneValueFrom, type PhoneValue } from '../../components/PhoneField';
 import { onboardingHref } from '../../utils/onboarding';
+import { DEFAULT_BANDS } from '../../utils/studentAvailability';
 
 /**
  * REG-802 — onboarding dell'allievo a sessione aperta: «primo accesso normale»
@@ -53,6 +54,8 @@ type Ctx = {
   clearSubmitError: () => void;
   /** «Momento caldo» finale del primo accesso normale (gestito dal riepilogo). */
   welcomeName: string | null;
+  /** Disponibilità lette dal server (o il ripiego): lo step può mostrarle. */
+  availabilityLoaded: boolean;
 };
 
 const OnboardingContext = createContext<Ctx | null>(null);
@@ -96,6 +99,26 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       return nextDraft;
     });
   }, []);
+
+  // Le disponibilità (salvate e fasce possibili) si leggono all'apertura
+  // dell'onboarding: quando si arriva allo step la settimana c'è già (§15).
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
+  useEffect(() => {
+    if (!steps.some((st) => st.key === 'availability')) return;
+    let alive = true;
+    regloApi
+      .getMyAvailability()
+      .then((data) => {
+        if (alive) update({ bands: data.bands, days: draftRef.current.days ?? data.days });
+      })
+      .catch(() => {
+        if (alive) update({ bands: DEFAULT_BANDS, days: draftRef.current.days ?? {} });
+      })
+      .finally(() => alive && setAvailabilityLoaded(true));
+    return () => {
+      alive = false;
+    };
+  }, [steps, update]);
 
   const total = steps.length + (hasConfirm ? 1 : 0);
   const keys = useMemo(() => steps.map((s) => s.key), [steps]);
@@ -178,8 +201,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       submitError,
       clearSubmitError: () => setSubmitError(null),
       welcomeName,
+      availabilityLoaded,
     }),
-    [steps, hasConfirm, draft, update, positionOf, isFirst, stepOf, next, submit, submitting, submitError, welcomeName],
+    [steps, hasConfirm, draft, update, positionOf, isFirst, stepOf, next, submit, submitting, submitError, welcomeName, availabilityLoaded],
   );
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
 }
