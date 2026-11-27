@@ -14,7 +14,8 @@ Uno stack a schermo intero, un passo per schermata, push e swipe indietro nativi
 | `email` | Email (obbligatoria) | validazione al blur; unicità controllata dal server alla fine |
 | `password` | Password sua (obbligatoria, ≥ 6) | Mostra/Nascondi, `textContentType="newPassword"` |
 | `birth` | Data di nascita | iOS ruota nativa (`display="spinner"`), Android calendario nativo; 14–100 anni |
-| `confirm` | «Tutto giusto?» riepilogo in `ClayList` | righe premibili riportano al passo; `POST .../first-access/complete` → `AuthPayload`; momento caldo «Eccoti, Giulia» (auto 3D, dissolvenza 180 ms) per 1,4 s, poi `applyAuthPayload` e l'`AuthGate` porta nelle tab |
+| `availability` | REG-802: «Quando puoi fare guida?» (fasce per giorno, stesso editor dell'onboarding, `DEFAULT_BANDS`). Rimandabile con «Configura in seguito»: prima del login la fase non si sa; se in fase guide servono, le chiede l'onboarding dopo l'ingresso | 
+| `confirm` | «Tutto giusto?» riepilogo in `ClayList` (dal REG-802 anche la riga Disponibilità; `availability` nel `complete`) | righe premibili riportano al passo; `POST .../first-access/complete` → `AuthPayload`; momento caldo «Eccoti, Giulia» (auto 3D, dissolvenza 180 ms) per 1,4 s, poi `applyAuthPayload` e l'`AuthGate` porta nelle tab |
 
 ## File
 - `app/(auth)/first-access/_layout.tsx` + una rotta per passo (re-export).
@@ -43,3 +44,8 @@ Senza codice, chi conosce il numero di un allievo non ancora attivato può attiv
 ## Note
 - OTA-safe: nessun modulo nativo nuovo (`@react-native-community/datetimepicker` è già nel binario).
 - Le app già installate senza questo OTA: il login col numero di un account non attivato mostra il messaggio «Tocca Primo accesso», ma il bottone non c'è finché non arriva l'OTA.
+
+## REG-802
+- Passo 1 allineato alla schermata del cellulare dell'onboarding («Numero di cellulare», un numero solo; +39 a 9 cifre, a gruppi mentre si scrive).
+- Lo scheletro `FirstAccessStepScreen` è condiviso con l'onboarding a sessione aperta: vedi [onboarding-allievo.md](onboarding-allievo.md).
+- Foglio `student-day` registrato nello stack `(auth)/first-access`.

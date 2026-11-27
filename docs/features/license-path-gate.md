@@ -1,6 +1,6 @@
 # License Path Gate — scelta percorso patente al primo accesso (REG-410)
 
-Gate **bloccante** per l'allievo che si è registrato **in autonomia** (self sign-up) e non ha ancora scelto il proprio percorso patente: finché non sceglie **categoria + cambio** non può usare NULLA dell'app. Stesso pattern del [Phone Gate](phone-gate.md): sostituisce l'intero albero Tabs, niente back/close, uniche uscite = confermare o uscire (logout).
+Gate **bloccante** per l'allievo che si è registrato **in autonomia** (self sign-up) e non ha ancora scelto il proprio percorso patente: finché non sceglie **categoria + cambio** non può usare NULLA dell'app. Stesso pattern del vecchio Phone Gate (oggi onboarding, [onboarding-allievo.md](onboarding-allievo.md)): sostituisce l'intero albero Tabs, niente back/close, uniche uscite = confermare o uscire (logout).
 
 Il flag arriva dal backend: `GET /api/autoscuole/me` → `needsLicensePath` (`selfRegistered && !licenseCategory`). Gli allievi aggiunti manualmente dallo staff hanno `selfRegistered=false` → mai gated. Vedi `reglo/docs/features/license-path-selfselect.md`.
 
@@ -27,11 +27,11 @@ Il flag arriva dal backend: `GET /api/autoscuole/me` → `needsLicensePath` (`se
 
 - **SessionContext**: legge `activeCompanyId`, usa `refreshMe` + `signOut`.
 - **Student Phase**: `needsLicensePath` viaggia su `StudentPhasePayload` (`useMyPhase`/`useStudentPhase`). Il gate è **ortogonale** alla fase: precede qualunque home per-fase (AWAITING/TEORIA/PRATICA). Vedi [student-phase.md](student-phase.md).
-- **Phone Gate**: stesso pattern e ordine di montaggio (prima phone, poi license). Vedi [phone-gate.md](phone-gate.md).
+- **Onboarding allievo (REG-802)**: il vecchio Phone Gate è diventato uno step dell'onboarding (`app/onboarding`), che viene prima delle tab e quindi prima di questo gate. Vedi [onboarding-allievo.md](onboarding-allievo.md).
 - **Backend**: `reglo/app/api/autoscuole/me/route.ts` (`needsLicensePath`), `reglo/app/api/autoscuole/me/license-path/route.ts` (PATCH self-scoped), `reglo/app/api/mobile/auth/student-register/route.ts` (marca `selfRegistered`, niente seed licenza).
 - **Backstop server-side (fix 2026-08-28)**: `ensureStudentCanBookFromApp` (`reglo/lib/actions/autoscuole-availability.actions.ts`) blocca la prenotazione se `selfRegistered && !licenseCategory` in ogni fase → un'app su bundle vecchio (rollout OTA) o l'avanzamento fase da web non permettono di prenotare senza percorso patente. Il gate non è più l'unica difesa.
 
 ## AWAITING — tasto logout (fix 2026-08-28)
 
-`AllievoAwaitingScreen` (home fase AWAITING, "Ci siamo quasi") ora ha un escape di logout in fondo — "Account sbagliato? **Esci**" con Alert di conferma (`signOut`), stesso pattern del [Phone Gate](phone-gate.md) e del License Path Gate. Prima l'allievo in attesa non poteva uscire dall'account.
+`AllievoAwaitingScreen` (home fase AWAITING, "Ci siamo quasi") ora ha un escape di logout in fondo — "Account sbagliato? **Esci**" con Alert di conferma (`signOut`), stesso pattern dell'onboarding ([onboarding-allievo.md](onboarding-allievo.md)) e del License Path Gate. Prima l'allievo in attesa non poteva uscire dall'account.
 - **Design**: preview approvata in iterazione (HTML + screenshot reali da simulatore, Airbnb-style 3D mono-navy).

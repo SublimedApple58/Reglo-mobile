@@ -76,3 +76,6 @@ Per il ruolo allievo l'alert «Elimina account» spiega cosa succede: si cancell
 
 
 > **28/10/2026 (REG-638):** «Vista agenda» rimossa. L'agenda di istruttore e titolare ha solo la vista a griglia; la vecchia preferenza salvata (`reglo_agenda_view_mode`) viene cancellata all'apertura delle Impostazioni (`sessionStorage.forgetAgendaViewMode`).
+
+## Profilo › Disponibilità (REG-802)
+La riga «Disponibilità» del Profilo allievo apre `StudentAvailabilityScreen` (pagina piena col titolo grande, non più un foglio): stesso editor a fasce dell'onboarding, «Salva» solo con modifiche. Dati da `useMyStudentAvailability`; la vecchia logica mattina/pomeriggio sugli slot settimanali e i campi delle disponibilità in `settingsStore` sono stati tolti. Vedi [onboarding-allievo.md](onboarding-allievo.md).

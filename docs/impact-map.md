@@ -271,17 +271,20 @@ When modifying a feature, read its connected features to verify nothing breaks.
 - → **LoginScreen**: `onForgot` apre la route per piattaforma (`password-reset-sheet` / `password-reset`); entrambe in `allowedAuthLeaves` (`app/_layout.tsx`).
 - → **Backend**: 3 route `POST /api/mobile/auth/password-reset/*`. OTA-safe (nessun modulo nativo nuovo).
 
-### Phone Gate
-- **`PhoneGateScreen`** — gate bloccante per allievi senza `user.phone`; early-return in `(tabs)/_layout.tsx` PRIMA del render di `<Tabs>` (sostituisce tutto, incluso `NotificationOverlay`).
-- → **Session & Auth**: legge `user`/`status` da `SessionContext`, salva con `regloApi.updateProfile` poi `refreshMe()`; "Esci" usa `signOut`.
-- → **Backend**: `PATCH /api/mobile/profile` (esistente; `name` obbligatorio min 3 — si rimanda quello corrente).
-- ⚠️ Chi tocca `(tabs)/_layout.tsx` deve preservare l'early-return del gate prima del `return <QuizProvider>`.
+### Onboarding allievo (REG-802, sostituisce il Phone Gate)
+- **`app/onboarding`** — stack degli step decisi dal server (`/api/mobile/me` → `onboarding.steps`); l'`AuthGate` (`app/_layout.tsx`) ci porta finché ce ne sono, PRIMA delle tab (e quindi prima del gate del percorso patente).
+- → **Session & Auth**: `SessionContext.onboarding` (`resolveOnboarding`), letto anche dopo il login (`applyAuthPayload` chiama `/me` per gli allievi) e al ritorno in app dopo 30 min; `setOnboarding`. Chi cambia `MePayload`/`AuthPayload` o l'AuthGate deve preservarlo.
+- → **First Access**: lo scheletro `FirstAccessStepScreen` è condiviso (prop `progress`, `leading`, `onClose`, `below`); il Primo accesso ha il passo `availability` e manda `availability` a `first-access/complete`.
+- → **PhoneField**: `pickerHref` (il foglio «Prefisso» va registrato nello stack dove sta il campo), soglia +39 a 9 cifre, `formatNational`.
+- → **Settings**: Profilo › Disponibilità = `StudentAvailabilityScreen` (pagina piena); `settingsStore` non ha più i campi delle disponibilità.
+- → **Dettaglio allievo**: riga «Disponibilità» + foglio staff `student-availability` (stack home, notes, road).
+- → **Backend**: `GET /api/mobile/me` (`onboarding`), `POST /api/autoscuole/me/onboarding`, `GET|PUT /api/autoscuole/me/availability`, `POST .../snooze`, `GET /api/autoscuole/students/:id/availability`. Vedi [features/onboarding-allievo.md](features/onboarding-allievo.md).
 
 ### License Path Gate (REG-410)
-- **`LicensePathGateScreen`** — gate bloccante per allievi self-registered senza percorso patente; early-return in `(tabs)/_layout.tsx` **dopo** il phone gate, quando `status==='ready' && isStudent && needsLicensePath`.
+- **`LicensePathGateScreen`** — gate bloccante per allievi self-registered senza percorso patente; early-return in `(tabs)/_layout.tsx` (dopo l'onboarding REG-802, che sta fuori dalle tab), quando `status==='ready' && isStudent && needsLicensePath`.
 - → **Student Phase**: `needsLicensePath` viaggia su `StudentPhasePayload` (`useStudentPhase`). Ortogonale alla fase: precede la home per-fase. Chi cambia `StudentPhasePayload`/`useStudentPhase`/`_layout.tsx` deve preservarlo.
 - → **Session & Auth**: legge `activeCompanyId`, salva con `regloApi.setLicensePath` poi `invalidateQueries(studentPhase)` + `refreshMe()`; "Esci" usa `signOut`.
-- → **Phone Gate**: stesso pattern/ordine (prima phone, poi license). Vedi [features/license-path-gate.md](features/license-path-gate.md).
+- → **Onboarding allievo (REG-802)**: viene prima (l'AuthGate porta in `app/onboarding` finché ci sono step). Vedi [features/license-path-gate.md](features/license-path-gate.md).
 - → **Backend**: `GET /api/autoscuole/me` (`needsLicensePath`), `PATCH /api/autoscuole/me/license-path`, `student-register` (`selfRegistered`, niente seed licenza).
 - ⚠️ Cambio prodotto (REG-410): il "Tipo di cambio" è **obbligatorio** (nessun default, CTA bloccata finché categoria+cambio non scelti).
 
