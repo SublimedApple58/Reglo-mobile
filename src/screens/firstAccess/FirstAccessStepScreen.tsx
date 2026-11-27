@@ -75,6 +75,10 @@ export function useFocusAfterPush(ref: RefObject<TextInput | null>) {
  */
 export function FirstAccessStepScreen({
   step,
+  progress: progressProp,
+  leading = 'back',
+  onClose,
+  below,
   title,
   subtitle,
   hero,
@@ -87,7 +91,19 @@ export function FirstAccessStepScreen({
   footer,
   revealKey,
 }: {
-  step: FirstAccessStep;
+  /** Passo del «Primo accesso»: la linea di avanzamento segue `FIRST_ACCESS_STEPS`. */
+  step?: FirstAccessStep;
+  /**
+   * Avanzamento esplicito (onboarding, REG-802): `index` da 0. `null` = niente
+   * linea (un flusso di un passo solo). Vince su `step`.
+   */
+  progress?: { index: number; total: number } | null;
+  /** `none` = primo passo di un flusso bloccante: non c'è niente a cui tornare. */
+  leading?: 'back' | 'none';
+  /** X in alto a destra (passo rimandabile): chiude senza salvare. */
+  onClose?: () => void;
+  /** Sotto la CTA (es. «Configura in seguito», «Esci»). */
+  below?: React.ReactNode;
   title: string;
   subtitle?: string;
   /** Elemento caldo sopra il titolo (icona 3D), solo dove serve. */
@@ -104,10 +120,17 @@ export function FirstAccessStepScreen({
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const index = FIRST_ACCESS_STEPS.indexOf(step);
-  const target = (index + 1) / FIRST_ACCESS_STEPS.length;
+  const position =
+    progressProp !== undefined
+      ? progressProp
+      : step
+        ? { index: FIRST_ACCESS_STEPS.indexOf(step), total: FIRST_ACCESS_STEPS.length }
+        : null;
+  const index = position?.index ?? 0;
+  const total = Math.max(position?.total ?? 1, 1);
+  const target = (index + 1) / total;
   // Parte dal passo prima e arriva al suo: la linea «cresce» a ogni avanti.
-  const progress = useSharedValue(index / FIRST_ACCESS_STEPS.length);
+  const progress = useSharedValue(index / total);
 
   useEffect(() => {
     progress.value = withTiming(target, BAR_TIMING);
@@ -152,11 +175,22 @@ export function FirstAccessStepScreen({
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar style="dark" />
       <View style={s.bar}>
-        <ClayIconButton icon="back" accessibilityLabel="Indietro" onPress={() => router.back()} testID="first-access-back" />
+        {leading === 'back' ? (
+          <ClayIconButton icon="back" accessibilityLabel="Indietro" onPress={() => router.back()} testID="first-access-back" />
+        ) : (
+          <View />
+        )}
+        {onClose ? (
+          <ClayIconButton icon="close" accessibilityLabel="Chiudi" onPress={onClose} testID="first-access-close" />
+        ) : null}
       </View>
-      <View style={s.track}>
-        <Animated.View style={[s.fill, barStyle]} />
-      </View>
+      {position ? (
+        <View style={s.track}>
+          <Animated.View style={[s.fill, barStyle]} />
+        </View>
+      ) : (
+        <View style={s.trackSpace} />
+      )}
 
       <ScrollView
         ref={scrollRef}
@@ -190,6 +224,7 @@ export function FirstAccessStepScreen({
           disabled={ctaDisabled || loading}
           testID="first-access-cta"
         />
+        {below}
       </Animated.View>
     </View>
   );
@@ -198,7 +233,9 @@ export function FirstAccessStepScreen({
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   flex: { flex: 1 },
-  bar: { height: 56, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' },
+  bar: { height: 56, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  // Senza linea di avanzamento lo spazio resta, così il titolo non salta.
+  trackSpace: { height: 2 },
   track: { height: 2, marginHorizontal: 20, borderRadius: 1, backgroundColor: 'rgba(17,17,17,0.08)', overflow: 'hidden' },
   fill: { height: 2, width: '100%', backgroundColor: CLAY.ink, transformOrigin: 'left' },
   content: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 24 },

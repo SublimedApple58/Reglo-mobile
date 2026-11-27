@@ -86,7 +86,9 @@ onlineManager.setEventListener((setOnline) => {
 });
 
 const AuthGate = () => {
-  const { status, autoscuolaRole, signOut, refreshMe, maintenance } = useSession();
+  const { status, autoscuolaRole, signOut, refreshMe, maintenance, onboarding } = useSession();
+  // REG-802: allievo con step da completare (primo accesso normale, cellulare, disponibilità).
+  const needsOnboarding = Boolean(onboarding?.steps.length);
   const segments = useSegments();
   const router = useRouter();
   const roleRetryRef = useRef(false);
@@ -147,10 +149,18 @@ const AuthGate = () => {
     }
 
     roleRetryRef.current = false;
-    if (!inTabs && !inRoad) {
+    // REG-802: finché il server ha degli step per l'allievo si sta
+    // nell'onboarding (sostituisce il vecchio PhoneGate nelle tab); quando non
+    // ce ne sono più si va alla home.
+    const inOnboarding = root === 'onboarding';
+    if (needsOnboarding) {
+      if (!inOnboarding) router.replace('/onboarding');
+      return;
+    }
+    if (inOnboarding || (!inTabs && !inRoad)) {
       router.replace(homeRouteFor(autoscuolaRole));
     }
-  }, [status, autoscuolaRole, router, segments, signOut, refreshMe]);
+  }, [status, autoscuolaRole, router, segments, signOut, refreshMe, needsOnboarding]);
 
   // REG-451: link di associazione istruttore arrivato mentre l'app si apriva
   // (o prima del login) → apri il flusso ora che la sessione è pronta.
@@ -167,7 +177,7 @@ const AuthGate = () => {
   }, [autoscuolaRole, router, status, linkTick]);
 
   useEffect(() => {
-    if (status !== 'ready' || !autoscuolaRole) return;
+    if (status !== 'ready' || !autoscuolaRole || needsOnboarding) return;
     const [root, leaf] = segments as unknown as string[];
     peekLaunchPushIntent()
       .then((intent) => {
@@ -178,7 +188,7 @@ const AuthGate = () => {
         }
       })
       .catch(() => undefined);
-  }, [autoscuolaRole, router, segments, status]);
+  }, [autoscuolaRole, router, segments, status, needsOnboarding]);
 
   // Giro Road (Tiziano 28/10): l'istruttore vede la tab bar già giusta. Al
   // primo avvio senza impostazioni in cache il velo di caricamento resta finché

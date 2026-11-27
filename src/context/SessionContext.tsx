@@ -5,7 +5,9 @@ import { registerPushToken, unregisterPushToken } from '../services/pushNotifica
 import { regloApi } from '../services/regloApi';
 import { sessionStorage } from '../services/sessionStorage';
 import { clearUserPhotoCache } from '../services/userPhotos';
-import { AuthPayload, AutoscuolaRole, CompanyMaintenance, CompanySummary, UserPublic } from '../types/regloApi';
+import { AuthPayload, AutoscuolaRole, CompanyMaintenance, CompanySummary, StudentOnboarding, UserPublic } from '../types/regloApi';
+import { resolveOnboarding } from '../utils/onboarding';
+import { isStudent } from '../utils/roles';
 
 type SessionStatus = 'loading' | 'unauthenticated' | 'company_select' | 'ready';
 
@@ -21,6 +23,12 @@ type SessionState = {
    * membro: l'app mostra MaintenanceScreen al posto di tutto il resto.
    */
   maintenance: CompanyMaintenance | null;
+  /**
+   * REG-802 — step dell'onboarding dell'allievo ancora da fare (null = nessuno,
+   * undefined = non ancora noto). L'AuthGate porta in `app/onboarding` finché
+   * ce ne sono.
+   */
+  onboarding: StudentOnboarding | null | undefined;
 };
 
 type SessionContextValue = SessionState & {
@@ -39,7 +47,12 @@ type SessionContextValue = SessionState & {
   refreshMe: () => Promise<void>;
   /** Establish a session directly from an AuthPayload (e.g. after a password reset auto-login). */
   applyAuthPayload: (payload: AuthPayload) => Promise<void>;
+  /** REG-802 — aggiorna gli step dovuti con la risposta di `completeOnboarding`. */
+  setOnboarding: (onboarding: StudentOnboarding | null) => void;
 };
+
+/** REG-802: dopo quanto, tornando nell'app, un allievo rilegge `/me`. */
+const ME_STALE_MS = 30 * 60 * 1000;
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
@@ -51,6 +64,7 @@ const unauthenticatedState: SessionState = {
   autoscuolaRole: null,
   instructorId: null,
   maintenance: null,
+  onboarding: null,
 };
 
 const resolveMaintenance = (activeCompanyId: string | null, companies: CompanySummary[]) => {
@@ -86,6 +100,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     autoscuolaRole: null,
     instructorId: null,
     maintenance: null,
+    onboarding: undefined,
   });
 
   const setAuthenticated = useCallback((payload: {
@@ -94,6 +109,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     activeCompanyId: string | null;
     autoscuolaRole?: AutoscuolaRole | null;
     instructorId?: string | null;
+    onboarding?: StudentOnboarding | null;
   }) => {
     const status = resolveStatus(payload.activeCompanyId, payload.companies);
     const autoscuolaRole = resolveAutoscuolaRole(
@@ -109,6 +125,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       autoscuolaRole,
       instructorId: payload.instructorId ?? null,
       maintenance: resolveMaintenance(payload.activeCompanyId, payload.companies),
+      onboarding: payload.onboarding,
     });
   }, []);
 
@@ -118,6 +135,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     clearUserPhotoCache();
     setState(unauthenticatedState);
   }, []);
+
+  /** Ultima lettura di `/me` (per ripassarla al ritorno in app, REG-802). */
+  const lastMeAt = useRef(0);
 
   const refreshMe = useCallback(async () => {
     const me = await regloApi.me();
@@ -140,12 +160,14 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       return;
     }
 
+    lastMeAt.current = Date.now();
     setAuthenticated({
       user: me.user,
       companies: me.companies,
       activeCompanyId: me.activeCompanyId,
       autoscuolaRole: me.autoscuolaRole,
       instructorId: me.instructorId ?? null,
+      onboarding: resolveOnboarding(me, resolvedRole ?? null),
     });
   }, [clearSessionAndUnauthenticate, setAuthenticated]);
 
@@ -249,16 +271,53 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         payload.activeCompanyId = companyId;
         payload.autoscuolaRole = payload.companies[0].autoscuolaRole ?? null;
       }
+      // REG-802: il login non porta `onboarding`. Per un allievo lo si legge
+      // subito da `/me`, così dopo «Accedi» si va dritti agli step dovuti
+      // invece di passare un attimo dalla home.
+      const role =
+        payload.companies.find((c) => c.id === payload.activeCompanyId)?.autoscuolaRole ??
+        payload.autoscuolaRole ??
+        null;
+      let onboarding: StudentOnboarding | null = null;
+      if (isStudent(role)) {
+        onboarding = await regloApi
+          .me()
+          .then((me) => {
+            lastMeAt.current = Date.now();
+            return resolveOnboarding(me, role);
+          })
+          // Senza `/me` vale la regola del vecchio PhoneGate (solo il cellulare).
+          .catch(() => resolveOnboarding({ user: payload.user }, role));
+      }
       setAuthenticated({
         user: payload.user,
         companies: payload.companies,
         activeCompanyId: payload.activeCompanyId,
         autoscuolaRole: payload.autoscuolaRole ?? null,
         instructorId: payload.instructorId ?? null,
+        onboarding,
       });
     },
     [setAuthenticated]
   );
+
+  const setOnboarding = useCallback((onboarding: StudentOnboarding | null) => {
+    setState((prev) => ({ ...prev, onboarding }));
+  }, []);
+
+  // REG-802: un allievo che torna nell'app dopo un po' rilegge `/me`, così lo
+  // step Disponibilità rimandato ricompare alla prima apertura dopo il rinvio
+  // (l'app su iOS resta in memoria per giorni senza ripartire da zero).
+  const studentReady = state.status === 'ready' && isStudent(state.autoscuolaRole);
+  useEffect(() => {
+    if (!studentReady) return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') return;
+      if (Date.now() - lastMeAt.current < ME_STALE_MS) return;
+      refreshRef.current().catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, [studentReady]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -318,8 +377,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       selectCompany,
       refreshMe,
       applyAuthPayload,
+      setOnboarding,
     }),
-    [state, signIn, signUp, signOut, selectCompany, refreshMe, applyAuthPayload]
+    [state, signIn, signUp, signOut, selectCompany, refreshMe, applyAuthPayload, setOnboarding]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

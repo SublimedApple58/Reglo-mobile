@@ -196,6 +196,8 @@ export type FirstAccessCompleteInput = {
   password: string;
   /** YYYY-MM-DD */
   birthDate: string;
+  /** REG-802 — disponibilità scelte nello step prima del riepilogo. */
+  availability?: { days: StudentBandsByDay };
 };
 
 export type MePayload = {
@@ -206,6 +208,37 @@ export type MePayload = {
   companies: CompanySummary[];
   /** REG-773 — stato della manutenzione dell'autoscuola attiva. */
   maintenance?: CompanyMaintenance | null;
+  /**
+   * REG-802 — cosa manca all'allievo nell'autoscuola attiva (null = niente).
+   * Assente con un backend precedente al REG-802: vedi `resolveOnboarding`.
+   */
+  onboarding?: StudentOnboarding | null;
+};
+
+/** REG-802 — step dell'onboarding dell'allievo, decisi dal server. */
+export type OnboardingStepKey = 'name' | 'email' | 'phone' | 'availability';
+export type OnboardingStep = { key: OnboardingStepKey; required: boolean };
+export type StudentOnboarding = { steps: OnboardingStep[] };
+
+/** REG-802 — fasce delle disponibilità dell'allievo (fisse in V1, decise dal server). */
+export type StudentBandKey = 'morning' | 'afternoon' | 'evening';
+export type StudentAvailabilityBand = { key: StudentBandKey; label: string; startMinutes: number; endMinutes: number };
+/** "0"=Dom … "6"=Sab → fasce scelte (solo i giorni con almeno una fascia). */
+export type StudentBandsByDay = Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', StudentBandKey[]>>;
+export type StudentAvailabilityPayload = {
+  bands: StudentAvailabilityBand[];
+  days: StudentBandsByDay;
+  /** Quando l'allievo le ha confermate dall'app (null = mai). */
+  confirmedAt: string | null;
+  hasAvailability: boolean;
+};
+
+export type CompleteOnboardingInput = {
+  firstName?: string;
+  lastName?: string;
+  /** E.164 */
+  phone?: string;
+  availability?: { days: StudentBandsByDay };
 };
 
 export type LogoutPayload = { success: true };

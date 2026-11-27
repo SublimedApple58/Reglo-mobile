@@ -11,7 +11,6 @@ import { QuizProvider } from '../../src/context/QuizContext';
 import { useStudentPhase } from '../../src/hooks/useStudentPhase';
 import { NotificationOverlay } from '../../src/components/NotificationOverlay';
 import { AppTabBar } from '../../src/components/AppTabBar';
-import { PhoneGateScreen } from '../../src/screens/PhoneGateScreen';
 import { LicensePathGateScreen } from '../../src/screens/LicensePathGateScreen';
 import { isInstructor as isInstructorRole, isOwner as isOwnerRole, isStudent as isStudentRole } from '../../src/utils/roles';
 import { useInstructorTabs } from '../../src/hooks/useInstructorTabs';
@@ -82,7 +81,7 @@ function NativeRoadMiniBar() {
 /* ── Layout ── */
 
 export default function TabsLayout() {
-  const { autoscuolaRole, user, status } = useSession();
+  const { autoscuolaRole, status } = useSession();
   const { enabled: swapEnabled } = useSwapEnabled();
   const { enabled: vehiclesEnabled } = useVehiclesEnabled();
   const { enabled: quizEnabled } = useQuizEnabled();
@@ -202,16 +201,12 @@ export default function TabsLayout() {
     }
   };
 
-  // Blocking gate: a student without a phone number can't use the app until
-  // they add one (registration has required it for a while — this catches the
-  // older accounts). Replaces the whole tab tree; only exits are save/logout.
-  if (status === 'ready' && isStudent && !user?.phone?.trim()) {
-    return <PhoneGateScreen />;
-  }
+  // REG-802: il cellulare mancante (era il PhoneGate) lo chiede l'onboarding
+  // (`app/onboarding`), dove l'AuthGate porta finché `/me` ha degli step.
 
   // Blocking gate: a student who registered in autonomy (self sign-up) must
   // pick their own percorso patente at first access (REG-410). Shown after the
-  // phone gate; same rules — replaces the tab tree, only exits are confirm/logout.
+  // onboarding (REG-802); same rules — replaces the tab tree, only exits are confirm/logout.
   if (status === 'ready' && isStudent && needsLicensePath) {
     return <LicensePathGateScreen />;
   }

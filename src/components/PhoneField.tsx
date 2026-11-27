@@ -48,8 +48,13 @@ export function phoneSubmitValue(v: PhoneValue): string {
   return toE164(v.country, text);
 }
 
-/** Abbastanza cifre per un numero vero. */
-export const phoneIsComplete = (v: PhoneValue) => !looksLikeEmail(v.text) && nationalDigits(v.text) >= 6;
+/**
+ * Abbastanza cifre per un numero vero. Con +39 almeno 9 (un cellulare italiano
+ * ne ha 9–10; REG-802, lo stesso controllo lo fa il server), con gli altri
+ * prefissi la regola generale.
+ */
+export const phoneIsComplete = (v: PhoneValue) =>
+  !looksLikeEmail(v.text) && nationalDigits(v.text) >= (v.country.dial === '39' ? 9 : 6);
 
 type Props = Omit<TextInputProps, 'value' | 'onChangeText' | 'onChange' | 'style'> & {
   label: string;
@@ -65,6 +70,12 @@ type Props = Omit<TextInputProps, 'value' | 'onChangeText' | 'onChange' | 'style
   variant?: 'clay' | 'auth';
   /** Variante scura dei campi `auth` (Android inline). */
   dark?: boolean;
+  /**
+   * Rotta del foglio «Prefisso». Va registrata nello stack in cui sta il campo:
+   * `/(auth)/country-picker` prima del login, `/onboarding/country-picker`
+   * nell'onboarding (a sessione aperta l'AuthGate rimanda via da `(auth)`).
+   */
+  pickerHref?: '/(auth)/country-picker' | '/onboarding/country-picker';
 };
 
 /**
@@ -83,6 +94,7 @@ export const PhoneField = forwardRef<TextInput, Props>(function PhoneField(
     reserveErrorSpace,
     variant = 'clay',
     dark,
+    pickerHref = '/(auth)/country-picker',
     placeholder,
     onFocus,
     onBlur,
@@ -128,7 +140,7 @@ export const PhoneField = forwardRef<TextInput, Props>(function PhoneField(
         setTimeout(() => innerRef.current?.focus(), 420);
       },
     });
-    router.push('/(auth)/country-picker');
+    router.push(pickerHref);
   };
 
   const errorOpacity = useAnimatedStyle(

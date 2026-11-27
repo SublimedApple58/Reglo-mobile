@@ -43,6 +43,10 @@ import {
   MobileInviteContext,
   LogoutPayload,
   MePayload,
+  CompleteOnboardingInput,
+  StudentAvailabilityPayload,
+  StudentBandsByDay,
+  StudentOnboarding,
   GetAppointmentsParams,
   UpdateProfileInput,
   WhatsAppPreference,
@@ -233,6 +237,23 @@ export const createRegloApi = (baseUrl?: string) => {
         body: input,
       }),
     me: async () => client.request<MePayload>('/api/mobile/me'),
+    /** REG-802 — fine dell'onboarding: il server ricontrolla gli step dovuti. */
+    completeOnboarding: async (input: CompleteOnboardingInput) =>
+      client.request<{ onboarding: StudentOnboarding | null }>('/api/autoscuole/me/onboarding', {
+        method: 'POST',
+        body: input,
+      }),
+    /** REG-802 — le disponibilità a fasce dell'allievo (sempre le sue). */
+    getMyAvailability: async () =>
+      client.request<StudentAvailabilityPayload>('/api/autoscuole/me/availability'),
+    saveMyAvailability: async (days: StudentBandsByDay) =>
+      client.request<StudentAvailabilityPayload>('/api/autoscuole/me/availability', {
+        method: 'PUT',
+        body: { days },
+      }),
+    /** «Configura in seguito» (solo prima della fase guide: in fase guide il server risponde 409). */
+    snoozeMyAvailability: async () =>
+      client.request<{ snoozedUntil: string }>('/api/autoscuole/me/availability/snooze', { method: 'POST' }),
     /** REG-773 — il titolare mette in manutenzione l'autoscuola. Lo sblocco è solo del backoffice. */
     activateMaintenance: async (input: { scope: MaintenanceScope; confirmName: string }) =>
       client.request<{ scope: MaintenanceScope | null; since: string | null }>('/api/autoscuole/maintenance', {
