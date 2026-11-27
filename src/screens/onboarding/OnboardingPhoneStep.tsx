@@ -32,7 +32,7 @@ export function OnboardingPhoneStep() {
     <FirstAccessStepScreen
       progress={positionOf('phone')}
       leading={isFirst('phone') ? 'none' : 'back'}
-      hero={<Icon3D source={VITA_ART.telefono} size={56} />}
+      hero={<Icon3D source={VITA_ART.telefono} size={64} />}
       title="Il tuo numero di cellulare"
       subtitle="Serve alla tua autoscuola per avvisarti delle guide e dei posti che si liberano."
       cta="Continua"

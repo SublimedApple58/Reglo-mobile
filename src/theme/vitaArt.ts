@@ -31,6 +31,10 @@ export const VITA_ART = {
   orologio: require('../../assets/vita/orologio.png') as ImageSourcePropType,
   /** REG-802 (Gemini, 27/11): telefono col fumetto ambra, passo «Il tuo numero di cellulare». */
   telefono: require('../../assets/vita/telefono.png') as ImageSourcePropType,
+  /** REG-802 giro 2 (Gemini, 27/11): primo accesso normale — «Ciao Sara» (tessera), email (busta), riepilogo (cartellina). */
+  tessera: require('../../assets/vita/tessera.png') as ImageSourcePropType,
+  busta: require('../../assets/vita/busta.png') as ImageSourcePropType,
+  cartellina: require('../../assets/vita/cartellina.png') as ImageSourcePropType,
   pagellino: require('../../assets/vita/esame.png') as ImageSourcePropType,
   /**
    * Giro «memorabile» (Gemini, 28/10): salvadanaio = guide da riscuotere

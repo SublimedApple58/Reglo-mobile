@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { ClayButton, Icon3D } from '../../components/clay';
-import { StudentAvailabilityEditor } from '../../components/studentAvailability/StudentAvailabilityEditor';
+import { StudentAvailabilityGuided } from '../../components/studentAvailability/StudentAvailabilityGuided';
 import { useSession } from '../../context/SessionContext';
 import { regloApi } from '../../services/regloApi';
 import { VITA_ART } from '../../theme/vitaArt';
@@ -19,6 +19,10 @@ import { errorText, useOnboarding } from './OnboardingContext';
  *   l'unico passo).
  * - Prima della fase guide è rimandabile: «Configura in seguito» (e la X, se è
  *   l'unico passo) lo rinvia di qualche giorno lato server.
+ *
+ * La scelta è GUIDATA (giro 2, Tiziano 27/11): «di solito sei libero…» →
+ * «in quali giorni?» → «un giorno è diverso?» (`StudentAvailabilityGuided`).
+ * Il Profilo tiene l'editor completo.
  *
  * Le disponibilità già salvate (le righe vecchie arrivano già tradotte in
  * fasce) e le fasce possibili le legge il provider all'apertura dell'onboarding.
@@ -44,6 +48,9 @@ export function OnboardingAvailabilityStep() {
   const loaded = availabilityLoaded;
   const [snoozing, setSnoozing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Alla seconda domanda la schermata scorre da sé fino alla settimana.
+  const [reveal, setReveal] = useState(0);
+  const revealNext = useCallback(() => setReveal((n) => n + 1), []);
 
   const days = draft.days ?? {};
   const bands = draft.bands ?? DEFAULT_BANDS;
@@ -74,7 +81,7 @@ export function OnboardingAvailabilityStep() {
       progress={positionOf('availability')}
       leading={first ? 'none' : 'back'}
       onClose={!required && only ? snooze : undefined}
-      hero={<Icon3D source={VITA_ART.orologio} size={56} />}
+      hero={<Icon3D source={VITA_ART.orologio} size={64} />}
       title="Quando puoi fare guida?"
       subtitle="Non è un impegno: puoi sempre prenotare anche in altri orari. Ci serve per avvisarti quando si libera un posto adatto a te."
       cta="Continua"
@@ -85,6 +92,7 @@ export function OnboardingAvailabilityStep() {
         next('availability', { days }).catch(() => undefined);
       }}
       error={shownError}
+      revealKey={reveal || undefined}
       below={
         !required ? (
           <ClayButton
@@ -102,11 +110,12 @@ export function OnboardingAvailabilityStep() {
     >
       {loaded ? (
         <Animated.View entering={fadeIn}>
-          <StudentAvailabilityEditor
+          <StudentAvailabilityGuided
             days={days}
             bands={bands}
             onChange={(nextDays) => update({ days: nextDays })}
             dayHref="/onboarding/student-day"
+            onNextQuestion={revealNext}
           />
         </Animated.View>
       ) : (

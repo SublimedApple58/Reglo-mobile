@@ -43,3 +43,10 @@ Allievi di prova da `../reglo/scripts/seed-reg802.ts` (Sara: mai entrata, in pra
 ## Note
 - OTA-safe: nessun modulo nativo nuovo.
 - Rilascio: il backend REG-802 deve essere in produzione PRIMA dell'OTA (i lettori del motore sulle fasce per giorno, le rotte `me/*`). Con un backend vecchio l'app funziona (regola Phone Gate), ma le rotte delle disponibilità rispondono 404.
+
+## Giro 2 (27/11, richieste di Tiziano)
+
+- **Più calore**: icone 3D Gemini sopra il titolo di «Ciao Sara» (`VITA_ART.tessera`), «La tua email» (`VITA_ART.busta`, tolta la busta monocromatica dalla riga) e «Tutto giusto?» (`VITA_ART.cartellina`); tutti gli eroi dell'onboarding a 64 pt.
+- **Disponibilità guidata** (solo onboarding, il Profilo tiene `StudentAvailabilityEditor`): `src/components/studentAvailability/StudentAvailabilityGuided.tsx`. Una domanda alla volta: «Di solito sei libero…» (mattina/pomeriggio/sera o «Va bene qualsiasi orario») → «In quali giorni?» (compare con una dissolvenza e la schermata ci scorre da sola, `revealKey`; la settimana è il comando: i giorni vuoti mostrano le fasce in trasparenza, `StudentWeekStrip` `ghost`, un tocco le riempie o le toglie) → «Un giorno è diverso?» (righe dei giorni scelti → foglio del giorno). Cambiare le fasce «di solito» aggiorna i giorni che le seguivano; quelli cambiati a mano restano.
+- **Riepilogo grafico**: in «Tutto giusto?» la disponibilità è la settimana disegnata (`StudentWeekStrip` in sola lettura, tutta toccabile → torna allo step), non più una riga di testo.
+- Il Primo accesso col telefono (approvato così) tiene editor e riepilogo di prima.

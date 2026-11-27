@@ -1,13 +1,15 @@
 import React, { useRef } from 'react';
-import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { ClayButton, ClayField, ClayList, ClayListRow, Icon3D } from '../../components/clay';
 import { useSession } from '../../context/SessionContext';
 import { CLAY } from '../../theme/clay';
+import { VITA_ART } from '../../theme/vitaArt';
+import { StudentWeekStrip } from '../../components/studentAvailability/StudentWeekStrip';
 import { phoneSubmitValue } from '../../components/PhoneField';
-import { activeDays, daysListText } from '../../utils/studentAvailability';
+import { DEFAULT_BANDS, activeDays } from '../../utils/studentAvailability';
 import { formatPhone } from '../firstAccess/FirstAccessContext';
 import { FirstAccessStepScreen, fadeIn } from '../firstAccess/FirstAccessStepScreen';
 import { OnboardingExit } from './OnboardingExit';
@@ -36,6 +38,7 @@ export function OnboardingNameStep() {
     <FirstAccessStepScreen
       progress={positionOf('name')}
       leading={first ? 'none' : 'back'}
+      hero={<Icon3D source={VITA_ART.tessera} size={64} />}
       title={draft.firstName.trim() ? `Ciao ${draft.firstName.trim()}` : 'Ciao'}
       subtitle={
         school
@@ -96,6 +99,7 @@ export function OnboardingEmailStep() {
     <FirstAccessStepScreen
       progress={positionOf('email')}
       leading={first ? 'none' : 'back'}
+      hero={<Icon3D source={VITA_ART.busta} size={64} />}
       title="La tua email"
       subtitle="È quella con cui accedi. Ti serve anche per recuperare la password."
       cta="Continua"
@@ -104,11 +108,6 @@ export function OnboardingEmailStep() {
     >
       <ClayList>
         <ClayListRow
-          leading={
-            <View style={s.mailIcon}>
-              <Ionicons name="mail-outline" size={20} color={CLAY.ink} />
-            </View>
-          }
           title={email}
           subtitle="Scelta dalla tua autoscuola"
           trailing={<Ionicons name="lock-closed-outline" size={17} color={CLAY.chevron} />}
@@ -152,13 +151,15 @@ export function OnboardingConfirmStep() {
   }
 
   const go = (href: Href) => router.navigate(href);
-  const n = activeDays(draft.days ?? {}).length;
+  const days = draft.days ?? {};
+  const hasDays = activeDays(days).length > 0;
 
   return (
     <FirstAccessStepScreen
       progress={positionOf('confirm')}
+      hero={<Icon3D source={VITA_ART.cartellina} size={64} />}
       title="Tutto giusto?"
-      subtitle="Controlla i tuoi dati. Potrai cambiarli anche dopo, dal profilo."
+      subtitle="Ecco i tuoi dati e la tua settimana. Potrai cambiarli anche dopo, dal profilo."
       cta="Conferma ed entra"
       loading={submitting}
       onCta={() => submit().catch(() => undefined)}
@@ -182,20 +183,29 @@ export function OnboardingConfirmStep() {
             onPress={() => go('/onboarding/phone')}
           />
         ) : null}
-        {keys.includes('availability') ? (
-          <ClayListRow
-            title={daysListText(draft.days ?? {}) ?? 'Da configurare'}
-            subtitle={n ? `Disponibilità · ${n} ${n === 1 ? 'giorno' : 'giorni'}` : 'Disponibilità'}
-            onPress={() => go('/onboarding/availability')}
-          />
-        ) : null}
       </ClayList>
+      {keys.includes('availability') ? (
+        // La settimana come immagine (giro 2): si capisce al volo, un tocco
+        // riporta allo step per cambiarla.
+        <Pressable
+          onPress={() => go('/onboarding/availability')}
+          style={({ pressed }) => [s.week, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="La tua settimana, cambia"
+          testID="onboarding-confirm-week"
+        >
+          <StudentWeekStrip days={days} bands={draft.bands ?? DEFAULT_BANDS} title="Quando puoi fare guida" />
+          <Text style={s.weekHint}>{hasDays ? 'Tocca la settimana per cambiarla' : 'Da configurare: tocca per scegliere'}</Text>
+        </Pressable>
+      ) : null}
     </FirstAccessStepScreen>
   );
 }
 
 const s = StyleSheet.create({
-  mailIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  week: { marginTop: 14 },
+  pressed: { opacity: 0.7 },
+  weekHint: { fontSize: 13.5, color: CLAY.ink4, marginTop: 10, textAlign: 'center' },
   change: { marginTop: 8, gap: 12 },
   changeText: { fontSize: 15, lineHeight: 20, color: CLAY.ink3, paddingHorizontal: 2 },
   changeButton: { alignSelf: 'flex-start' },
