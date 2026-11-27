@@ -63,7 +63,11 @@ export const RoadMotoDial = React.memo(function RoadMotoDial({
   useEffect(() => {
     p.value = withTiming(progress, { duration: 280, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never });
   }, [p, progress]);
-  const arcProps = useAnimatedProps(() => ({ strokeDashoffset: ARC * (1 - p.value) }));
+  // Niente puntino a zero: l'arco compare solo quando c'è avanzamento (Tiziano 27/11).
+  const arcProps = useAnimatedProps(() => ({
+    strokeDashoffset: ARC * (1 - p.value),
+    strokeOpacity: p.value > 0.008 ? 1 : 0,
+  }));
 
   const ink = night ? NIGHT.ink : CLAY.ink;
   const ink3 = night ? NIGHT.ink3 : CLAY.ink3;
