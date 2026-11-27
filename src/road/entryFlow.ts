@@ -1,6 +1,6 @@
 import type { Router } from 'expo-router';
 import type { RoadLesson } from '../types/regloApi';
-import { enterRoad, hasSeenRoadPrivacy } from './roadActions';
+import { enterRoad, ensureMotoStrada, hasSeenRoadPrivacy } from './roadActions';
 import { chosenLessonPlan } from './planStore';
 
 /**
@@ -85,7 +85,10 @@ export const SHEET_HANDOFF_MS = 380;
  * «Entra in Road»: al primo ingresso sul dispositivo passa dall'informativa
  * (che poi chiede il permesso); altrimenti chiede il permesso e parte.
  */
-export async function beginRoadEntry(router: Router, lesson: RoadLesson, base: RoadSheetBase = 'home') {
+export async function beginRoadEntry(router: Router, input: RoadLesson, base: RoadSheetBase = 'home') {
+  // REG-753: una moto «Birilli» si passa a «Strada» (con conferma) prima di partire.
+  const lesson = await ensureMotoStrada(input);
+  if (!lesson) return;
   if (!(await hasSeenRoadPrivacy())) {
     roadEntryStore.set({ lesson });
     router.push(roadSheetRoute(base, 'road-privacy') as never);

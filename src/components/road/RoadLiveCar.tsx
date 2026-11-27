@@ -12,7 +12,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Marker } from 'react-native-maps';
 
-import { carTopArt } from '../../road/markerArt';
+import { carTopArt, motoTopArt } from '../../road/markerArt';
+
+/** REG-753: guida moto = la moto 3D vista dall'alto, stessa tela dell'auto. */
+const topArt = (color: string | null | undefined, moto: boolean | undefined) => (moto ? motoTopArt(color) : carTopArt(color));
 
 /**
  * REG-678 Reglo Road — l'auto della guida dal vivo.
@@ -61,6 +64,7 @@ export function RoadLiveCar({
   halo,
   visible,
   color,
+  moto,
 }: {
   /** Punto dello schermo del centro della camera. */
   x: number;
@@ -72,6 +76,8 @@ export function RoadLiveCar({
   /** 1 mentre la mappa segue l'auto, 0 quando è libera (c'è il marker). */
   visible: SharedValue<number>;
   color?: string | null;
+  /** REG-753: guida moto (moto 3D al posto dell'auto). */
+  moto?: boolean;
 }) {
   const wrap = useAnimatedStyle(() => ({ opacity: visible.value }));
   const car = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
@@ -88,9 +94,9 @@ export function RoadLiveCar({
       <PulseRing delay={0} />
       <PulseRing delay={PULSE_MS / 2} />
       <View style={s.shadowBox}>
-        {Platform.OS === 'android' ? <Animated.View style={[s.androidShadow, car]} /> : null}
+        {Platform.OS === 'android' ? <Animated.View style={[s.androidShadow, moto && s.androidShadowMoto, car]} /> : null}
         <Animated.View style={[s.carRot, car]}>
-          <Image source={carTopArt(color)} style={s.car} resizeMode="contain" />
+          <Image source={topArt(color, moto)} style={s.car} resizeMode="contain" />
         </Animated.View>
       </View>
     </Animated.View>
@@ -106,11 +112,13 @@ export function RoadLiveCarMarker({
   coordinate,
   rotation,
   color,
+  moto,
   opacity,
 }: {
   coordinate: { latitude: number; longitude: number };
   rotation: number;
   color?: string | null;
+  moto?: boolean;
   opacity: number;
 }) {
   // REG-698: su Android la bitmap del marker si rifà solo per ~1 s dopo un
@@ -123,7 +131,7 @@ export function RoadLiveCarMarker({
     setTracks(true);
     const t = setTimeout(() => setTracks(false), 900);
     return () => clearTimeout(t);
-  }, [android, color]);
+  }, [android, color, moto]);
   const turn = android ? undefined : { transform: [{ rotate: `${rotation}deg` }] };
   return (
     <Marker
@@ -136,8 +144,8 @@ export function RoadLiveCarMarker({
     >
       <View style={s.markerBox} pointerEvents="none">
         <View style={s.markerShadow}>
-          {android ? <View style={[s.androidShadow, s.androidShadowStatic]} /> : null}
-          <Image source={carTopArt(color)} style={[s.car, turn]} resizeMode="contain" />
+          {android ? <View style={[s.androidShadow, s.androidShadowStatic, moto && s.androidShadowMoto]} /> : null}
+          <Image source={topArt(color, moto)} style={[s.car, turn]} resizeMode="contain" />
         </View>
       </View>
     </Marker>
@@ -184,6 +192,8 @@ const s = StyleSheet.create({
     boxShadow: '0px 5px 10px rgba(0,0,0,0.30)',
   },
   androidShadowStatic: {},
+  // La moto è stretta: ombra Android su una sagoma più sottile.
+  androidShadowMoto: { left: 9, width: CAR_W - 18, borderRadius: 8 },
   markerBox: { width: CAR_W + 24, height: CAR_H + 24, alignItems: 'center', justifyContent: 'center' },
   markerShadow: {
     width: CAR_W,

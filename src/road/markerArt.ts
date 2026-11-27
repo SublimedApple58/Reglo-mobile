@@ -78,6 +78,25 @@ const CAR_34: Record<CarColorKey, ImageSourcePropType> = {
 const carKey = (color: string | null | undefined): CarColorKey =>
   color && (CAR_COLOR_KEYS as readonly string[]).includes(color) ? (color as CarColorKey) : 'bianco';
 
+/**
+ * REG-753: moto vista dall'alto (mappa Road, guide moto), stessa tela 30×46 pt
+ * dell'auto e stessi colori del veicolo (`scripts/moto-colori.py`).
+ */
+const MOTO_TOP: Record<CarColorKey, ImageSourcePropType> = {
+  bianco: require('../../assets/road/motos/moto-su-bianco.png'),
+  argento: require('../../assets/road/motos/moto-su-argento.png'),
+  grigio: require('../../assets/road/motos/moto-su-grigio.png'),
+  nero: require('../../assets/road/motos/moto-su-nero.png'),
+  rosso: require('../../assets/road/motos/moto-su-rosso.png'),
+  arancio: require('../../assets/road/motos/moto-su-arancio.png'),
+  giallo: require('../../assets/road/motos/moto-su-giallo.png'),
+  verde: require('../../assets/road/motos/moto-su-verde.png'),
+  azzurro: require('../../assets/road/motos/moto-su-azzurro.png'),
+  blu: require('../../assets/road/motos/moto-su-blu.png'),
+};
+
+/** Moto vista dall'alto (mappa Road, guide moto). */
+export const motoTopArt = (color?: string | null) => MOTO_TOP[carKey(color)];
 /** Auto vista dall'alto (mappa Road). */
 export const carTopArt = (color?: string | null) => CAR_TOP[carKey(color)];
 /** Auto di 3/4 (invito, card). */

@@ -10,6 +10,7 @@ import {
   Text,
   View,
   type GestureResponderEvent,
+  type ViewStyle,
 } from 'react-native';
 import MapView, { Polyline, type Camera } from 'react-native-maps';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -72,6 +73,8 @@ import {
 import { OsmCredit } from '../../src/components/road/OsmCredit';
 import { RoadGuideOverlay } from '../../src/components/road/RoadGuideOverlay';
 import { CAR_DISC, RoadLiveCar, RoadLiveCarMarker } from '../../src/components/road/RoadLiveCar';
+import { RoadMotoDial } from '../../src/components/road/RoadMotoDial';
+import { isMotoRoadLesson } from '../../src/road/moto';
 import { RoadNavCard } from '../../src/components/road/RoadNavCard';
 import { ExpandableText } from '../../src/components/road/ExpandableText';
 import { RoadHotspotCard } from '../../src/components/road/RoadHotspotCard';
@@ -613,12 +616,14 @@ const FREE_CAR_MS = 50;
 const LiveCarMarker = React.memo(function LiveCarMarker({
   following,
   color,
+  moto,
   epoch,
   liveRef,
   mapHeadRef,
 }: {
   following: boolean;
   color?: string | null;
+  moto?: boolean;
   epoch: number;
   liveRef: React.MutableRefObject<MotionSample | null>;
   /** La direzione della mappa adesso (il marker ruota rispetto allo schermo). */
@@ -644,6 +649,7 @@ const LiveCarMarker = React.memo(function LiveCarMarker({
       coordinate={{ latitude: fix.lat, longitude: fix.lng }}
       rotation={fix.rot}
       color={color}
+      moto={moto}
       opacity={following ? 0 : 1}
     />
   );
@@ -660,6 +666,7 @@ const LiveMap = React.memo(function LiveMap({
   panelH,
   following,
   carColor,
+  moto,
   carEpoch,
   liveRef,
   mapHeadRef,
@@ -684,6 +691,8 @@ const LiveMap = React.memo(function LiveMap({
   panelH: number;
   following: boolean;
   carColor?: string | null;
+  /** REG-753: guida moto, la moto 3D al posto dell'auto. */
+  moto?: boolean;
   carEpoch: number;
   liveRef: React.MutableRefObject<MotionSample | null>;
   mapHeadRef: React.MutableRefObject<number>;
@@ -752,7 +761,7 @@ const LiveMap = React.memo(function LiveMap({
       {/* REG-723: partenza e frecce del verso, posti fissi subito dopo la traccia. */}
       <LiveEnds center={where} night={darkMap} />
       <LivePins onPin={onPin} openId={openPinId} />
-      <LiveCarMarker following={following} color={carColor} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
+      <LiveCarMarker following={following} color={carColor} moto={moto} epoch={carEpoch} liveRef={liveRef} mapHeadRef={mapHeadRef} />
     </MapView>
   );
 });
@@ -840,6 +849,8 @@ export default function RoadScreen() {
   const lesson = session?.lesson ?? null;
   // R4: Road Exam (solo tracciato) = card e pannello d'esame, linea viola.
   const exam = session?.mode === 'exam';
+  // REG-753: guida moto (istruttore nell'auto al seguito) = quadrante e moto 3D.
+  const moto = !exam && isMotoRoadLesson(lesson);
   // Ricca 8: le ultime tracce dell'allievo, chieste una volta dopo l'avvio.
   const history = useRoadHistory(session?.id ?? null, lesson?.student?.id ?? null);
   const historyShown = useRoadHistoryShown();
@@ -1341,6 +1352,7 @@ export default function RoadScreen() {
           panelH={panelH}
           following={following}
           carColor={lesson.carColor}
+          moto={moto}
           carEpoch={carEpoch}
           liveRef={liveRef}
           mapHeadRef={mapHeadRef}
@@ -1365,7 +1377,7 @@ export default function RoadScreen() {
       {pinSel ? <LivePinDetail key={pinSel.m.clientId} sel={pinSel} onPress={onPinOpen} /> : null}
 
       {carPt ? (
-        <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} />
+        <RoadLiveCar x={carPt.x} y={carPt.y} rotation={carRot} halo={carHalo} visible={carVisible} color={lesson.carColor} moto={moto} />
       ) : null}
 
       {exam ? <ExamTopCard top={topStart} /> : <LiveTop top={topStart} onLayoutTop={setTopH} topH={topH} onTurn={onTurn} night={night} />}
@@ -1382,6 +1394,7 @@ export default function RoadScreen() {
         onHistory={onHistory}
         historyNote={historyNote}
         onExamRoutes={exam ? undefined : () => router.push('/road/percorsi-esame')}
+        moto={moto}
       />
 
       {exam ? (
@@ -1963,6 +1976,15 @@ const LivePinDetail = React.memo(function LivePinDetail({ sel, onPress }: { sel:
 /** Quanto sale il cerchio della velocità per lasciare libera la scritta «Mappe». */
 const SPEED_LIFT = 52;
 
+/** REG-753: il quadrante legge da sé sessione e km, così i controlli non si ridisegnano a ogni fix. */
+function MotoDialSlot({ night, style }: { night: boolean; style: ViewStyle }) {
+  const startedAt = useRoadSelector((st) => st.session?.startedAt ?? null);
+  const lesson = useRoadSelector((st) => st.session?.lesson ?? null);
+  const distance = useRoadSelector((st) => st.distanceMeters);
+  if (!startedAt || !lesson) return null;
+  return <RoadMotoDial startedAt={startedAt} driveEnd={lessonDriveEnd(lesson)} distanceMeters={distance} night={night} style={style} />;
+}
+
 const LiveControls = React.memo(function LiveControls({
   bottom,
   following,
@@ -1975,9 +1997,12 @@ const LiveControls = React.memo(function LiveControls({
   onHistory,
   historyNote,
   onExamRoutes,
+  moto,
 }: {
   /** R4c: «Prova un percorso d'esame» (solo nelle guide, non in Road Exam). */
   onExamRoutes?: () => void;
+  /** REG-753: guida moto, il quadrante prende il posto della velocità. */
+  moto?: boolean;
   night: boolean;
   /** Ricca 8: tasto «Storico», solo se l'allievo ha guide passate con traccia. */
   hasHistory: boolean;
@@ -1997,11 +2022,17 @@ const LiveControls = React.memo(function LiveControls({
   const muted = useRoadSoundMuted();
   return (
     <>
-      {/* REG-723: sopra la scritta di Apple Mappe (in basso a sinistra), staccato dal bordo. */}
-      <View style={[s.speed, night && ns.surface, CLAY_SHADOW.raise, { bottom: bottom + SPEED_LIFT }]} accessibilityLabel={`${speedKmh} chilometri orari`}>
-        <Text style={[s.speedNum, night && ns.ink]}>{speedKmh}</Text>
-        <Text style={[s.speedUnit, night && ns.ink3]}>km/h</Text>
-      </View>
+      {/* REG-723: sopra la scritta di Apple Mappe (in basso a sinistra), staccato dal bordo.
+          REG-753: in moto il quadrante «Cruscotto» (tempo e km) al posto della velocità
+          dell'auto al seguito. */}
+      {moto ? (
+        <MotoDialSlot night={night} style={{ ...s.dialSlot, bottom: bottom + SPEED_LIFT }} />
+      ) : (
+        <View style={[s.speed, night && ns.surface, CLAY_SHADOW.raise, { bottom: bottom + SPEED_LIFT }]} accessibilityLabel={`${speedKmh} chilometri orari`}>
+          <Text style={[s.speedNum, night && ns.ink]}>{speedKmh}</Text>
+          <Text style={[s.speedUnit, night && ns.ink3]}>km/h</Text>
+        </View>
+      )}
       <View style={[s.ctl, { bottom }]} pointerEvents="box-none">
         {hasHistory ? (
           <Animated.View entering={ROAD_TEXT_IN}>
@@ -2430,6 +2461,7 @@ const s = StyleSheet.create({
     boxShadow: '0px 2px 3px rgba(0,0,0,0.25)',
   },
 
+  dialSlot: { position: 'absolute', left: 14 },
   speed: {
     position: 'absolute',
     left: 18,

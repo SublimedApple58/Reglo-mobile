@@ -211,6 +211,29 @@ function messageOf(err: unknown, fallback: string) {
  * «Entra in Road» su una guida. Ritorna true se la modalità Road è partita
  * (chi chiama naviga su `/road`).
  */
+/**
+ * REG-753: Road è per le guide moto «Strada». Una guida segnata «Birilli» non
+ * blocca: conferma nativa e, se l'istruttore accetta, il tipo passa a «strada»
+ * (stesso PATCH della guida usato dal web) e si parte. `null` = annullato o errore.
+ */
+export async function ensureMotoStrada(lesson: RoadLesson): Promise<RoadLesson | null> {
+  if (lesson.motoLessonType !== 'birilli') return lesson;
+  const go = await new Promise<boolean>((resolve) =>
+    Alert.alert('Questa guida è segnata come Birilli', 'La passiamo a Strada e avviamo Road?', [
+      { text: 'Annulla', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Passa a Strada e avvia', onPress: () => resolve(true) },
+    ], { cancelable: true, onDismiss: () => resolve(false) }),
+  );
+  if (!go) return null;
+  try {
+    await regloApi.updateAppointmentDetails(lesson.appointmentId, { motoLessonType: 'strada' });
+  } catch (err) {
+    Alert.alert('Road non disponibile', messageOf(err, 'Non è stato possibile passare la guida a Strada. Riprova.'));
+    return null;
+  }
+  return { ...lesson, motoLessonType: 'strada' };
+}
+
 export async function enterRoad(appointmentId: string, plan?: RoadPlan | null): Promise<boolean> {
   if (!(await ensureRoadLocationPermission())) return false;
   let started;

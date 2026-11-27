@@ -825,6 +825,8 @@ export type UpdateAppointmentDetailsInput = {
   extraMotoVehicleIds?: Uuid[];
   /** Set/replace the follow car (auto al seguito). null = remove it. */
   followVehicleId?: Uuid | null;
+  /** Tipo guida moto (REG-753: Road passa una «birilli» a «strada» prima di partire). */
+  motoLessonType?: 'birilli' | 'strada' | null;
   /**
    * Reassign the appointment to a different instructor (single-lesson
    * override; does NOT change the student's assignedInstructorId). Server
@@ -1744,7 +1746,12 @@ export type RoadLesson = {
   status: string;
   student: { id: Uuid; name: string } | null;
   instructor: { id: Uuid; name: string; color: string | null } | null;
-  vehicle: { id: Uuid; name: string; plate: string | null } | null;
+  /** `licenseCategory` dal REG-753 (assente con un server vecchio): AM/A1/A2/A = guida in moto. */
+  vehicle: { id: Uuid; name: string; plate: string | null; licenseCategory?: string } | null;
+  /** REG-753: l'auto al seguito di una guida moto (null se non prenotata). */
+  followVehicle?: { id: Uuid; name: string; plate: string | null } | null;
+  /** REG-753: tipo guida moto; «birilli» → all'avvio si chiede di passarla a «strada». */
+  motoLessonType?: 'birilli' | 'strada' | null;
   /** Variante colore dell'auto 3D, già risolta dal server (veicolo → tinta istruttore → bianco). */
   carColor?: string | null;
   /**

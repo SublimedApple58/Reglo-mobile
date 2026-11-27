@@ -7,6 +7,8 @@ import { useRouter, useSegments } from 'expo-router';
 
 import * as Haptics from '../../../src/utils/haptics';
 import { car34Art } from '../../../src/road/markerArt';
+import { isMotoRoadLesson } from '../../../src/road/moto';
+import { lessonArtSource } from '../../../src/utils/lessonArt';
 import { formatRange } from '../../../src/road/format';
 import { lessonStudentName } from '../../../src/road/roadStore';
 import { dismissInvite } from '../../../src/road/roadActions';
@@ -48,6 +50,9 @@ export default function RoadInviteSheet() {
   // REG-649: con un giro da proporre le tre righe su Road lasciano il posto alle tappe.
   const showPlan = plan === undefined || !!plan?.plan?.stops.length;
   const meta = [formatRange(lesson.startsAt, lesson.endsAt), lesson.vehicle?.name ?? null].filter(Boolean).join(' · ');
+  // REG-753: guida moto, l'istruttore la segue nell'auto al seguito.
+  const moto = isMotoRoadLesson(lesson);
+  const follow = moto ? (lesson.followVehicle?.name ? `Al seguito in ${lesson.followVehicle.name}` : 'Tu nell\'auto al seguito') : null;
 
   const onEnter = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
@@ -78,10 +83,13 @@ export default function RoadInviteSheet() {
     >
 
       <ClaySurface padded={false} radius={24} style={s.hero}>
-        <Icon3D source={car34Art(lesson.carColor)} size={62} width={76} />
+        <Icon3D source={moto ? lessonArtSource(lesson.vehicle?.licenseCategory) : car34Art(lesson.carColor)} size={62} width={76} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.heroName} numberOfLines={1}>{lessonStudentName(lesson)}</Text>
           <Text style={s.heroMeta} numberOfLines={1}>{meta}</Text>
+          {follow ? (
+            <Text style={s.heroMeta} numberOfLines={1}>{follow}</Text>
+          ) : null}
           {locationName ? (
             <Text style={s.heroMeta} numberOfLines={1}>Partenza da {locationName}</Text>
           ) : null}
