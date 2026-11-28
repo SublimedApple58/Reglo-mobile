@@ -3,7 +3,6 @@ import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'r
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ResizeMode, Video } from 'expo-av';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -24,7 +23,7 @@ import { signupProgress, useSignup } from './SignupContext';
 /**
  * REG-818 — «È la tua autoscuola?» / «È il tuo istruttore?».
  *
- * Fascia in alto a tutta larghezza (strada all'alba) e, a cavallo del suo
+ * Fascia in alto a tutta larghezza (diorama chiaro: la Panda arriva al semaforo verde) e, a cavallo del suo
  * bordo, la tessera clay bianca che è la protagonista: il logo dell'autoscuola
  * oppure, con il codice di un istruttore autonomo, la sua foto con il logo
  * agganciato. Sotto nome, una riga e la CTA.
@@ -35,8 +34,8 @@ import { signupProgress, useSignup } from './SignupContext';
  * resta il poster. `expo-av` è già nel binario (OTA); `expo-video` no.
  */
 const HERO_POSTER = require('../../../assets/signup/hero-poster.jpg');
-// Segnaposto finché non arriva l'mp4: `require('../../../assets/signup/hero.mp4')`.
-const HERO_VIDEO: number | null = null;
+// 880×720 (ritaglio centrale del 16:9), H.264 senza audio. `null` = solo poster.
+const HERO_VIDEO: number | null = require('../../../assets/signup/hero.mp4');
 
 /** Quota dell'altezza dello schermo presa dalla fascia. */
 const HERO_RATIO = 0.46;
@@ -85,8 +84,6 @@ function Hero({ height }: { height: number }) {
           />
         </Animated.View>
       ) : null}
-      {/* Un velo in alto: «indietro» e la linea di avanzamento si leggono su qualunque fotogramma. */}
-      <LinearGradient colors={['rgba(0,0,0,0.30)', 'rgba(0,0,0,0)']} style={s.heroShade} pointerEvents="none" />
     </View>
   );
 }
@@ -135,7 +132,7 @@ export function SignupSchoolStep() {
 
   return (
     <View style={s.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Animated.View style={heroIn}>
         <Hero height={heroH} />
       </Animated.View>
@@ -203,18 +200,17 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   hero: {
     width: '100%',
-    backgroundColor: '#E9E9E9',
+    backgroundColor: '#EEEAE1',
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
     overflow: 'hidden',
   },
   // Dimensioni esplicite: con il solo absoluteFill l'immagine del bundle restava a grandezza naturale.
   heroMedia: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' },
-  heroShade: { position: 'absolute', left: 0, right: 0, top: 0, height: 150 },
   bar: { position: 'absolute', left: 0, right: 0, height: 56, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' },
-  // Stessa linea degli altri passi, in bianco sulla foto.
-  track: { position: 'absolute', left: 20, right: 20, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.35)', overflow: 'hidden' },
-  fill: { height: 2, backgroundColor: '#FFFFFF' },
+  // Stessa linea nera degli altri passi: il diorama è chiaro.
+  track: { position: 'absolute', left: 20, right: 20, height: 2, borderRadius: 1, backgroundColor: 'rgba(17,17,17,0.08)', overflow: 'hidden' },
+  fill: { height: 2, backgroundColor: CLAY.ink },
   // A cavallo del bordo della fascia: metà sopra, metà sotto.
   tileWrap: { alignItems: 'center', marginTop: -TILE / 2 },
   tile: {
