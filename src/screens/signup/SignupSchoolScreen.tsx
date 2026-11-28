@@ -39,8 +39,8 @@ const HERO_POSTER = require('../../../assets/signup/hero-poster.jpg');
 const HERO_VIDEO: number | null = null;
 
 /** Quota dell'altezza dello schermo presa dalla fascia. */
-const HERO_RATIO = 0.42;
-const TILE = 112;
+const HERO_RATIO = 0.46;
+const TILE = 124;
 const N = ReduceMotion.Never;
 const EASE = Easing.out(Easing.cubic);
 const IN_MS = 260;
@@ -220,12 +220,12 @@ const s = StyleSheet.create({
   tile: {
     width: TILE,
     height: TILE,
-    borderRadius: 32,
+    borderRadius: 36,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logo: { width: 80, height: 80, borderRadius: 16 },
+  logo: { width: 90, height: 90, borderRadius: 18 },
   person: { width: TILE, height: TILE },
   faceRing: {
     width: TILE,
@@ -236,20 +236,20 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   face: { width: TILE - 10, height: TILE - 10, borderRadius: (TILE - 10) / 2, alignItems: 'center', justifyContent: 'center' },
-  initials: { fontSize: 36, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.5 },
+  initials: { fontSize: 40, fontWeight: '600', color: '#FFFFFF', letterSpacing: -0.5 },
   logoChip: {
     position: 'absolute',
     right: -10,
     bottom: -6,
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoSmall: { width: 32, height: 32, borderRadius: 8 },
-  texts: { paddingHorizontal: 28, marginTop: 22, alignItems: 'center' },
+  logoSmall: { width: 35, height: 35, borderRadius: 9 },
+  texts: { paddingHorizontal: 28, marginTop: 26, alignItems: 'center' },
   title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.8, textAlign: 'center' },
   detail: { fontSize: 16, lineHeight: 22, color: CLAY.ink3, marginTop: 8, textAlign: 'center' },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 24, paddingTop: 10, gap: 14, backgroundColor: CLAY.bg },
