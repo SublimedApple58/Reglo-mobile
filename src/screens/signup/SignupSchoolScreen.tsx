@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'r
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ResizeMode, Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -23,8 +24,8 @@ import { signupProgress, useSignup } from './SignupContext';
 /**
  * REG-818 — «È la tua autoscuola?» / «È il tuo istruttore?».
  *
- * Fascia in alto a tutta larghezza (diorama chiaro: la Panda arriva al semaforo verde) e, a cavallo del suo
- * bordo, la tessera clay bianca che è la protagonista: il logo dell'autoscuola
+ * Fascia in alto a tutta larghezza (diorama chiaro: la Panda arriva al semaforo verde), senza bordo: il
+ * perimetro del video sfuma nel bianco della pagina. Nella zona sfumata in basso, la tessera clay bianca che è la protagonista: il logo dell'autoscuola
  * oppure, con il codice di un istruttore autonomo, la sua foto con il logo
  * agganciato. Sotto nome, una riga e la CTA.
  *
@@ -40,6 +41,11 @@ const HERO_VIDEO: number | null = require('../../../assets/signup/hero.mp4');
 /** Quota dell'altezza dello schermo presa dalla fascia. */
 const HERO_RATIO = 0.46;
 const TILE = 124;
+// Sfumatura verso il bianco a più passi (curva morbida, non una rampa lineare che lascia la riga).
+const FADE = ['rgba(255,255,255,0)', 'rgba(255,255,255,0.18)', 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0.88)', '#FFFFFF'] as const;
+// In alto più leggera: sotto la status bar il video si vede ancora.
+const FADE_SOFT = ['rgba(255,255,255,0)', 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.8)'] as const;
+const FADE_STOPS = [0, 0.3, 0.6, 0.85, 1] as const;
 const N = ReduceMotion.Never;
 const EASE = Easing.out(Easing.cubic);
 const IN_MS = 260;
@@ -84,6 +90,11 @@ function Hero({ height }: { height: number }) {
           />
         </Animated.View>
       ) : null}
+      {/* Nessun bordo: il perimetro del video si scioglie nel bianco della pagina (REG-818). */}
+      <LinearGradient colors={FADE_SOFT} locations={FADE_STOPS} style={s.fadeTop} pointerEvents="none" start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }} />
+      <LinearGradient colors={FADE} locations={FADE_STOPS} style={s.fadeLeft} pointerEvents="none" start={{ x: 1, y: 0 }} end={{ x: 0, y: 0 }} />
+      <LinearGradient colors={FADE} locations={FADE_STOPS} style={s.fadeRight} pointerEvents="none" start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={FADE} locations={FADE_STOPS} style={s.fadeBottom} pointerEvents="none" />
     </View>
   );
 }
@@ -200,18 +211,20 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: CLAY.bg },
   hero: {
     width: '100%',
-    backgroundColor: '#EEEAE1',
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
   },
+  fadeTop: { position: 'absolute', left: 0, right: 0, top: 0, height: '22%' },
+  fadeBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '46%' },
+  fadeLeft: { position: 'absolute', left: 0, top: 0, bottom: 0, width: '20%' },
+  fadeRight: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '20%' },
   // Dimensioni esplicite: con il solo absoluteFill l'immagine del bundle restava a grandezza naturale.
   heroMedia: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' },
   bar: { position: 'absolute', left: 0, right: 0, height: 56, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' },
   // Stessa linea nera degli altri passi: il diorama è chiaro.
   track: { position: 'absolute', left: 20, right: 20, height: 2, borderRadius: 1, backgroundColor: 'rgba(17,17,17,0.08)', overflow: 'hidden' },
   fill: { height: 2, backgroundColor: CLAY.ink },
-  // A cavallo del bordo della fascia: metà sopra, metà sotto.
+  // Nella zona sfumata in fondo alla fascia: metà sopra, metà sotto.
   tileWrap: { alignItems: 'center', marginTop: -TILE / 2 },
   tile: {
     width: TILE,
