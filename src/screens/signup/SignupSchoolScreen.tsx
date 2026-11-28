@@ -35,7 +35,7 @@ import { signupProgress, useSignup } from './SignupContext';
  * resta il poster. `expo-av` è già nel binario (OTA); `expo-video` no.
  */
 const HERO_POSTER = require('../../../assets/signup/hero-poster.jpg');
-// 880×720 (ritaglio centrale del 16:9), H.264 senza audio. `null` = solo poster.
+// 880×880 (ritaglio del verticale centrato su auto e semaforo), H.264 senza audio. `null` = solo poster.
 const HERO_VIDEO: number | null = require('../../../assets/signup/hero.mp4');
 
 /** Quota dell'altezza dello schermo presa dalla fascia. */
