@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ClayField, ClayList, ClayListRow, Icon3D } from '../../components/clay';
 import { CodeBoxes } from '../../components/CodeBoxes';
-import { FadeImage } from '../../components/FadeImage';
 import { PhoneField, phoneIsComplete, phoneSubmitValue } from '../../components/PhoneField';
 import { regloApi } from '../../services/regloApi';
 import { CLAY, CLAY_SHADOW } from '../../theme/clay';
@@ -88,40 +87,8 @@ export function SignupCodeStep() {
   );
 }
 
-/** 2 · «È la tua autoscuola?»: logo e nome veri, prima di scrivere qualunque dato. */
-export function SignupSchoolStep() {
-  const router = useRouter();
-  const { draft } = useSignup();
-  const school = draft.school;
-  const [logoFailed, setLogoFailed] = useState(false);
-  const logoUrl = school?.company.logoUrl;
-
-  const detail = school?.instructorName
-    ? `Ti iscrivi con ${school.instructorName}, il tuo istruttore.`
-    : school?.locationName
-      ? `Ti iscrivi alla sede ${school.locationName}.`
-      : 'Stai per iscriverti qui. È la tua autoscuola?';
-
-  return (
-    <FirstAccessStepScreen
-      progress={signupProgress('school')}
-      hero={
-        logoUrl && !logoFailed ? (
-          <View style={[s.logoWrap, CLAY_SHADOW.raise]}>
-            <FadeImage source={{ uri: logoUrl }} style={s.logo} resizeMode="contain" onError={() => setLogoFailed(true)} />
-          </View>
-        ) : (
-          <Icon3D source={VITA_ART.edificio} size={64} />
-        )
-      }
-      title={school?.company.name ?? 'La tua autoscuola'}
-      subtitle={detail}
-      cta="Sì, continua"
-      onCta={() => router.push('/(auth)/signup/name')}
-      below={<BelowLink text="Non è lei?" action="Cambia codice" onPress={() => router.back()} testID="signup-change-code" />}
-    />
-  );
-}
+/** 2 · «È la tua autoscuola?» / «È il tuo istruttore?»: schermata a sé (REG-818). */
+export { SignupSchoolStep } from './SignupSchoolScreen';
 
 /** 3 · Come ti chiami: nome e cognome, due campi. */
 export function SignupNameStep() {
@@ -377,15 +344,6 @@ const s = StyleSheet.create({
   pressed: { opacity: 0.5 },
   belowText: { fontSize: 15, lineHeight: 20, color: CLAY.ink3 },
   belowAction: { fontWeight: '600', color: CLAY.ink },
-  logoWrap: {
-    width: 76,
-    height: 76,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: { width: 56, height: 56, borderRadius: 12 },
   nameRow: { flexDirection: 'row', gap: 12 },
   nameField: { flex: 1 },
   note: { fontSize: 13.5, lineHeight: 19, color: CLAY.ink3, paddingHorizontal: 2 },

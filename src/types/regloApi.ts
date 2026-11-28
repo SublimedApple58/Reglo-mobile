@@ -1060,6 +1060,8 @@ export type SignupSchool = {
   company: { name: string; logoUrl: string | null };
   /** Codice di un istruttore: l'allievo entra nel suo gruppo. */
   instructorName: string | null;
+  /** REG-818: lo stesso istruttore con foto e colore (assente sui server vecchi). */
+  instructor?: { name: string; photoUrl: string | null; color: string | null } | null;
   /** Codice di un luogo. */
   locationName: string | null;
   /** false = l'autoscuola assegna lei la patente (REG-424). */
