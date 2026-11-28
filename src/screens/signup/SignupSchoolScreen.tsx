@@ -47,18 +47,42 @@ const FADE = ['rgba(255,255,255,0)', 'rgba(255,255,255,0.18)', 'rgba(255,255,255
 const FADE_SOFT = ['rgba(255,255,255,0)', 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.8)'] as const;
 const FADE_STOPS = [0, 0.3, 0.6, 0.85, 1] as const;
 const N = ReduceMotion.Never;
-const EASE = Easing.out(Easing.cubic);
-const IN_MS = 260;
+// Curva morbida: parte svelta e si posa senza rimbalzo.
+const EASE = Easing.bezier(0.22, 1, 0.36, 1);
 
-/** Entrata: dissolvenza (e una scala appena accennata), mai di botto, senza rimbalzo. */
-function useEnter(delay: number, scaleFrom = 1) {
+/**
+ * Coreografia dell'entrata (tutto entro ~820 ms, `ReduceMotion.Never`):
+ * fascia → tessera (il momento clou) → logo agganciato → titolo → riga → CTA.
+ */
+const ENTER = {
+  hero: { delay: 0, duration: 350 },
+  // La tessera parte quando il push di iOS ha quasi finito di portare dentro la schermata.
+  tile: { delay: 240, duration: 340, scaleFrom: 0.9, rise: 10 },
+  chip: { delay: 410, duration: 280, scaleFrom: 0.8 },
+  title: { delay: 360, duration: 300, rise: 6 },
+  detail: { delay: 430, duration: 300, rise: 6 },
+  bottom: { delay: 500, duration: 320, rise: 14 },
+} as const;
+
+/** Un pezzo dell'entrata: dissolvenza, più scala e salita dove servono. Mai di botto. */
+function useEnter({
+  delay,
+  duration,
+  scaleFrom = 1,
+  rise = 0,
+}: {
+  delay: number;
+  duration: number;
+  scaleFrom?: number;
+  rise?: number;
+}) {
   const v = useSharedValue(0);
   useEffect(() => {
-    v.value = withDelay(delay, withTiming(1, { duration: IN_MS, easing: EASE, reduceMotion: N }));
-  }, [delay, v]);
+    v.value = withDelay(delay, withTiming(1, { duration, easing: EASE, reduceMotion: N }));
+  }, [delay, duration, v]);
   return useAnimatedStyle(() => ({
     opacity: v.value,
-    transform: [{ scale: scaleFrom + (1 - scaleFrom) * v.value }],
+    transform: [{ translateY: rise * (1 - v.value) }, { scale: scaleFrom + (1 - scaleFrom) * v.value }],
   }));
 }
 
@@ -85,7 +109,7 @@ function Hero({ height }: { height: number }) {
             isMuted
             isLooping={false}
             onReadyForDisplay={() => {
-              shown.value = withTiming(1, { duration: 220, easing: EASE, reduceMotion: N });
+              shown.value = withTiming(1, { duration: 260, easing: EASE, reduceMotion: N });
             }}
           />
         </Animated.View>
@@ -132,10 +156,12 @@ export function SignupSchoolStep() {
   const position = signupProgress('school');
   const heroH = Math.round(winH * HERO_RATIO);
 
-  const heroIn = useEnter(0);
-  const tileIn = useEnter(90, 0.94);
-  const titleIn = useEnter(160);
-  const detailIn = useEnter(220);
+  const heroIn = useEnter(ENTER.hero);
+  const tileIn = useEnter(ENTER.tile);
+  const chipIn = useEnter(ENTER.chip);
+  const titleIn = useEnter(ENTER.title);
+  const detailIn = useEnter(ENTER.detail);
+  const bottomIn = useEnter(ENTER.bottom);
 
   const logo = logoUrl ? (
     <FadeImage source={{ uri: logoUrl }} style={s.logo} resizeMode="contain" onError={() => setLogoFailed(true)} />
@@ -172,7 +198,11 @@ export function SignupSchoolStep() {
                 <Initials name={instructor.name} color={instructor.color} />
               )}
             </View>
-            {logo ? <View style={[s.logoChip, CLAY_SHADOW.raise]}>{React.cloneElement(logo, { style: s.logoSmall })}</View> : null}
+            {logo ? (
+              <Animated.View style={[s.logoChip, CLAY_SHADOW.raise, chipIn]}>
+                {React.cloneElement(logo, { style: s.logoSmall })}
+              </Animated.View>
+            ) : null}
           </View>
         ) : (
           <View style={[s.tile, CLAY_SHADOW.raise]}>{logo ?? <Icon3D source={VITA_ART.edificio} size={72} />}</View>
@@ -188,7 +218,7 @@ export function SignupSchoolStep() {
         </Animated.Text>
       </View>
 
-      <View style={[s.bottom, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+      <Animated.View style={[s.bottom, { paddingBottom: Math.max(insets.bottom, 16) + 8 }, bottomIn]}>
         <ClayButton title="Sì, continua" onPress={() => router.push('/(auth)/signup/name')} testID="first-access-cta" />
         <Pressable
           onPress={() => router.back()}
@@ -202,7 +232,7 @@ export function SignupSchoolStep() {
             <Text style={s.belowAction}>Cambia codice</Text>
           </Text>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -261,7 +291,7 @@ const s = StyleSheet.create({
   texts: { paddingHorizontal: 28, marginTop: 26, alignItems: 'center' },
   title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: CLAY.ink, letterSpacing: -0.8, textAlign: 'center' },
   detail: { fontSize: 16, lineHeight: 22, color: CLAY.ink3, marginTop: 8, textAlign: 'center' },
-  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 24, paddingTop: 10, gap: 14, backgroundColor: CLAY.bg },
+  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 24, paddingTop: 10, gap: 14 },
   below: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 12 },
   pressed: { opacity: 0.5 },
   belowText: { fontSize: 15, lineHeight: 20, color: CLAY.ink3 },
